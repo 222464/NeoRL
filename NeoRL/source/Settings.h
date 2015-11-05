@@ -1,0 +1,5 @@
+#pragma once
+
+#define EXPERIMENT_PONG 0
+
+#define EXPERIMENT_SELECTION EXPERIMENT_PONG
