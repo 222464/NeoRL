@@ -21,7 +21,7 @@ namespace neo {
 		};
 
 		struct VisibleLayer {
-			cl::Image2D _reconstructionTemp;
+			cl::Image2D _reconstructionError;
 
 			DoubleBuffer3D _weights;
 
@@ -42,14 +42,13 @@ namespace neo {
 		std::vector<VisibleLayerDesc> _visibleLayerDescs;
 		std::vector<VisibleLayer> _visibleLayers;
 
-		cl::Kernel _reconstructVisibleKernel;
-		cl::Kernel _reconstructionErrorKernel;
-		cl::Kernel _activateFromReconstructionKernel;
+		cl::Kernel _reconstructVisibleErrorKernel;
+		cl::Kernel _activateFromReconstructionErrorKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnBoostsKernel;
 		cl::Kernel _learnWeightsKernel;
 
-		void reconstruct(sys::ComputeSystem &cs);
+		void reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
 
 	public:
 		// Create with randomly initialized weights
