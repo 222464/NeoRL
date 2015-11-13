@@ -33,7 +33,7 @@ namespace neo {
 
 	private:
 		DoubleBuffer2D _hiddenStates;
-		DoubleBuffer2D _hiddenBoosts;
+		DoubleBuffer2D _hiddenThresholds;
 
 		cl_int2 _hiddenSize;
 
@@ -45,7 +45,7 @@ namespace neo {
 		cl::Kernel _reconstructVisibleErrorKernel;
 		cl::Kernel _activateFromReconstructionErrorKernel;
 		cl::Kernel _solveHiddenKernel;
-		cl::Kernel _learnBoostsKernel;
+		cl::Kernel _learnThresholdsKernel;
 		cl::Kernel _learnWeightsKernel;
 
 		void reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
@@ -58,6 +58,6 @@ namespace neo {
 
 		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, int iterations, float stepSize);
 
-		void learn(sys::ComputeSystem &cs, float weightAlpha, float boostAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, float weightAlpha, float thresholdAlpha, float activeRatio);
 	};
 }

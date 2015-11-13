@@ -136,7 +136,7 @@ void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D
 	}
 }
 
-void SparseCoder::learn(sys::ComputeSystem &cs, float weightAlpha, float boostAlpha, float activeRatio) {
+void SparseCoder::learn(sys::ComputeSystem &cs, float weightAlpha, float thresholdAlpha, float activeRatio) {
 	// Learn Thresholds
 	{
 		int argIndex = 0;
@@ -144,7 +144,7 @@ void SparseCoder::learn(sys::ComputeSystem &cs, float weightAlpha, float boostAl
 		_learnThresholdsKernel.setArg(argIndex++, _hiddenThresholds[_back]);
 		_learnThresholdsKernel.setArg(argIndex++, _hiddenThresholds[_front]);
 		_learnThresholdsKernel.setArg(argIndex++, _hiddenStates[_back]);
-		_learnThresholdsKernel.setArg(argIndex++, boostAlpha);
+		_learnThresholdsKernel.setArg(argIndex++, thresholdAlpha);
 		_learnThresholdsKernel.setArg(argIndex++, activeRatio);
 
 		cs.getQueue().enqueueNDRangeKernel(_learnThresholdsKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
@@ -166,6 +166,7 @@ void SparseCoder::learn(sys::ComputeSystem &cs, float weightAlpha, float boostAl
 		_learnWeightsKernel.setArg(argIndex++, vld._size);
 		_learnWeightsKernel.setArg(argIndex++, vl._hiddenToVisible);
 		_learnWeightsKernel.setArg(argIndex++, vld._radius);
+		_learnWeightsKernel.setArg(argIndex++, weightAlpha);
 
 		cs.getQueue().enqueueNDRangeKernel(_learnWeightsKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 

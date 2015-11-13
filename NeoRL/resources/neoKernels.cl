@@ -167,8 +167,46 @@ void kernel scSolveHidden(read_only image2d_t hiddenSummationTemp,
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
 
-void kernel scLearnThresholds() {
+void kernel scLearnThresholds(read_only image2d_t hiddenThresholdsBack, write_only image2d_t hiddenThresholdsFront,
+	read_only image2d_t hiddenStates,
+	float thresholdAlpha, float activeRatio)
+{
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+	
+	float thresholdPrev = read_imagef(hiddenThresholdsBack, hiddenPosition).x;
+
+	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
+
+	float threshold = fmaxf(0.0f, thresholdPrev + thresholdAlpha * (hiddenState - activeRatio));
+
+	write_imagef(hiddenThresholdsFront, hiddenPosition, (float4)(threshold));
 }
 
-void kernel scLearnSparseCoderWeights() {
+void kernel scLearnSparseCoderWeights(read_only image2d_t reconstructionError,
+	read_only image2d_t hiddenStates, read_only image3d_t weightsBack, read_only image3d_t weightsFront,
+	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha)
+{
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * _hiddenToVisible.x, hiddenPosition.y * _hiddenToVisible.y);
+
+	float state = read_imagef(hiddenStates, hiddenPosition).x;
+
+	int wi = 0;
+
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
+
+			if (inBounds(visiblePosition, visibleSize)) {
+				float weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0));
+
+				float error = read_imagef(reconstructionError, visiblePosition).x;
+
+				float weight = weightPrev + weightAlpha * state * error;
+
+				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
+			}
+
+			wi++;
+		}
 }
