@@ -19,7 +19,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_cpu);
+	cs.create(sys::ComputeSystem::_gpu);
 	
 	sys::ComputeProgram prog;
 
@@ -39,7 +39,7 @@ int main() {
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, { -0.01f, 0.01f }, 0.1f, generator);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, { -0.01f, 0.01f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), sampleWidth, sampleHeight);
 
@@ -114,9 +114,9 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 30, 0.05f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 30, 0.1f);
 
-			sparseCoder.learn(cs, 0.001f, 0.01f, 0.2f);
+			sparseCoder.learn(cs, 0.01f, 0.01f, 0.1f);
 		}
 
 		/*if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
@@ -214,8 +214,6 @@ int main() {
 		receptiveFieldsImage.create(codeWidth * dim, codeHeight * dim);
 
 		float scalar = 1.0f / (maxWeight - minWeight);
-
-		std::cout << "MW: " << minWeight << " " << maxWeight << std::endl;
 
 		averageWeight /= count;
 

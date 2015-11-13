@@ -69,7 +69,7 @@ void kernel randomUniform2D(write_only image2d_t values, uint2 seed, float2 minM
 
 // Initialize a random uniform 3D image
 void kernel randomUniform3D(write_only image3d_t values, uint2 seed, float2 minMax) {
-	uint2 seedValue = seed + (uint2)(get_global_id(0) * 12 + 76, get_global_id(1) * 21 + 42) * 12;
+	uint2 seedValue = seed + (uint2)(get_global_id(0) * 12 + 76 + get_global_id(2) * 3, get_global_id(1) * 21 + 42 + get_global_id(2) * 7) * 12;
 
 	int3 position = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
 
@@ -177,7 +177,7 @@ void kernel scLearnThresholds(read_only image2d_t hiddenThresholdsBack, write_on
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float threshold = fmax(0.0f, thresholdPrev + thresholdAlpha * (hiddenState - activeRatio));
+	float threshold = fmax(0.0f, thresholdPrev + thresholdAlpha * ((hiddenState != 0.0f ? 1.0f : 0.0f) - activeRatio));
 
 	write_imagef(hiddenThresholdsFront, hiddenPosition, (float4)(threshold));
 }
@@ -202,7 +202,7 @@ void kernel scLearnSparseCoderWeights(read_only image2d_t reconstructionError,
 
 				float error = read_imagef(reconstructionError, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * state * error;
+				float weight = weightPrev + weightAlpha * state * error;//(error - state * weightPrev);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}

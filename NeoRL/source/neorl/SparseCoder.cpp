@@ -1,9 +1,12 @@
 #include "SparseCoder.h"
 
+#include <iostream>
+
 using namespace neo;
 
 void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-	const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange, cl_float initBoost,
+	const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange, cl_float initThreshold,
+	cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange,
 	std::mt19937 &rng)
 {
 	_visibleLayerDescs = visibleLayerDescs;
@@ -13,6 +16,7 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_visibleLayers.resize(_visibleLayerDescs.size());
 
 	cl::Kernel randomUniform3DKernel = cl::Kernel(program.getProgram(), "randomUniform3D");
+	cl::Kernel randomUniform2DKernel = cl::Kernel(program.getProgram(), "randomUniform2D");
 
 	// Create layers
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -32,6 +36,8 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 		// Create images
 		vl._reconstructionError = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
 
+		randomUniform(vl._reconstructionError, cs, randomUniform2DKernel, vld._size, initReconstructionErrorRange, rng);
+
 		int weightDiam = vld._radius * 2 + 1;
 
 		int numWeights = weightDiam * weightDiam;
@@ -45,18 +51,21 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	// Hidden state data
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize);
+
+	randomUniform(_hiddenStates[_back], cs, randomUniform2DKernel, _hiddenSize, initCodeRange, rng);
+
 	_hiddenThresholds = createDoubleBuffer2D(cs, _hiddenSize);
 
 	_hiddenSummationTemp = createDoubleBuffer2D(cs, _hiddenSize);
 
-	cl_float4 zeroColor = { 0, 0, 0, 0 };
-	cl_float4 boostColor = { initBoost, initBoost, initBoost, initBoost };
+	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+	cl_float4 thresholdColor = { initThreshold, initThreshold, initThreshold, initThreshold };
 
 	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 	cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
 	cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
-	cs.getQueue().enqueueFillImage(_hiddenThresholds[_back], boostColor, zeroOrigin, hiddenRegion);
+	cs.getQueue().enqueueFillImage(_hiddenThresholds[_back], thresholdColor, zeroOrigin, hiddenRegion);
 
 	// Create kernels
 	_reconstructVisibleErrorKernel = cl::Kernel(program.getProgram(), "scReconstructVisibleError");
@@ -64,6 +73,8 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "scSolveHidden");
 	_learnThresholdsKernel = cl::Kernel(program.getProgram(), "scLearnThresholds");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "scLearnSparseCoderWeights");
+
+	std::cout << "Got here";
 }
 
 void SparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates) {
@@ -76,11 +87,12 @@ void SparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl:
 		_reconstructVisibleErrorKernel.setArg(argIndex++, _hiddenStates[_back]);
 		_reconstructVisibleErrorKernel.setArg(argIndex++, visibleStates[vli]);
 		_reconstructVisibleErrorKernel.setArg(argIndex++, vl._reconstructionError);
-		_reconstructVisibleErrorKernel.setArg(argIndex++, vl._weights);
+		_reconstructVisibleErrorKernel.setArg(argIndex++, vl._weights[_back]);
 		_reconstructVisibleErrorKernel.setArg(argIndex++, vld._size);
 		_reconstructVisibleErrorKernel.setArg(argIndex++, _hiddenSize);
 		_reconstructVisibleErrorKernel.setArg(argIndex++, vl._visibleToHidden);
 		_reconstructVisibleErrorKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_reconstructVisibleErrorKernel.setArg(argIndex++, vld._radius);
 		_reconstructVisibleErrorKernel.setArg(argIndex++, vl._reverseRadii);
 
 		cs.getQueue().enqueueNDRangeKernel(_reconstructVisibleErrorKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
@@ -88,9 +100,11 @@ void SparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl:
 }
 
 void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, int iterations, float stepSize) {
+	reconstructError(cs, visibleStates);
+
 	for (int iter = 0; iter < iterations; iter++) {
 		// Start by clearing summation buffer
-		cl_float4 zeroColor = { 0, 0, 0, 0 };
+		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
