@@ -57,11 +57,11 @@ namespace neo {
 			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange,
 			std::mt19937 &rng);
 
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, int iterations, float stepSize);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float stepSize);
 
 		void learn(sys::ComputeSystem &cs, float weightAlpha, float thresholdAlpha, float activeRatio);
 
-		int getNumVisibleLayers() const {
+		size_t getNumVisibleLayers() const {
 			return _visibleLayers.size();
 		}
 

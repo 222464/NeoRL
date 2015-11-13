@@ -49,7 +49,7 @@ bool inBounds0(int2 position, int2 upperBound) {
 }
 
 bool inBounds(int2 position, int2 lowerBound, int2 upperBound) {
-	return position.x >= lowerBound.x && position.x < upperBound.x && position.y >= lowerBound.x && position.y < upperBound.y;
+	return position.x >= lowerBound.x && position.x < upperBound.x && position.y >= lowerBound.y && position.y < upperBound.y;
 }
 
 float thresholdState(float state, float threshold) {
@@ -85,35 +85,35 @@ void kernel scReconstructVisibleError(read_only image2d_t hiddenStates, read_onl
 	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
 {
 	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x, visiblePosition.y * visibleToHidden.y);
+	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
 	
 	float recon = 0.0f;
 
 	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
-	for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
-		int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
+		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
+			int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
 		
-		if (hiddenPosition.x >= 0 && hiddenPosition.x < hiddenSize.x && hiddenPosition.y >= 0 && hiddenPosition.y < hiddenSize.y) {
-			// Next layer node's receptive field
-			int2 fieldCenter = (int2)(hiddenPosition.x * hiddenToVisible.x, hiddenPosition.y * hiddenToVisible.y);
+			if (inBounds0(hiddenPosition, hiddenSize)) {
+				// Next layer node's receptive field
+				int2 fieldCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 
-			int2 fieldLowerBound = fieldCenter - (int2)(radius);
-			int2 fieldUpperBound = fieldCenter + (int2)(radius + 1); // So is included in inBounds
+				int2 fieldLowerBound = fieldCenter - (int2)(radius);
+				int2 fieldUpperBound = fieldCenter + (int2)(radius + 1); // So is included in inBounds
 		
-			// Check for containment
-			if (inBounds(visiblePosition, fieldLowerBound, fieldUpperBound)) {	
-				int2 offset = visiblePosition - fieldLowerBound;
+				// Check for containment
+				if (inBounds(visiblePosition, fieldLowerBound, fieldUpperBound)) {	
+					int2 offset = visiblePosition - fieldLowerBound;
 
-				float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
+					float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-				int wi = offset.y + offset.x * (radius * 2 + 1);
+					int wi = offset.y + offset.x * (radius * 2 + 1);
 
-				float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 				
-				recon += hiddenState * weight;
+					recon += hiddenState * weight;
+				}
 			}
 		}
-	}
 
 	float state = read_imagef(visibleStates, visiblePosition).x;
 
@@ -127,7 +127,7 @@ void kernel scActivateFromReconstructionError(read_only image2d_t reconstruction
 	int2 visibleSize, float2 hiddenToVisible, int radius)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x, hiddenPosition.y * hiddenToVisible.y);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
 	float sum = read_imagef(hiddenSummationTempBack, hiddenPosition).x;
 
@@ -162,7 +162,7 @@ void kernel scSolveHidden(read_only image2d_t hiddenSummationTemp,
 
 	float threshold = read_imagef(hiddenThresholds, hiddenPosition).x;
 
-	float state = thresholdState(statePrev + sum * stepSize, threshold);
+	float state = fmin(1.0f, fmax(-1.0f, thresholdState(statePrev + sum * stepSize, threshold)));
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -187,7 +187,7 @@ void kernel scLearnSparseCoderWeights(read_only image2d_t reconstructionError,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x, hiddenPosition.y * hiddenToVisible.y);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 

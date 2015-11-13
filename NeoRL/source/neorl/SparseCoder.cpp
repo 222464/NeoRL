@@ -1,7 +1,5 @@
 #include "SparseCoder.h"
 
-#include <iostream>
-
 using namespace neo;
 
 void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
@@ -15,9 +13,9 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	_visibleLayers.resize(_visibleLayerDescs.size());
 
-	cl::Kernel randomUniform3DKernel = cl::Kernel(program.getProgram(), "randomUniform3D");
 	cl::Kernel randomUniform2DKernel = cl::Kernel(program.getProgram(), "randomUniform2D");
-
+	cl::Kernel randomUniform3DKernel = cl::Kernel(program.getProgram(), "randomUniform3D");
+	
 	// Create layers
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 		VisibleLayer &vl = _visibleLayers[vli];
@@ -31,7 +29,7 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 			static_cast<float>(_hiddenSize.y) / static_cast<float>(vld._size.y)
 		};
 
-		vl._reverseRadii = cl_int2 { static_cast<int>(std::ceil(vl._visibleToHidden.x * vld._size.x)), static_cast<int>(std::ceil(vl._visibleToHidden.y * vld._size.y)) };
+		vl._reverseRadii = cl_int2 { static_cast<int>(std::ceil(vl._visibleToHidden.x * vld._radius)), static_cast<int>(std::ceil(vl._visibleToHidden.y * vld._radius)) };
 
 		// Create images
 		vl._reconstructionError = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
@@ -73,8 +71,6 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "scSolveHidden");
 	_learnThresholdsKernel = cl::Kernel(program.getProgram(), "scLearnThresholds");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "scLearnSparseCoderWeights");
-
-	std::cout << "Got here";
 }
 
 void SparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates) {
@@ -99,9 +95,7 @@ void SparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl:
 	}
 }
 
-void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, int iterations, float stepSize) {
-	reconstructError(cs, visibleStates);
-
+void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float stepSize) {
 	for (int iter = 0; iter < iterations; iter++) {
 		// Start by clearing summation buffer
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };

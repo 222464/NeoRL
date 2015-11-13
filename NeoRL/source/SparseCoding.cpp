@@ -14,6 +14,10 @@
 #include <iostream>
 #include <random>
 
+float sig(float x) {
+	return 1.0f / (1.0f + std::exp(-x));
+}
+
 int main() {
 	std::mt19937 generator(time(nullptr));
 
@@ -33,15 +37,16 @@ int main() {
 
 	// --------------------------- Create the Sparse Coder ---------------------------
 
+	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), sampleWidth, sampleHeight);
+
 	neo::SparseCoder sparseCoder;
 
 	std::vector<neo::SparseCoder::VisibleLayerDesc> layerDescs(1);
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
+	layerDescs[0]._radius = 8;
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, { -0.01f, 0.01f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
-
-	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), sampleWidth, sampleHeight);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, { -0.5f, 0.5f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 
@@ -106,7 +111,7 @@ int main() {
 					int tx = sampleX + x;
 					int ty = sampleY + y;
 
-					inputf[x + y * sampleWidth] = sampleImage.getPixel(tx, ty).r / 255.0f + noiseDist(generator);
+					inputf[x + y * sampleWidth] = sampleImage.getPixel(tx, ty).r / 255.0f;// +noiseDist(generator);
 				}
 
 			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
@@ -114,70 +119,30 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 30, 0.1f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 17, 0.5f);
 
-			sparseCoder.learn(cs, 0.01f, 0.01f, 0.1f);
+			sparseCoder.learn(cs, 0.01f, 0.01f, 0.05f);
 		}
 
-		/*if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
-			// Perform reconstruction
-			std::vector<float> recon(sampleImage.getSize().x * sampleImage.getSize().y, 0.0f);
-			std::vector<float> sums(sampleImage.getSize().x * sampleImage.getSize().y, 0.0f);
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
+			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
+			cl::array<cl::size_type, 3> region = { sampleWidth, sampleHeight, 1 };
 
-			for (int wx = 0; wx < sampleImage.getSize().x - sampleWidth; wx += 4)
-				for (int wy = 0; wy < sampleImage.getSize().y - sampleHeight; wy += 4) {
-					std::vector<float> inputf(sampleWidth * sampleHeight);
+			std::vector<float> recon(sampleWidth * sampleHeight);
 
-					for (int x = 0; x < sampleWidth; x++)
-						for (int y = 0; y < sampleHeight; y++) {
-							int tx = wx + x;
-							int ty = wy + y;
+			cs.getQueue().enqueueReadImage(sparseCoder.getVisibleLayer(0)._reconstructionError, CL_TRUE, origin, region, 0, 0, recon.data());
 
-							inputf[x + y * sampleWidth] = sampleImage.getPixel(tx, ty).r / 255.0f;
-						}
+			for (int x = 0; x < sampleWidth; x++)
+				for (int y = 0; y < sampleHeight; y++) {
+					sf::Color c = sf::Color::White;
 
-					for (int i = 0; i < inputf.size(); i++)
-						sparseCoder.setVisibleState(i, inputf[i]);
-
-					sparseCoder.activate(30, 5, 0.05f, 0.05f, generator);
-
-					sparseCoder.stepEnd();
-
-					for (int x = 0; x < sampleWidth; x++)
-						for (int y = 0; y < sampleHeight; y++) {
-							int tx = wx + x;
-							int ty = wy + y;
-
-							recon[tx + ty * sampleImage.getSize().x] += sparseCoder.getVisibleRecon(x, y);
-							sums[tx + ty * sampleImage.getSize().x] += 1.0f;
-						}
-				}
-
-			float minimum = 99999.0f;
-			float maximum = -99999.0f;
-
-			for (int x = 0; x < sampleImage.getSize().x; x++)
-				for (int y = 0; y < sampleImage.getSize().y; y++) {
-					recon[x + y * sampleImage.getSize().x] /= sums[x + y * sampleImage.getSize().x];
-
-					minimum = std::min(minimum, recon[x + y * sampleImage.getSize().x]);
-					maximum = std::max(maximum, recon[x + y * sampleImage.getSize().x]);
-				}
-
-			reconstructionImage.create(sampleImage.getSize().x, sampleImage.getSize().y);
-
-			for (int x = 0; x < sampleImage.getSize().x; x++)
-				for (int y = 0; y < sampleImage.getSize().y; y++) {
-					sf::Color c;
-
-					c.r = c.g = c.b = 255.0f * (recon[x + y * sampleImage.getSize().x] - minimum) / (maximum - minimum);
-					c.a = 255;
+					c.r = c.b = c.g = sig(10.0f * recon[x + y * sampleWidth]) * 255.0f;
 
 					reconstructionImage.setPixel(x, y, c);
 				}
 
 			reconstructionTexture.loadFromImage(reconstructionImage);
-		}*/
+		}
 
 		// ----------------------------- Rendering -----------------------------
 
