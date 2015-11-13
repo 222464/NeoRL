@@ -52,6 +52,8 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	randomUniform(_hiddenStates[_back], cs, randomUniform2DKernel, _hiddenSize, initCodeRange, rng);
 
+	_hiddenActivations = createDoubleBuffer2D(cs, _hiddenSize);
+
 	_hiddenThresholds = createDoubleBuffer2D(cs, _hiddenSize);
 
 	_hiddenSummationTemp = createDoubleBuffer2D(cs, _hiddenSize);
@@ -95,8 +97,18 @@ void SparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl:
 	}
 }
 
-void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float stepSize) {
-	for (int iter = 0; iter < iterations; iter++) {
+void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float stepSize, cl_float leak) {
+	// Clear activations
+	{
+		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
+
+		cs.getQueue().enqueueFillImage(_hiddenActivations[_back], zeroColor, zeroOrigin, hiddenRegion);
+	}
+
+	for (cl_int iter = 0; iter < iterations; iter++) {
 		// Start by clearing summation buffer
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
@@ -132,14 +144,18 @@ void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D
 			_solveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
 			_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_back]);
 			_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
+			_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_back]);
+			_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_front]);
 			_solveHiddenKernel.setArg(argIndex++, _hiddenThresholds[_back]);
 			_solveHiddenKernel.setArg(argIndex++, stepSize);
+			_solveHiddenKernel.setArg(argIndex++, leak);
 
 			cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 		}
 
 		// Swap hidden state buffers
 		std::swap(_hiddenStates[_front], _hiddenStates[_back]);
+		std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
 
 		reconstructError(cs, visibleStates);
 	}

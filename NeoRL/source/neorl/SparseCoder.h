@@ -33,6 +33,7 @@ namespace neo {
 
 	private:
 		DoubleBuffer2D _hiddenStates;
+		DoubleBuffer2D _hiddenActivations;
 		DoubleBuffer2D _hiddenThresholds;
 
 		cl_int2 _hiddenSize;
@@ -57,7 +58,7 @@ namespace neo {
 			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange,
 			std::mt19937 &rng);
 
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float stepSize);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float stepSize, cl_float leak);
 
 		void learn(sys::ComputeSystem &cs, float weightAlpha, float thresholdAlpha, float activeRatio);
 

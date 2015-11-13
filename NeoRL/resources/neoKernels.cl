@@ -52,10 +52,6 @@ bool inBounds(int2 position, int2 lowerBound, int2 upperBound) {
 	return position.x >= lowerBound.x && position.x < upperBound.x && position.y >= lowerBound.y && position.y < upperBound.y;
 }
 
-float thresholdState(float state, float threshold) {
-	return fmax(0.0f, fabs(state) - threshold) * (state > 0.0f ? 1.0f : -1.0f);
-}
-
 // Initialize a random uniform 2D image
 void kernel randomUniform2D(write_only image2d_t values, uint2 seed, float2 minMax) {
 	uint2 seedValue = seed + (uint2)(get_global_id(0) * 29 + 12, get_global_id(1) * 16 + 23) * 36;
@@ -131,40 +127,47 @@ void kernel scActivateFromReconstructionError(read_only image2d_t reconstruction
 	
 	float sum = read_imagef(hiddenSummationTempBack, hiddenPosition).x;
 
-	int wi = 0;
+	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
 			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
 
 			if (inBounds0(visiblePosition, visibleSize)) {
+				int2 offset = visiblePosition - fieldLowerBound;
+
+				int wi = offset.y + offset.x * (radius * 2 + 1);
+
 				float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
 				float error = read_imagef(reconstructionError, visiblePosition).x;
 
 				sum += weight * error;
 			}
-
-			wi++;
 		}
 
 	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum));
 }
 
 void kernel scSolveHidden(read_only image2d_t hiddenSummationTemp,
-	read_only image2d_t hiddenStatesBack, write_only image2d_t hiddenStatesFront, read_only image2d_t hiddenThresholds, float stepSize) 
+	read_only image2d_t hiddenStatesBack, write_only image2d_t hiddenStatesFront, 
+	read_only image2d_t hiddenActivationsBack, write_only image2d_t hiddenActivationsFront, 
+	read_only image2d_t hiddenThresholds, float stepSize, float leak) 
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	
 	float sum = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
-	float statePrev = read_imagef(hiddenStatesBack, hiddenPosition).x;
+	float activation = read_imagef(hiddenActivationsBack, hiddenPosition).x;
+
+	activation = (1.0f - leak) * activation + stepSize * sum;
 
 	float threshold = read_imagef(hiddenThresholds, hiddenPosition).x;
 
-	float state = fmin(1.0f, fmax(-1.0f, thresholdState(statePrev + sum * stepSize, threshold)));
-
+	float state = fmin(1.0f, fmax(-1.0f, fmax(0.0f, fabs(activation) - threshold) * (activation > 0.0f ? 1.0f : -1.0f)));
+	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
+	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(activation));
 }
 
 void kernel scLearnThresholds(read_only image2d_t hiddenThresholdsBack, write_only image2d_t hiddenThresholdsFront,
@@ -189,24 +192,26 @@ void kernel scLearnSparseCoderWeights(read_only image2d_t reconstructionError,
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 
-	float state = read_imagef(hiddenStates, hiddenPosition).x;
+	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
-	int wi = 0;
+	float state = read_imagef(hiddenStates, hiddenPosition).x;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
 			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
 
 			if (inBounds0(visiblePosition, visibleSize)) {
+				int2 offset = visiblePosition - fieldLowerBound;
+
+				int wi = offset.y + offset.x * (radius * 2 + 1);
+
 				float weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
 				float error = read_imagef(reconstructionError, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * state * error;//(error - state * weightPrev);
+				float weight = weightPrev + weightAlpha * state * error;
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
-
-			wi++;
 		}
 }
