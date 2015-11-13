@@ -44,7 +44,7 @@ float sigmoid(float x) {
 	return 1.0f / (1.0f + exp(-x));
 }
 
-bool inBounds(int2 position, int2 upperBound) {
+bool inBounds0(int2 position, int2 upperBound) {
 	return position.x >= 0 && position.x < upperBound.x && position.y >= 0 && position.y < upperBound.y;
 }
 
@@ -53,7 +53,7 @@ bool inBounds(int2 position, int2 lowerBound, int2 upperBound) {
 }
 
 float thresholdState(float state, float threshold) {
-	return fmaxf(0.0f, fabsf(state) - threshold) * (state > 0.0f ? 1.0f : 0.0f);
+	return fmax(0.0f, fabs(state) - threshold) * (state > 0.0f ? 1.0f : -1.0f);
 }
 
 // Initialize a random uniform 2D image
@@ -64,7 +64,7 @@ void kernel randomUniform2D(write_only image2d_t values, uint2 seed, float2 minM
 
 	float value = randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x;
 
-	write_imagef(values, position, (float4)(weight));
+	write_imagef(values, position, (float4)(value));
 }
 
 // Initialize a random uniform 3D image
@@ -75,7 +75,7 @@ void kernel randomUniform3D(write_only image3d_t values, uint2 seed, float2 minM
 
 	float value = randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x;
 
-	write_imagef(values, position, (float4)(weight));
+	write_imagef(values, (int4)(position, 0), (float4)(value));
 }
 
 // ----------------------------------------- Sparse Coder -----------------------------------------
@@ -119,7 +119,7 @@ void kernel scReconstructVisibleError(read_only image2d_t hiddenStates, read_onl
 
 	float error = state - recon;
 
-	write_imagef(reconstructionError, inputPosition, (float4)(error));
+	write_imagef(reconstructionError, visiblePosition, (float4)(error));
 }
 
 void kernel scActivateFromReconstructionError(read_only image2d_t reconstructionError,
@@ -127,7 +127,7 @@ void kernel scActivateFromReconstructionError(read_only image2d_t reconstruction
 	int2 visibleSize, float2 hiddenToVisible, int radius)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)(hiddenPosition.x * _hiddenToVisible.x, hiddenPosition.y * _hiddenToVisible.y);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x, hiddenPosition.y * hiddenToVisible.y);
 	
 	float sum = read_imagef(hiddenSummationTempBack, hiddenPosition).x;
 
@@ -137,8 +137,8 @@ void kernel scActivateFromReconstructionError(read_only image2d_t reconstruction
 		for (int dy = -radius; dy <= radius; dy++) {
 			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
 
-			if (inBounds(visiblePosition, visibleSize)) {
-				float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0));
+			if (inBounds0(visiblePosition, visibleSize)) {
+				float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
 				float error = read_imagef(reconstructionError, visiblePosition).x;
 
@@ -177,17 +177,17 @@ void kernel scLearnThresholds(read_only image2d_t hiddenThresholdsBack, write_on
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float threshold = fmaxf(0.0f, thresholdPrev + thresholdAlpha * (hiddenState - activeRatio));
+	float threshold = fmax(0.0f, thresholdPrev + thresholdAlpha * (hiddenState - activeRatio));
 
 	write_imagef(hiddenThresholdsFront, hiddenPosition, (float4)(threshold));
 }
 
 void kernel scLearnSparseCoderWeights(read_only image2d_t reconstructionError,
-	read_only image2d_t hiddenStates, read_only image3d_t weightsBack, read_only image3d_t weightsFront,
+	read_only image2d_t hiddenStates, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)(hiddenPosition.x * _hiddenToVisible.x, hiddenPosition.y * _hiddenToVisible.y);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x, hiddenPosition.y * hiddenToVisible.y);
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 
@@ -197,8 +197,8 @@ void kernel scLearnSparseCoderWeights(read_only image2d_t reconstructionError,
 		for (int dy = -radius; dy <= radius; dy++) {
 			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
 
-			if (inBounds(visiblePosition, visibleSize)) {
-				float weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0));
+			if (inBounds0(visiblePosition, visibleSize)) {
+				float weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
 				float error = read_imagef(reconstructionError, visiblePosition).x;
 

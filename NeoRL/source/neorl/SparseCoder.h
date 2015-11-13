@@ -59,5 +59,29 @@ namespace neo {
 		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, int iterations, float stepSize);
 
 		void learn(sys::ComputeSystem &cs, float weightAlpha, float thresholdAlpha, float activeRatio);
+
+		int getNumVisibleLayers() const {
+			return _visibleLayers.size();
+		}
+
+		const VisibleLayer &getVisibleLayer(int index) const {
+			return _visibleLayers[index];
+		}
+
+		const VisibleLayerDesc &getVisibleLayerDesc(int index) const {
+			return _visibleLayerDescs[index];
+		}
+
+		cl_int2 getHiddenSize() const {
+			return _hiddenSize;
+		}
+
+		const DoubleBuffer2D &getHiddenStates() const {
+			return _hiddenStates;
+		}
+
+		const DoubleBuffer2D &getHiddenThresholds() const {
+			return _hiddenThresholds;
+		}
 	};
 }

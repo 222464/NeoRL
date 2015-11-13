@@ -27,7 +27,7 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 			static_cast<float>(_hiddenSize.y) / static_cast<float>(vld._size.y)
 		};
 
-		vl._reverseRadii = cl_int2{ std::ceil(vl._visibleToHidden.x * vld._size.x), std::ceil(vl._visibleToHidden.y * vld._size.y) };
+		vl._reverseRadii = cl_int2 { static_cast<int>(std::ceil(vl._visibleToHidden.x * vld._size.x)), static_cast<int>(std::ceil(vl._visibleToHidden.y * vld._size.y)) };
 
 		// Create images
 		vl._reconstructionError = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
@@ -106,6 +106,7 @@ void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D
 			_activateFromReconstructionErrorKernel.setArg(argIndex++, vl._reconstructionError);
 			_activateFromReconstructionErrorKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
 			_activateFromReconstructionErrorKernel.setArg(argIndex++, _hiddenSummationTemp[_front]);
+			_activateFromReconstructionErrorKernel.setArg(argIndex++, vl._weights[_back]);
 			_activateFromReconstructionErrorKernel.setArg(argIndex++, vld._size);
 			_activateFromReconstructionErrorKernel.setArg(argIndex++, vl._hiddenToVisible);
 			_activateFromReconstructionErrorKernel.setArg(argIndex++, vld._radius);
