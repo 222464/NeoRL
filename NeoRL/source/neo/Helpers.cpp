@@ -2,20 +2,20 @@
 
 using namespace neo;
 
-DoubleBuffer2D neo::createDoubleBuffer2D(sys::ComputeSystem &cs, cl_int2 size) {
+DoubleBuffer2D neo::createDoubleBuffer2D(sys::ComputeSystem &cs, cl_int2 size, cl_channel_order channelOrder, cl_channel_type channelType) {
 	DoubleBuffer2D db;
 	
-	db[_front] = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), size.x, size.y);
-	db[_back] = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), size.x, size.y);
+	db[_front] = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(channelOrder, channelType), size.x, size.y);
+	db[_back] = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(channelOrder, channelType), size.x, size.y);
 
 	return db;
 }
 
-DoubleBuffer3D neo::createDoubleBuffer3D(sys::ComputeSystem &cs, cl_int3 size) {
+DoubleBuffer3D neo::createDoubleBuffer3D(sys::ComputeSystem &cs, cl_int3 size, cl_channel_order channelOrder, cl_channel_type channelType) {
 	DoubleBuffer3D db;
 
-	db[_front] = cl::Image3D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), size.x, size.y, size.z);
-	db[_back] = cl::Image3D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), size.x, size.y, size.z);
+	db[_front] = cl::Image3D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(channelOrder, channelType), size.x, size.y, size.z);
+	db[_back] = cl::Image3D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(channelOrder, channelType), size.x, size.y, size.z);
 
 	return db;
 }

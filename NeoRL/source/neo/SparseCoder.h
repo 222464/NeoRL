@@ -48,6 +48,7 @@ namespace neo {
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnThresholdsKernel;
 		cl::Kernel _learnWeightsKernel;
+		cl::Kernel _learnWeightsTracesKernel;
 
 		void reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
 
@@ -56,11 +57,13 @@ namespace neo {
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange, cl_float initThreshold,
 			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange,
+			bool enableTraces,
 			std::mt19937 &rng);
 
 		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float stepSize, cl_float leak);
 
 		void learn(sys::ComputeSystem &cs, float weightAlpha, float thresholdAlpha, float activeRatio);
+		void learnTrace(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio);
 
 		size_t getNumVisibleLayers() const {
 			return _visibleLayers.size();

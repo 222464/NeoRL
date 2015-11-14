@@ -52,7 +52,7 @@ int main() {
 
 	sf::Image sampleImage;
 
-	sampleImage.loadFromFile("testImage.png");
+	sampleImage.loadFromFile("testImage_whitened.png");
 
 	sf::Texture sampleTexture;
 
@@ -114,14 +114,37 @@ int main() {
 					inputf[x + y * sampleWidth] = sampleImage.getPixel(tx, ty).r / 255.0f;// +noiseDist(generator);
 				}
 
+			// Normalize
+			float average = 0.0f;
+
+			for (int i = 0; i < inputf.size(); i++) {
+				average += inputf[i];
+			}
+
+			average /= inputf.size();
+
+			float variance = 0.0f;
+
+			for (int i = 0; i < inputf.size(); i++) {
+				inputf[i] -= average;
+
+				variance += inputf[i] * inputf[i];
+			}
+
+			variance /= inputf.size();
+
+			for (int i = 0; i < inputf.size(); i++) {
+				//inputf[i] /= variance;
+			}
+
 			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
 			cl::array<cl::size_type, 3> region = { sampleWidth, sampleHeight, 1 };
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 30, 0.5f, 0.1f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 20, 0.5f, 0.2f);
 
-			sparseCoder.learn(cs, 0.05f, 0.01f, 0.2f);
+			sparseCoder.learn(cs, 0.2f, 0.01f, 0.2f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
