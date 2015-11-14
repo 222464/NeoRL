@@ -1,6 +1,6 @@
 #include <Settings.h>
 
-#if SUBPROGRAM_EXECUTE == BINH_TEST
+#if EXPERIMENT_SELECTION == BINH_TEST
 
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>

@@ -31,7 +31,7 @@ namespace neo {
 				_scWeightAlpha(0.001f), _scThresholdAlpha(0.01f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.5f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.05f)
+				_predWeightAlpha(0.01f)
 			{}
 		};
 
@@ -56,7 +56,7 @@ namespace neo {
 		cl_float _predWeightAlpha;
 
 		PredictiveHierarchy()
-			: _predWeightAlpha(0.02f)
+			: _predWeightAlpha(0.01f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
