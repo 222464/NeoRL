@@ -25,13 +25,13 @@ namespace neo {
 			cl_float _predWeightAlpha;
 
 			LayerDesc()
-				: _size({ 16, 16 }),
+				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _feedBackRadius(4), _predictiveRadius(4),
-				_scIterations(17), _scStepSize(0.05f), _scLeak(0.2f),
-				_scWeightAlpha(0.01f), _scThresholdAlpha(0.01f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.1f),
+				_scIterations(17), _scStepSize(0.5f), _scLeak(0.1f),
+				_scWeightAlpha(0.001f), _scThresholdAlpha(0.01f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.5f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.01f)
+				_predWeightAlpha(0.02f)
 			{}
 		};
 
@@ -65,6 +65,10 @@ namespace neo {
 			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange, std::mt19937 &rng);
 
 		void simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn = true);
+
+		size_t getNumLayers() const {
+			return _layers.size();
+		}
 
 		const Layer &getLayer(int index) const {
 			return _layers[index];

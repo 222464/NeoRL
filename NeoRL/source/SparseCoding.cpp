@@ -8,7 +8,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 
-#include <neorl/SparseCoder.h>
+#include <neo/SparseCoder.h>
 
 #include <time.h>
 #include <iostream>
@@ -46,13 +46,13 @@ int main() {
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 8;
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, { -0.01f, 0.01f }, 0.04f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, { -0.01f, 0.01f }, 0.04f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, false, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 
 	sf::Image sampleImage;
 
-	sampleImage.loadFromFile("testImage_whitened.png");
+	sampleImage.loadFromFile("testImage.png");
 
 	sf::Texture sampleTexture;
 
@@ -133,8 +133,10 @@ int main() {
 
 			variance /= inputf.size();
 
+			variance = std::sqrt(variance);
+
 			for (int i = 0; i < inputf.size(); i++) {
-				//inputf[i] /= variance;
+				inputf[i] /= variance;
 			}
 
 			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
@@ -144,7 +146,7 @@ int main() {
 
 			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 20, 0.5f, 0.2f);
 
-			sparseCoder.learn(cs, 0.2f, 0.01f, 0.2f);
+			sparseCoder.learn(cs, 0.001f, 0.01f, 0.1f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {

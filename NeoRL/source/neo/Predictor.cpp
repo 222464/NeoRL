@@ -54,7 +54,7 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivate");
 	_solveHiddenThresholdKernel = cl::Kernel(program.getProgram(), "predSolveHiddenThreshold");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHidden");
-	_learnWeightsKernel = cl::Kernel(program.getProgram(), "scLearnPredictorWeights");
+	_learnWeightsKernel = cl::Kernel(program.getProgram(), "predLearnWeights");
 }
 
 void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates) {
@@ -92,8 +92,6 @@ void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> 
 		_solveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_back]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
-		_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_back]);
-		_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_front]);
 
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
@@ -161,7 +159,7 @@ void Predictor::learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::v
 
 		_learnWeightsKernel.setArg(argIndex++, visibleStatesPrev[vli]);
 		_learnWeightsKernel.setArg(argIndex++, targets);
-		_learnWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_learnWeightsKernel.setArg(argIndex++, _hiddenStates[_front]);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_back]);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_front]);
 		_learnWeightsKernel.setArg(argIndex++, vld._size);

@@ -96,45 +96,47 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 		}
 
-		_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
-	
-		{
-			std::vector<cl::Image2D> visibleStates;
-			std::vector<cl::Image2D> visibleStatesPrev;
+		prevLayerState = _layers[l]._sc.getHiddenStates()[_back];
+	}
 
-			if (l < _layers.size() - 1) {
-				visibleStates.resize(2);
+	for (int l = _layers.size() - 1; l >= 0; l--) {
+		std::vector<cl::Image2D> visibleStates;
+		std::vector<cl::Image2D> visibleStatesPrev;
 
-				visibleStates[0] = _layers[l + 1]._pred.getHiddenStates()[_back];
-				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
+		if (l < _layers.size() - 1) {
+			visibleStates.resize(2);
 
-				visibleStatesPrev.resize(2);
+			visibleStates[0] = _layers[l + 1]._pred.getHiddenStates()[_back];
+			visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
 
-				visibleStatesPrev[0] = _layers[l + 1]._pred.getHiddenStates()[_front];
-				visibleStatesPrev[1] = _layers[l]._sc.getHiddenStates()[_front];
-			}
-			else {
-				visibleStates.resize(1);
+			visibleStatesPrev.resize(2);
 
-				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
-
-				visibleStatesPrev.resize(1);
-
-				visibleStatesPrev[1] = _layers[l]._sc.getHiddenStates()[_front];
-			}
-
-			_layers[l]._pred.activate(cs, _layers[l]._sc.getHiddenThresholds()[_back], visibleStates);
-		
-			_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+			visibleStatesPrev[0] = _layers[l + 1]._pred.getHiddenStates()[_front];
+			visibleStatesPrev[1] = _layers[l]._sc.getHiddenStates()[_front];
 		}
+		else {
+			visibleStates.resize(1);
+
+			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
+
+			visibleStatesPrev.resize(1);
+
+			visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+		}
+
+		_layers[l]._pred.activate(cs, visibleStates);
+
+		_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+
+		_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 	}
 
 	{
 		std::vector<cl::Image2D> visibleStates(1);
 		std::vector<cl::Image2D> visibleStatesPrev(1);
 
-		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
-		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
+		visibleStates[0] = _layers.front()._sc.getHiddenStates()[_back];
+		visibleStatesPrev[0] = _layers.front()._sc.getHiddenStates()[_front];
 
 		_firstLayerPred.activate(cs, visibleStates);
 

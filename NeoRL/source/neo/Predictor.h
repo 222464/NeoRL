@@ -16,7 +16,7 @@ namespace neo {
 			cl_int _radius;
 
 			VisibleLayerDesc()
-				: _size({ 16, 16 }), _radius(4)
+				: _size({ 8, 8 }), _radius(4)
 			{}
 		};
 
