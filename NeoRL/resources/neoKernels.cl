@@ -22,6 +22,8 @@ constant sampler_t defaultUnnormalizedSampler = CLK_NORMALIZED_COORDS_FALSE |
 
 // ----------------------------------------- Common -----------------------------------------
 
+constant minFloatEpsilon = 0.0001f;
+
 float randFloat(uint2* state) {
 	const float invMaxInt = 1.0f / 4294967296.0f;
 	uint x = (*state).x * 17 + (*state).y * 13123;
@@ -180,7 +182,7 @@ void kernel scLearnThresholds(read_only image2d_t hiddenThresholdsBack, write_on
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float threshold = fmax(0.0f, thresholdPrev + thresholdAlpha * ((hiddenState != 0.0f ? 1.0f : 0.0f) - activeRatio));
+	float threshold = fmax(0.0f, thresholdPrev + thresholdAlpha * ((fabs(hiddenState) > minFloatEpsilon ? 1.0f : 0.0f) - activeRatio));
 
 	write_imagef(hiddenThresholdsFront, hiddenPosition, (float4)(threshold));
 }

@@ -48,15 +48,13 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		_layers[l]._baseLines = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
 
 		_layers[l]._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
-		_layers[l]._hiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
-
+	
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
 
 		cs.getQueue().enqueueFillImage(_layers[l]._baseLines[_back], zeroColor, zeroOrigin, layerRegion);
-		cs.getQueue().enqueueFillImage(_layers[l]._hiddenStatesPrev, zeroColor, zeroOrigin, layerRegion);
 	}
 
 	std::vector<Predictor::VisibleLayerDesc> predDescs(1);
@@ -114,7 +112,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStatesPrev.resize(2);
 
 			visibleStatesPrev[0] = _layers[l + 1]._pred.getHiddenStates()[_front];
-			visibleStatesPrev[1] = _layers[l]._hiddenStatesPrev;
+			visibleStatesPrev[1] = _layers[l]._sc.getHiddenStates()[_front];
 		}
 		else {
 			visibleStates.resize(1);
@@ -123,7 +121,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 
 			visibleStatesPrev.resize(1);
 
-			visibleStatesPrev[0] = _layers[l]._hiddenStatesPrev;
+			visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 		}
 
 		_layers[l]._pred.activate(cs, visibleStates);
@@ -143,15 +141,5 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 		_firstLayerPred.activate(cs, visibleStates);
 
 		_firstLayerPred.learn(cs, input, visibleStatesPrev, _predWeightAlpha);
-	}
-
-	// Copy to prev buffers
-	for (int l = 0; l < _layers.size(); l++) {
-		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
-
-		cs.getQueue().enqueueCopyImage(_layers[l]._sc.getHiddenStates()[_back], _layers[l]._hiddenStatesPrev, zeroOrigin, zeroOrigin, layerRegion);
 	}
 }
