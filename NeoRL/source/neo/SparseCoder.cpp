@@ -120,6 +120,16 @@ void SparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl:
 void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int settleIterations, cl_int measureIterations, cl_float leak) {
 	const float measureIterationsInv = 1.0f / measureIterations;
 	
+	// Clear previous aggregate state information
+	{
+		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
+
+		cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
+	}
+
 	for (cl_int iter = 0; iter < settleIterations + measureIterations; iter++) {
 		// Start by clearing summation buffer
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
