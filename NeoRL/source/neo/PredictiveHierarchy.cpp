@@ -124,7 +124,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 		}
 
-		_layers[l]._pred.activate(cs, _layers[l]._sc.getHiddenThresholds()[_back], visibleStates);
+		_layers[l]._pred.activate(cs, visibleStates, true);
 
 		_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 
@@ -138,7 +138,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
 		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
 
-		_firstLayerPred.activate(cs, visibleStates);
+		_firstLayerPred.activate(cs, visibleStates, false);
 
 		_firstLayerPred.learn(cs, input, visibleStatesPrev, _predWeightAlpha);
 	}

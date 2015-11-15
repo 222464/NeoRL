@@ -48,8 +48,7 @@ namespace neo {
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange, 
 			std::mt19937 &rng);
 
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
-		void activate(sys::ComputeSystem &cs, const cl::Image2D &thresholds, const std::vector<cl::Image2D> &visibleStates);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold);
 
 		void learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha);
 
