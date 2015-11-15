@@ -89,7 +89,7 @@ int main() {
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { inputsRoot, inputsRoot }, 8, layerDescs, { -0.01f, 0.01f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { inputsRoot, inputsRoot }, 16, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inputsRoot, inputsRoot);
 
