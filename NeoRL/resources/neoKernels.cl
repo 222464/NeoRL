@@ -166,7 +166,7 @@ void kernel scSolveHidden(read_only image2d_t hiddenSummationTemp,
 
 	float threshold = read_imagef(hiddenThresholds, hiddenPosition).x;
 
-	float state = activation > threshold ? 1.0f : 0.0f;//fmin(1.0f, fmax(-1.0f, fmax(0.0f, fabs(activation) - threshold) * (activation > 0.0f ? 1.0f : -1.0f)));
+	float state = fmin(1.0f, fmax(-1.0f, fmax(0.0f, fabs(activation) - threshold) * (activation > 0.0f ? 1.0f : -1.0f)));
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(activation));
@@ -306,7 +306,7 @@ void kernel predSolveHiddenThreshold(read_only image2d_t hiddenSummationTemp,
 
 	float threshold = read_imagef(hiddenThresholds, hiddenPosition).x;
 
-	float state = sum > threshold ? 1.0f : 0.0f;//fmin(1.0f, fmax(-1.0f, fmax(0.0f, fabs(sum) - threshold) * (sum > 0.0f ? 1.0f : -1.0f)));
+	float state = fmin(1.0f, fmax(-1.0f, fmax(0.0f, fabs(sum) - threshold) * (sum > 0.0f ? 1.0f : -1.0f)));
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(sum));

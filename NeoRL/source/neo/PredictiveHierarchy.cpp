@@ -42,7 +42,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 		}
 
-		_layers[l]._pred.createRandom(cs, program, predDescs, inputSize, initWeightRange, rng);
+		_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, rng);
 
 		// Create baselines
 		_layers[l]._baseLines = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
@@ -124,7 +124,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates);
+		_layers[l]._pred.activate(cs, _layers[l]._sc.getHiddenThresholds()[_back], visibleStates);
 
 		_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 
