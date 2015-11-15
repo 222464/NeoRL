@@ -46,7 +46,7 @@ int main() {
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 8;
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, { -0.01f, 0.01f }, 0.04f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, false, generator);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 5, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.04f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, false, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 
@@ -144,9 +144,9 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 20, 0.5f, 0.2f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 20, 5, 0.2f);
 
-			sparseCoder.learn(cs, 0.001f, 0.01f, 0.1f);
+			sparseCoder.learn(cs, 0.001f, 0.1f, 0.01f, 0.1f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
@@ -243,7 +243,7 @@ int main() {
 		
 		for (int sx = 0; sx < codeWidth; sx++)
 			for (int sy = 0; sy < codeHeight; sy++) {
-				if (codes[sx + sy * codeWidth] != 0.0f) {
+				if (codes[sx + sy * codeWidth] > 0.0f) {
 					sf::RectangleShape rs;
 
 					rs.setPosition(sx * dim * scale, sy * dim * scale);

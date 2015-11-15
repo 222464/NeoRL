@@ -216,7 +216,7 @@ void kernel scLearnThresholds(read_only image2d_t hiddenThresholdsBack, write_on
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float threshold = fmax(0.0f, thresholdPrev + thresholdAlpha * (hiddenState - activeRatio));
+	float threshold = thresholdPrev + thresholdAlpha * (hiddenState - activeRatio);
 
 	write_imagef(hiddenThresholdsFront, hiddenPosition, (float4)(threshold));
 }

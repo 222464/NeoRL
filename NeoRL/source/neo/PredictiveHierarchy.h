@@ -28,7 +28,7 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(4), _feedBackRadius(5), _predictiveRadius(5),
-				_scSettleIterations(17), _scMeasureIterations(4), _scLeak(0.1f),
+				_scSettleIterations(30), _scMeasureIterations(8), _scLeak(0.1f),
 				_scWeightAlpha(0.001f), _scLateralWeightAlpha(0.1f), _scThresholdAlpha(0.01f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.1f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
