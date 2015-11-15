@@ -3,7 +3,7 @@
 using namespace neo;
 
 void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-	const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange, cl_float initThreshold,
+	const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
 	cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange,
 	bool enableTraces,
 	std::mt19937 &rng)
@@ -13,6 +13,8 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_visibleLayerDescs = visibleLayerDescs;
 
 	_hiddenSize = hiddenSize;
+
+	_lateralRadius = lateralRadius;
 
 	_visibleLayers.resize(_visibleLayerDescs.size());
 
@@ -52,14 +54,24 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	// Hidden state data
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
-
-	randomUniform(_hiddenStates[_back], cs, randomUniform2DKernel, _hiddenSize, initCodeRange, rng);
-
+	_hiddenSpikes = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 	_hiddenActivations = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
 	_hiddenThresholds = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
 	_hiddenSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
+
+	{
+		int lateralWeightDiam = lateralRadius * 2 + 1;
+
+		int numLateralWeights = lateralWeightDiam * lateralWeightDiam;
+
+		cl_int3 lateralWeightsSize = cl_int3{ _hiddenSize.x, _hiddenSize.y, numLateralWeights };
+
+		_lateralWeights = createDoubleBuffer3D(cs, lateralWeightsSize, CL_R, CL_FLOAT);
+	
+		randomUniform(_lateralWeights[_back], cs, randomUniform3DKernel, lateralWeightsSize, initLateralWeightRange, rng);
+	}
 
 	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 	cl_float4 thresholdColor = { initThreshold, initThreshold, initThreshold, initThreshold };
@@ -69,6 +81,10 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	cs.getQueue().enqueueFillImage(_hiddenThresholds[_back], thresholdColor, zeroOrigin, hiddenRegion);
 
+	cs.getQueue().enqueueFillImage(_hiddenSpikes[_back], zeroColor, zeroOrigin, hiddenRegion);
+	cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
+	cs.getQueue().enqueueFillImage(_hiddenActivations[_back], zeroColor, zeroOrigin, hiddenRegion);
+
 	// Create kernels
 	_reconstructVisibleErrorKernel = cl::Kernel(program.getProgram(), "scReconstructVisibleError");
 	_activateFromReconstructionErrorKernel = cl::Kernel(program.getProgram(), "scActivateFromReconstructionError");
@@ -76,6 +92,7 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_learnThresholdsKernel = cl::Kernel(program.getProgram(), "scLearnThresholds");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "scLearnSparseCoderWeights");
 	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "scLearnSparseCoderWeightsTraces");
+	_learnWeightsLateralKernel = cl::Kernel(program.getProgram(), "scLearnSparseCoderWeightsLateral");
 }
 
 void SparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates) {
@@ -100,18 +117,10 @@ void SparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl:
 	}
 }
 
-void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float stepSize, cl_float leak) {
-	// Clear activations
-	{
-		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
-
-		cs.getQueue().enqueueFillImage(_hiddenActivations[_back], zeroColor, zeroOrigin, hiddenRegion);
-	}
-
-	for (cl_int iter = 0; iter < iterations; iter++) {
+void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int settleIterations, cl_int measureIterations, cl_float leak) {
+	const float measureIterationsInv = 1.0f / measureIterations;
+	
+	for (cl_int iter = 0; iter < settleIterations + measureIterations; iter++) {
 		// Start by clearing summation buffer
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
@@ -145,18 +154,24 @@ void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D
 			int argIndex = 0;
 
 			_solveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+			_solveHiddenKernel.setArg(argIndex++, _hiddenSpikes[_back]);
+			_solveHiddenKernel.setArg(argIndex++, _hiddenSpikes[_front]);
 			_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_back]);
 			_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
 			_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_back]);
 			_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_front]);
 			_solveHiddenKernel.setArg(argIndex++, _hiddenThresholds[_back]);
-			_solveHiddenKernel.setArg(argIndex++, stepSize);
+			_solveHiddenKernel.setArg(argIndex++, _lateralWeights[_back]);
+			_solveHiddenKernel.setArg(argIndex++, _hiddenSize);
+			_solveHiddenKernel.setArg(argIndex++, _lateralRadius);
 			_solveHiddenKernel.setArg(argIndex++, leak);
+			_solveHiddenKernel.setArg(argIndex++, iter >= settleIterations ? measureIterationsInv : 0.0f);
 
 			cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 		}
 
 		// Swap hidden state buffers
+		std::swap(_hiddenSpikes[_front], _hiddenSpikes[_back]);
 		std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 		std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
 
@@ -164,7 +179,7 @@ void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D
 	}
 }
 
-void SparseCoder::learn(sys::ComputeSystem &cs, float weightAlpha, float thresholdAlpha, float activeRatio) {
+void SparseCoder::learn(sys::ComputeSystem &cs, float weightAlpha, float weightLateralAlpha, float thresholdAlpha, float activeRatio) {
 	// Learn Thresholds
 	{
 		int argIndex = 0;
@@ -200,9 +215,26 @@ void SparseCoder::learn(sys::ComputeSystem &cs, float weightAlpha, float thresho
 
 		std::swap(vl._weights[_front], vl._weights[_back]);
 	}
+
+	// Learn lateral weights
+	{
+		int argIndex = 0;
+
+		_learnWeightsLateralKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_learnWeightsLateralKernel.setArg(argIndex++, _lateralWeights[_back]);
+		_learnWeightsLateralKernel.setArg(argIndex++, _lateralWeights[_front]);
+		_learnWeightsLateralKernel.setArg(argIndex++, _hiddenSize);
+		_learnWeightsLateralKernel.setArg(argIndex++, _lateralRadius);
+		_learnWeightsLateralKernel.setArg(argIndex++, weightLateralAlpha);
+		_learnWeightsLateralKernel.setArg(argIndex++, activeRatio * activeRatio);
+
+		cs.getQueue().enqueueNDRangeKernel(_learnWeightsLateralKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+		std::swap(_lateralWeights[_front], _lateralWeights[_back]);
+	}
 }
 
-void SparseCoder::learnTrace(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio) {
+void SparseCoder::learnTrace(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightAlpha, float weightLateralAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio) {
 	// Learn Thresholds
 	{
 		int argIndex = 0;
@@ -239,5 +271,22 @@ void SparseCoder::learnTrace(sys::ComputeSystem &cs, const cl::Image2D &rewards,
 		cs.getQueue().enqueueNDRangeKernel(_learnWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
 		std::swap(vl._weights[_front], vl._weights[_back]);
+	}
+
+	// Learn lateral weights
+	{
+		int argIndex = 0;
+
+		_learnWeightsLateralKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_learnWeightsLateralKernel.setArg(argIndex++, _lateralWeights[_back]);
+		_learnWeightsLateralKernel.setArg(argIndex++, _lateralWeights[_front]);
+		_learnWeightsLateralKernel.setArg(argIndex++, _hiddenSize);
+		_learnWeightsLateralKernel.setArg(argIndex++, _lateralRadius);
+		_learnWeightsLateralKernel.setArg(argIndex++, weightLateralAlpha);
+		_learnWeightsLateralKernel.setArg(argIndex++, activeRatio * activeRatio);
+
+		cs.getQueue().enqueueNDRangeKernel(_learnWeightsLateralKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+		std::swap(_lateralWeights[_front], _lateralWeights[_back]);
 	}
 }

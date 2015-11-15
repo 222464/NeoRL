@@ -22,7 +22,7 @@ constant sampler_t defaultUnnormalizedSampler = CLK_NORMALIZED_COORDS_FALSE |
 
 // ----------------------------------------- Common -----------------------------------------
 
-constant minFloatEpsilon = 0.0001f;
+constant float minFloatEpsilon = 0.0001f;
 
 float randFloat(uint2* state) {
 	const float invMaxInt = 1.0f / 4294967296.0f;
@@ -152,22 +152,56 @@ void kernel scActivateFromReconstructionError(read_only image2d_t reconstruction
 }
 
 void kernel scSolveHidden(read_only image2d_t hiddenSummationTemp,
+	read_only image2d_t hiddenSpikesBack, write_only image2d_t hiddenSpikesFront, 
 	read_only image2d_t hiddenStatesBack, write_only image2d_t hiddenStatesFront, 
 	read_only image2d_t hiddenActivationsBack, write_only image2d_t hiddenActivationsFront, 
-	read_only image2d_t hiddenThresholds, float stepSize, float leak) 
+	read_only image2d_t hiddenThresholds, read_only image3d_t weightsLateral,
+	int2 hiddenSize, int radius, float leak, float accum) 
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	
-	float sum = read_imagef(hiddenSummationTemp, hiddenPosition).x;
+	float excitation = read_imagef(hiddenSummationTemp, hiddenPosition).x;
+
+	float statePrev = read_imagef(hiddenStatesBack, hiddenPosition).x;
+
+	int2 fieldLowerBound = hiddenPosition - (int2)(radius);
+
+	float inhibition = 0.0f;
+
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			int2 otherPosition = hiddenPosition + (int2)(dx, dy);
+
+			if (inBounds0(otherPosition, hiddenSize)) {
+				int2 offset = otherPosition - fieldLowerBound;
+
+				int wi = offset.y + offset.x * (radius * 2 + 1);
+
+				float weight = read_imagef(weightsLateral, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+
+				float otherSpike = read_imagef(hiddenSpikesBack, otherPosition).x;
+
+				inhibition += weight * otherSpike;
+			}
+		}
 
 	float activation = read_imagef(hiddenActivationsBack, hiddenPosition).x;
 
-	activation = (1.0f - leak) * activation + stepSize * sum;
+	activation = (1.0f - leak) * activation + excitation - inhibition;
+
+	float spike = 0.0f;
 
 	float threshold = read_imagef(hiddenThresholds, hiddenPosition).x;
 
-	float state = fmin(1.0f, fmax(-1.0f, fmax(0.0f, fabs(activation) - threshold) * (activation > 0.0f ? 1.0f : -1.0f)));
+	if (activation > threshold) {
+		spike = 1.0f;
 
+		activation = 0.0f;
+	}
+
+	float state = statePrev + accum * spike;
+
+	write_imagef(hiddenSpikesFront, hiddenPosition, (float4)(spike));
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(activation));
 }
@@ -248,6 +282,36 @@ void kernel scLearnSparseCoderWeightsTraces(read_only image2d_t reconstructionEr
 				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * weightPrev.y, weightPrev.y * weightTraceLambda + state * error);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
+			}
+		}
+}
+
+void kernel scLearnSparseCoderWeightsLateral(read_only image2d_t hiddenStates,
+	read_only image3d_t weightsLateralBack, write_only image3d_t weightsLateralFront,
+	int2 hiddenSize, int radius, float weightLateralAlpha, float activeRatioSquared)
+{
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+	
+	int2 fieldLowerBound = hiddenPosition - (int2)(radius);
+
+	float state = read_imagef(hiddenStates, hiddenPosition).x;
+
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			int2 otherPosition = hiddenPosition + (int2)(dx, dy);
+
+			if (inBounds0(otherPosition, hiddenSize)) {
+				int2 offset = otherPosition - fieldLowerBound;
+
+				int wi = offset.y + offset.x * (radius * 2 + 1);
+
+				float weightPrev = read_imagef(weightsLateralBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+
+				float otherState = read_imagef(hiddenStates, otherPosition).x;
+
+				float weight = fmax(0.0f, weightPrev + weightLateralAlpha * (state * otherState - activeRatioSquared));
+
+				write_imagef(weightsLateralFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
 		}
 }

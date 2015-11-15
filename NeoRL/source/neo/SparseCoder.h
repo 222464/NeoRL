@@ -32,9 +32,14 @@ namespace neo {
 		};
 
 	private:
+		DoubleBuffer2D _hiddenSpikes;
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenActivations;
 		DoubleBuffer2D _hiddenThresholds;
+
+		DoubleBuffer3D _lateralWeights;
+
+		cl_int _lateralRadius;
 
 		cl_int2 _hiddenSize;
 
@@ -49,21 +54,22 @@ namespace neo {
 		cl::Kernel _learnThresholdsKernel;
 		cl::Kernel _learnWeightsKernel;
 		cl::Kernel _learnWeightsTracesKernel;
+		cl::Kernel _learnWeightsLateralKernel;
 
 		void reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
 
 	public:
 		// Create with randomly initialized weights
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange, cl_float initThreshold,
+			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
 			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange,
 			bool enableTraces,
 			std::mt19937 &rng);
 
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float stepSize, cl_float leak);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int settleIterations, cl_int measureIterations, cl_float leak);
 
-		void learn(sys::ComputeSystem &cs, float weightAlpha, float thresholdAlpha, float activeRatio);
-		void learnTrace(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, float weightAlpha, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
+		void learnTrace(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightAlpha, float weightLateralAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio);
 
 		size_t getNumVisibleLayers() const {
 			return _visibleLayers.size();

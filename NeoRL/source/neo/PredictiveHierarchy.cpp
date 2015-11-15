@@ -4,7 +4,7 @@ using namespace neo;
 
 void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs, 
-	cl_float2 initWeightRange, cl_float initThreshold,
+	cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
 	cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange, 
 	std::mt19937 &rng)
 {
@@ -22,7 +22,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		scDescs[1]._size = _layerDescs[l]._size;
 		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, initWeightRange, initThreshold, initCodeRange, initReconstructionErrorRange, true, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initLateralWeightRange, initThreshold, initCodeRange, initReconstructionErrorRange, true, rng);
 	
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
@@ -78,7 +78,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStates[0] = prevLayerState;
 			visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scStepSize, _layerDescs[l]._scLeak);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scSettleIterations, _layerDescs[l]._scMeasureIterations, _layerDescs[l]._scLeak);
 		}
 
 		// Get reward
@@ -128,7 +128,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 
 		_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 
-		_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
+		_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scLateralWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 	}
 
 	{
