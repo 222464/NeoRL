@@ -2,21 +2,15 @@
 
 #if EXPERIMENT_SELECTION == EXPERIMENT_TEXT_PREDICTION
 
-#include "Settings.h"
-
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 
-#include <sdr/IPredictiveRSDR.h>
-
-#include <simtree/SDRST.h>
+#include <neo/PredictiveHierarchy.h>
 
 #include <time.h>
 #include <iostream>
 #include <random>
 #include <fstream>
-
-#include <duktape/duktape.h>
 
 #include <unordered_map>
 #include <unordered_set>
@@ -31,10 +25,20 @@ int main() {
 
 	window.create(sf::VideoMode(800, 600), "Link", sf::Style::Default, glContextSettings);
 
-	window.setFramerateLimit(60);
-	window.setVerticalSyncEnabled(true);
+	//window.setFramerateLimit(60);
+	//window.setVerticalSyncEnabled(true);
 
 	std::mt19937 generator(time(nullptr));
+
+	sys::ComputeSystem cs;
+
+	cs.create(sys::ComputeSystem::_gpu);
+
+	sys::ComputeProgram prog;
+
+	prog.loadFromFile("resources/neoKernels.cl", cs);
+
+	// --------------------------- Create the Sparse Coder ---------------------------
 
 	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
 
@@ -72,23 +76,25 @@ int main() {
 
 	int inputsRoot = std::ceil(std::sqrt(static_cast<float>(numInputs))) + 1;
 
-	std::vector<sdr::IPredictiveRSDR::LayerDesc> layerDescs(4);
+	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(4);
 
-	layerDescs[0]._width = 16;
-	layerDescs[0]._height = 16;
+	layerDescs[0]._size = { 64, 64 };
+	layerDescs[0]._feedForwardRadius = 6;
 
-	layerDescs[1]._width = 16;
-	layerDescs[1]._height = 16;
+	layerDescs[1]._size = { 48, 48 };
 
-	layerDescs[2]._width = 16;
-	layerDescs[2]._height = 16;
+	layerDescs[2]._size = { 32, 32 };
 
-	layerDescs[3]._width = 16;
-	layerDescs[3]._height = 16;
+	layerDescs[3]._size = { 24, 24 };
 
-	sdr::IPredictiveRSDR prsdr;
+	neo::PredictiveHierarchy ph;
 
-	prsdr.createRandom(inputsRoot, inputsRoot, 16, layerDescs, -0.01f, 0.01f, 0.01f, 0.04f, 0.05f, generator);
+	ph.createRandom(cs, prog, { inputsRoot, inputsRoot }, 8, layerDescs, { -0.01f, 0.01f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+
+	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inputsRoot, inputsRoot);
+
+	std::vector<float> input(inputsRoot * inputsRoot, 0.0f);
+	std::vector<float> pred(inputsRoot * inputsRoot, 0.0f);
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -141,49 +147,26 @@ int main() {
 
 			const float scale = 4.0f;
 
-			sf::Image sdr;
-
-			sdr.create(prsdr.getLayerDescs().front()._width, prsdr.getLayerDescs().front()._height);
-
-			for (int x = 0; x < sdr.getSize().x; x++)
-				for (int y = 0; y < sdr.getSize().y; y++) {
-					sf::Color c = sf::Color::White;
-
-					c.r = c.g = c.b = prsdr.getLayers().front()._sdr.getHiddenState(x, y) * 255.0f;
-
-					sdr.setPixel(x, y, c);
-				}
-
-			sf::Texture sdrTex;
-
-			sdrTex.loadFromImage(sdr);
-
-			sf::Sprite sdrS;
-
-			sdrS.setTexture(sdrTex);
-
-			sdrS.setPosition(0.0f, window.getSize().y - sdrTex.getSize().y * scale);
-
-			sdrS.setScale(scale, scale);
-
-			window.draw(sdrS);
-
 			window.display();
 		}
 
 		for (int i = 0; i < inputsRoot * inputsRoot; i++)
-			prsdr.setInput(i, 0.0f);
+			input[i] = 0.0f;
 
 		int index = charToIndex[test[current]];
 
-		prsdr.setInput(index, 1.0f);
+		input[index] = 1.0f;
 
-		prsdr.simStep(generator);
+		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inputsRoot), static_cast<cl::size_type>(inputsRoot), 1 }, 0, 0, input.data());
+
+		ph.simStep(cs, inputImage);
+
+		cs.getQueue().enqueueReadImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inputsRoot), static_cast<cl::size_type>(inputsRoot), 1 }, 0, 0, pred.data());
 
 		int predIndex = 0;
 
 		for (int i = 1; i < numInputs; i++)
-			if (prsdr.getPrediction(i) > prsdr.getPrediction(predIndex))
+			if (pred[i] > pred[predIndex])
 				predIndex = i;
 
 		char predChar = indexToChar[std::min(numInputs - 1, predIndex)];

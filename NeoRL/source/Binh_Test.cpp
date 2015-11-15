@@ -1,6 +1,6 @@
 #include <Settings.h>
 
-#if EXPERIMENT_SELECTION == BINH_TEST
+#if EXPERIMENT_SELECTION == EXPERIMENT_BINH_TEST
 
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
@@ -20,7 +20,7 @@ int main()
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_cpu);
+	cs.create(sys::ComputeSystem::_gpu);
 
 	sys::ComputeProgram prog;
 
