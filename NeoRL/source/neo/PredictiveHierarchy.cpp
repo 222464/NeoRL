@@ -113,7 +113,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 
 			visibleStatesPrev.resize(2);
 
-			visibleStatesPrev[0] = _layers[l + 1]._pred.getHiddenStatesPrev();
+			visibleStatesPrev[0] = _layers[l + 1]._pred.getHiddenStates()[_front];
 			visibleStatesPrev[1] = _layers[l]._scHiddenStatesPrev;
 		}
 		else {
@@ -138,7 +138,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 		std::vector<cl::Image2D> visibleStatesPrev(1);
 
 		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
-		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStatesPrev();
+		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
 
 		_firstLayerPred.activate(cs, visibleStates, false);
 

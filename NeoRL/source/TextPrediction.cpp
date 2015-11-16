@@ -165,7 +165,7 @@ int main() {
 			if (pred[i] > pred[predIndex])
 				predIndex = i;
 
-		char predChar = indexToChar[std::min(numInputs - 1, predIndex)];
+		char predChar = indexToChar[predIndex];
 
 		std::cout << predChar;
 
@@ -175,6 +175,9 @@ int main() {
 
 		if (predChar == test[current])
 			error = 0.0f;
+
+		for (int i = 0; i < pred.size(); i++)
+			std::cout << pred[i] << " ";
 
 		//std::cout << predChar << " " << test[current] << std::endl;
 

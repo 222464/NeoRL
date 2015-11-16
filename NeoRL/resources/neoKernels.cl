@@ -353,13 +353,15 @@ void kernel predActivate(read_only image2d_t visibleStates,
 }
 
 void kernel predSolveHidden(read_only image2d_t hiddenSummationTemp,
-	read_only image2d_t hiddenStatesBack, write_only image2d_t hiddenStatesFront) 
+	read_only image2d_t hiddenStatesBack, write_only image2d_t hiddenStatesFront,
+	read_only image2d_t hiddenActivationsBack, write_only image2d_t hiddenActivationsFront) 
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	
 	float sum = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(sum));
+	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(sum));
 }
 
 void kernel predSolveHiddenThreshold(read_only image2d_t hiddenSummationTemp,
