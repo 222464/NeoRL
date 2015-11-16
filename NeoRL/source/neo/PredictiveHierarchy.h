@@ -30,7 +30,7 @@ namespace neo {
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(4), _feedBackRadius(5), _predictiveRadius(5),
 				_scSettleIterations(30), _scMeasureIterations(8), _scLeak(0.1f),
 				_scWeightAlpha(0.001f), _scLateralWeightAlpha(0.1f), _scThresholdAlpha(0.01f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.1f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.04f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha(0.05f)
 			{}
@@ -43,6 +43,8 @@ namespace neo {
 			DoubleBuffer2D _baseLines;
 
 			cl::Image2D _reward;
+
+			cl::Image2D _scHiddenStatesPrev;
 		};
 
 	private:

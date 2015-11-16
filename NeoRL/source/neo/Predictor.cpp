@@ -43,12 +43,16 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 	// Hidden state data
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
+	_hiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _hiddenSize.x, _hiddenSize.y);
+
 	_hiddenActivations = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
 	_hiddenSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
 	cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
 	cs.getQueue().enqueueFillImage(_hiddenActivations[_back], zeroColor, zeroOrigin, hiddenRegion);
+
+	cs.getQueue().enqueueFillImage(_hiddenStatesPrev, zeroColor, zeroOrigin, hiddenRegion);
 
 	// Create kernels
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivate");
@@ -58,13 +62,23 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 }
 
 void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold) {
+	// Copy to prev buffer
+	{
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
+
+		cs.getQueue().enqueueCopyImage(_hiddenStates[_back], _hiddenStatesPrev, zeroOrigin, zeroOrigin, hiddenRegion);
+	}
+
 	// Start by clearing summation buffer
-	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+	{
+		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-	cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
-	cs.getQueue().enqueueFillImage(_hiddenSummationTemp[_back], zeroColor, zeroOrigin, hiddenRegion);
+		cs.getQueue().enqueueFillImage(_hiddenSummationTemp[_back], zeroColor, zeroOrigin, hiddenRegion);
+	}
 
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 		VisibleLayer &vl = _visibleLayers[vli];
@@ -122,7 +136,7 @@ void Predictor::learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::v
 
 		_learnWeightsKernel.setArg(argIndex++, visibleStatesPrev[vli]);
 		_learnWeightsKernel.setArg(argIndex++, targets);
-		_learnWeightsKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_learnWeightsKernel.setArg(argIndex++, _hiddenStatesPrev);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_back]);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_front]);
 		_learnWeightsKernel.setArg(argIndex++, vld._size);

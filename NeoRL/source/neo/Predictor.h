@@ -27,6 +27,8 @@ namespace neo {
 		};
 
 	private:
+		cl::Image2D _hiddenStatesPrev;
+
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenActivations;
 
@@ -70,6 +72,10 @@ namespace neo {
 
 		const DoubleBuffer2D &getHiddenStates() const {
 			return _hiddenStates;
+		}
+
+		const cl::Image2D &getHiddenStatesPrev() const {
+			return _hiddenStatesPrev;
 		}
 	};
 }

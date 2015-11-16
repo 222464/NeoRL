@@ -170,6 +170,9 @@ void kernel scSolveHidden(read_only image2d_t hiddenSummationTemp,
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
+			if (dx == 0 && dy == 0)
+				continue;
+			
 			int2 otherPosition = hiddenPosition + (int2)(dx, dy);
 
 			if (inBounds0(otherPosition, hiddenSize)) {
