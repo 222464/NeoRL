@@ -430,7 +430,7 @@ void kernel phBaseLineUpdate(read_only image2d_t targets, read_only image2d_t pr
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = sigmoid(sensitivity * (error2 - baseLinePrev));
+	float reward = sigmoid(sensitivity * (baseLinePrev - error2));
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
 

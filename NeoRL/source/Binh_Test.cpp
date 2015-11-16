@@ -109,7 +109,7 @@ int main()
 			// z - index of PQRSTU: P=1, Q=2, R= 3, S=4, T=5, U=6
 			float value = y*4;	// without amplifying the amplitude, it is very difficult to make a sequence pattern QRST
 #else
-			float value = anomalyOffset + anomalyAmpl*std::sin(0.125f * 3.141596f * index * anomalyFreq + anomalyPhase) +0.5f * std::sin(0.3f * 3.141596f * index * anomalyFreq + anomalyPhase);
+			float value = index % 2 == 0 ? 1.0f : -1.0f;// anomalyOffset + anomalyAmpl*std::sin(0.125f * 3.141596f * index * anomalyFreq + anomalyPhase) + 0.5f * std::sin(0.3f * 3.141596f * index * anomalyFreq + anomalyPhase);
 #endif
 
 			std::vector<float> vals(4);
@@ -127,7 +127,7 @@ int main()
 
 			cs.getQueue().enqueueReadImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 2, 2, 1 }, 0, 0, res.data());
 
-			std::vector<float> sdr(256);
+			std::vector<float> sdr(64);
 
 			cs.getQueue().enqueueReadImage(ph.getLayer(0)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, sdr.data());
 
@@ -143,14 +143,14 @@ int main()
 
 			// plot target data
 			vis::Point p;
-			p._position.x = index;
+			p._position.x = index + 1;
 			p._position.y = value;
 			p._color = sf::Color::Red;
 			plot._curves[0]._points.push_back(p);
 
 			// plot predicted data
 			vis::Point p1;
-			p1._position.x = index + 1;
+			p1._position.x = index;
 			p1._position.y = res[0];
 			p1._color = sf::Color::Blue;
 			plot._curves[1]._points.push_back(p1);

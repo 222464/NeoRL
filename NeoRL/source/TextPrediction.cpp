@@ -74,18 +74,22 @@ int main() {
 
 	int numInputs = indexToChar.size();
 
-	int inputsRoot = std::ceil(std::sqrt(static_cast<float>(numInputs))) + 1;
+	int inputsRoot = std::ceil(std::sqrt(static_cast<float>(numInputs)));
 
-	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(2);
+	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(4);
 
-	layerDescs[0]._size = { 8, 8 };
+	layerDescs[0]._size = { 16, 16 };
 	layerDescs[0]._feedForwardRadius = 6;
+	
+	layerDescs[1]._size = { 16, 16 };
 
-	layerDescs[1]._size = { 8, 8 };
+	layerDescs[2]._size = { 16, 16 };
+
+	layerDescs[3]._size = { 16, 16 };
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { inputsRoot, inputsRoot }, 8, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { inputsRoot, inputsRoot }, 4, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inputsRoot, inputsRoot);
 
@@ -177,7 +181,7 @@ int main() {
 			error = 0.0f;
 
 		for (int i = 0; i < pred.size(); i++)
-			std::cout << pred[i] << " ";
+			std::cout << (pred[i] > 0.5f ? 1 : 0) << " ";
 
 		//std::cout << predChar << " " << test[current] << std::endl;
 

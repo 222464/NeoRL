@@ -30,7 +30,7 @@ namespace neo {
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
 				_scSettleIterations(17), _scMeasureIterations(5), _scLeak(0.1f),
 				_scWeightAlpha(0.001f), _scLateralWeightAlpha(0.02f), _scThresholdAlpha(0.01f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.01f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.5f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha(0.01f)
 			{}
