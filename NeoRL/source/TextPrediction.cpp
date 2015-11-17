@@ -53,26 +53,12 @@ int main() {
 	int minimum = 255;
 	int maximum = 0;
 
-	std::unordered_set<char> characters;
-
 	for (int i = 0; i < test.length(); i++) {
 		minimum = std::min(static_cast<int>(test[i]), minimum);
 		maximum = std::max(static_cast<int>(test[i]), maximum);
-
-		if (characters.find(test[i]) == characters.end())
-			characters.insert(test[i]);
 	}
 
-	std::vector<char> indexToChar;
-	std::unordered_map<char, int> charToIndex;
-
-	// Map characters to indices and vice versa
-	for (std::unordered_set<char>::iterator it = characters.begin(); it != characters.end(); it++) {
-		indexToChar.push_back(*it);
-		charToIndex[*it] = indexToChar.size() - 1;
-	}
-
-	int numInputs = indexToChar.size();
+	int numInputs = maximum - minimum + 1;
 
 	int inputsRoot = std::ceil(std::sqrt(static_cast<float>(numInputs)));
 
@@ -153,7 +139,7 @@ int main() {
 		for (int i = 0; i < inputsRoot * inputsRoot; i++)
 			input[i] = 0.0f;
 
-		int index = charToIndex[test[current]];
+		int index = test[current] - minimum;
 
 		input[index] = 1.0f;
 
@@ -169,7 +155,7 @@ int main() {
 			if (pred[i] > pred[predIndex])
 				predIndex = i;
 
-		char predChar = indexToChar[predIndex];
+		char predChar = predIndex + minimum;
 
 		std::cout << predChar;
 

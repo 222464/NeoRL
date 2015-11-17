@@ -66,7 +66,7 @@ namespace neo {
 			bool enableTraces,
 			std::mt19937 &rng);
 
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int settleIterations, cl_int measureIterations, cl_float leak);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float leak);
 
 		void learn(sys::ComputeSystem &cs, float weightAlpha, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
 		void learnTrace(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightAlpha, float weightLateralAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio);

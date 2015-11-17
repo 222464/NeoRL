@@ -144,7 +144,7 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 20, 5, 0.2f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 20, 0.2f);
 
 			sparseCoder.learn(cs, 0.001f, 0.1f, 0.01f, 0.1f);
 		}

@@ -68,7 +68,7 @@ int main()
 	plotRT.clear(sf::Color::White);
 	const int plotSampleTicks = 6;
 
-	const int maxBufferSize = 500;
+	const int maxBufferSize = 200;
 	bool quit = false;
 	bool autoplay = false;
 	float anomalyOffset = 0.f;
@@ -109,7 +109,7 @@ int main()
 			// z - index of PQRSTU: P=1, Q=2, R= 3, S=4, T=5, U=6
 			float value = y*4;	// without amplifying the amplitude, it is very difficult to make a sequence pattern QRST
 #else
-			float value = index % 2 == 0 ? 1.0f : -1.0f;// anomalyOffset + anomalyAmpl*std::sin(0.125f * 3.141596f * index * anomalyFreq + anomalyPhase) + 0.5f * std::sin(0.3f * 3.141596f * index * anomalyFreq + anomalyPhase);
+			float value = index % 10 >= 5 ? 1.0f : -1.0f;// anomalyOffset + anomalyAmpl*std::sin(0.125f * 3.141596f * index * anomalyFreq + anomalyPhase) + 0.5f * std::sin(0.3f * 3.141596f * index * anomalyFreq + anomalyPhase);
 #endif
 
 			std::vector<float> vals(4);
@@ -143,7 +143,7 @@ int main()
 
 			// plot target data
 			vis::Point p;
-			p._position.x = index + 1;
+			p._position.x = index;
 			p._position.y = value;
 			p._color = sf::Color::Red;
 			plot._curves[0]._points.push_back(p);

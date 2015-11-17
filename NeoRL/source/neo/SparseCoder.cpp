@@ -117,9 +117,7 @@ void SparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl:
 	}
 }
 
-void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int settleIterations, cl_int measureIterations, cl_float leak) {
-	const float measureIterationsInv = 1.0f / measureIterations;
-	
+void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float leak) {
 	// Clear previous aggregate state information
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -131,7 +129,9 @@ void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D
 		//cs.getQueue().enqueueFillImage(_hiddenActivations[_back], zeroColor, zeroOrigin, hiddenRegion);
 	}
 
-	for (cl_int iter = 0; iter < settleIterations + measureIterations; iter++) {
+	float iterInv = 1.0f / iterations;
+
+	for (cl_int iter = 0; iter < iterations; iter++) {
 		// Start by clearing summation buffer
 		{
 			cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -178,7 +178,7 @@ void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D
 			_solveHiddenKernel.setArg(argIndex++, _hiddenSize);
 			_solveHiddenKernel.setArg(argIndex++, _lateralRadius);
 			_solveHiddenKernel.setArg(argIndex++, leak);
-			_solveHiddenKernel.setArg(argIndex++, iter >= settleIterations ? measureIterationsInv : 0.0f);
+			_solveHiddenKernel.setArg(argIndex++, 1.0f / (1.0f + iter));
 
 			cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 		}

@@ -202,7 +202,7 @@ void kernel scSolveHidden(read_only image2d_t hiddenSummationTemp,
 		activation = 0.0f;
 	}
 
-	float state = statePrev + accum * spike;
+	float state = (1.0f - accum) * statePrev + accum * spike;
 
 	write_imagef(hiddenSpikesFront, hiddenPosition, (float4)(spike));
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
