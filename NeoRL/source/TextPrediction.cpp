@@ -32,7 +32,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_cpu);
+	cs.create(sys::ComputeSystem::_gpu);
 
 	sys::ComputeProgram prog;
 
@@ -166,8 +166,8 @@ int main() {
 		if (predChar == test[current])
 			error = 0.0f;
 
-		for (int i = 0; i < pred.size(); i++)
-			std::cout << (pred[i] > 0.5f ? 1 : 0) << " ";
+		//for (int i = 0; i < pred.size(); i++)
+	//		std::cout << (pred[i] > 0.5f ? 1 : 0) << " ";
 
 		//std::cout << predChar << " " << test[current] << std::endl;
 

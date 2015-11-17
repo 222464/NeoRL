@@ -126,10 +126,8 @@ void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D
 		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
 		cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
-		//cs.getQueue().enqueueFillImage(_hiddenActivations[_back], zeroColor, zeroOrigin, hiddenRegion);
+		cs.getQueue().enqueueFillImage(_hiddenActivations[_back], zeroColor, zeroOrigin, hiddenRegion);
 	}
-
-	float iterInv = 1.0f / iterations;
 
 	for (cl_int iter = 0; iter < iterations; iter++) {
 		// Start by clearing summation buffer
