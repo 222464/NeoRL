@@ -482,10 +482,6 @@ void kernel phBaseLineUpdate(read_only image2d_t targets, read_only image2d_t pr
 	write_imagef(rewards, position, (float4)(reward));
 }
 
-// ----------------------------------------- CACLA -----------------------------------------
-
-
-
 // ----------------------------------------- Q Route -----------------------------------------
 
 void kernel qForward(read_only image2d_t scHiddenStates, read_only image3d_t qWeights, read_only image2d_t qBiases, read_only image2d_t qStatesPrev, write_only image2d_t qStatesFront,
@@ -616,7 +612,7 @@ void kernel qWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t q
 	// Bias
 	float2 biasPrev = read_imagef(qBiasesBack, hiddenPosition).xy;
 
-	float2 bias = (float2)(biasPrev.x + alpha * tdError * biasPrev.y, biasPrev.y * gammaLambda + (error > 0.0f ? 1.0f : -1.0f));
+	float2 bias = (float2)(biasPrev.x + alpha * tdError * (biasPrev.y > 0.0f ? 1.0f : -1.0f), biasPrev.y * gammaLambda + error);
 
 	write_imagef(qBiasesFront, hiddenPosition, (float4)(bias, 0.0f, 0.0f));
 
@@ -635,7 +631,7 @@ void kernel qWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t q
 
 				float state = read_imagef(qStatesPrev, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * gammaLambda + (error > 0.0f ? 1.0f : -1.0f) * state);
+				float2 weight = (float2)(weightPrev.x + alpha * tdError * (weightPrev.y > 0.0f ? 1.0f : -1.0f), weightPrev.y * gammaLambda + error * state);
 
 				write_imagef(qWeightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
