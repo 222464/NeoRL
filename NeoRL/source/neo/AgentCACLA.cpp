@@ -1,5 +1,7 @@
 #include "AgentCACLA.h"
 
+#include <iostream>
+
 using namespace neo;
 
 void AgentCACLA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
@@ -176,7 +178,7 @@ void AgentCACLA::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 	float tdError = reward + _gamma * q - _prevValue;
 
 	float newQ = _prevValue + tdError * _qAlpha;
-
+	std::cout << newQ << std::endl;
 	_prevValue = q;
 
 	// Learn predictions modulated by reward
@@ -195,7 +197,7 @@ void AgentCACLA::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 			visibleStatesPrev[0] = _layers[l]._scHiddenStatesPrev;
 		}
 
-		_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+		_layers[l]._pred.learnTrace(cs, tdError, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 	}
 
 	{
@@ -203,7 +205,7 @@ void AgentCACLA::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 
 		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
 
-		_firstLayerPred.learn(cs, _input, visibleStatesPrev, _predWeightAlpha);
+		_firstLayerPred.learnTrace(cs, tdError, _input, visibleStatesPrev, _predWeightAlpha, _predWeightLambda);
 	}
 
 	// Alter inputs
@@ -220,7 +222,7 @@ void AgentCACLA::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 	}
 
 	for (int i = 0; i < _qInputs.size(); i++)
-		_inputs[_qInputs[i]._index] = newQ + _qInputs[i]._offset;
+		_inputs[_qInputs[i]._index] = _prevValue + _qInputs[i]._offset + 1.0f;
 
 	// Buffer updates
 	for (int l = 0; l < _layers.size(); l++) {
