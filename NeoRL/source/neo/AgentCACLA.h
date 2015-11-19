@@ -128,6 +128,14 @@ namespace neo {
 			return getAction(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x);
 		}
 
+		float getPrediction(int index) const {
+			return _predictions[index];
+		}
+
+		float getPrediction(int x, int y) const {
+			return getPrediction(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x);
+		}
+
 		size_t getNumLayers() const {
 			return _layers.size();
 		}
