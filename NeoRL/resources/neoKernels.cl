@@ -448,7 +448,7 @@ void kernel phBaseLineUpdate(read_only image2d_t targets, read_only image2d_t pr
 
 // ----------------------------------------- Q Learning -----------------------------------------
 
-void kernel qForward(read_only image3d_t qWeights, read_only image2d_t qStatesPrev, read_only image2d_t qStatesFront,
+void kernel qForward(read_only image3d_t qWeights, read_only image2d_t qStatesPrev, write_only image2d_t qStatesFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float reluLeak)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
@@ -480,7 +480,7 @@ void kernel qForward(read_only image3d_t qWeights, read_only image2d_t qStatesPr
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
 
-void kernel qBackward(read_only image3d_t qWeights, read_only image2d_t qStates, read_only image2d_t qErrorsNext, read_only image2d_t qErrors,
+void kernel qBackward(read_only image3d_t qWeights, read_only image2d_t qStates, read_only image2d_t qErrorsNext, write_only image2d_t qErrors,
 	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii,
 	float reluLeak)
 {
@@ -508,7 +508,7 @@ void kernel qBackward(read_only image3d_t qWeights, read_only image2d_t qStates,
 
 					int wi = offset.y + offset.x * (radius * 2 + 1);
 
-					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+					float weight = read_imagef(qWeights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 				
 					sum += errorNext * weight;
 				}
@@ -522,7 +522,7 @@ void kernel qBackward(read_only image3d_t qWeights, read_only image2d_t qStates,
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
 
-void kernel qBackwardFirstLayer(read_only image3d_t qWeights, read_only image2d_t qErrorsNext, read_only image2d_t qErrors,
+void kernel qBackwardFirstLayer(read_only image3d_t qWeights, read_only image2d_t qErrorsNext, write_only image2d_t qErrors,
 	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
 {
 	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
@@ -549,7 +549,7 @@ void kernel qBackwardFirstLayer(read_only image3d_t qWeights, read_only image2d_
 
 					int wi = offset.y + offset.x * (radius * 2 + 1);
 
-					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+					float weight = read_imagef(qWeights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 				
 					sum += errorNext * weight;
 				}
