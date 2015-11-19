@@ -16,6 +16,15 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_layers.resize(_layerDescs.size());
 	_inputTypes = inputTypes;
 
+	for (int i = 0; i < _inputTypes.size(); i++) {
+		if (_inputTypes[i] == _action)
+			_actionIndices.push_back(i);
+		else if (_inputTypes[i] == _antiAction)
+			_antiActionIndices.push_back(i);
+	}
+
+	assert(_actionIndices.size() == _antiActionIndices.size());
+
 	cl::Kernel randomUniform2DKernel = cl::Kernel(program.getProgram(), "randomUniform2D");
 	cl::Kernel randomUniform3DKernel = cl::Kernel(program.getProgram(), "randomUniform3D");
 
@@ -277,8 +286,6 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 			for (int i = 0; i < _qStates.size(); i++)
 				q += _qStates[i] * _qConnections[i]._weight;
 
-			q /= _qStates.size();
-
 			std::cout << "Q: " << q << std::endl;
 		}
 
@@ -347,19 +354,21 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 
 		// Move actions - final iteration has exploration
 		if (it == _qIter - 1) {	
-			for (int i = 0; i < _inputTypes.size(); i++)
-				if (_inputTypes[i] == _action) {
-					if (dist01(rng) < _explorationBreakChance)
-						_inputLayerStates[i] = dist01(rng) * 2.0f - 1.0f;
-					else
-						_inputLayerStates[i] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[i] + pertDist(rng) + _actionDeriveAlpha * (_qInputLayerErrors[i] > 0.0f ? 1.0f : -1.0f)));
-				}
+			for (int i = 0; i < _actionIndices.size(); i++) {
+				if (dist01(rng) < _explorationBreakChance)
+					_inputLayerStates[_actionIndices[i]] = dist01(rng) * 2.0f - 1.0f;
+				else
+					_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + pertDist(rng) + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]) > 0.0f ? 1.0f : -1.0f)));
+			}
 		}
 		else {
-			for (int i = 0; i < _inputTypes.size(); i++)
-				if (_inputTypes[i] == _action)
-					_inputLayerStates[i] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[i] + _actionDeriveAlpha * (_qInputLayerErrors[i] > 0.0f ? 1.0f : -1.0f)));
+			for (int i = 0; i < _actionIndices.size(); i++)
+				_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]) > 0.0f ? 1.0f : -1.0f)));
 		}
+
+		// Set anti-actions
+		for (int i = 0; i < _antiActionIndices.size(); i++)
+			_inputLayerStates[_antiActionIndices[i]] = 1.0f - _inputLayerStates[_actionIndices[i]];
 
 		// Write new annealed inputs
 		{
@@ -406,8 +415,6 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 		for (int i = 0; i < _qStates.size(); i++)
 			q += _qStates[i] * _qConnections[i]._weight;
 
-		q /= _qStates.size();
-
 		//std::cout << "Q: " << q << std::endl;
 	}
 
@@ -417,7 +424,7 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 	_prevValue = q;
 
 	for (int i = 0; i < _qConnections.size(); i++) {
-		_qConnections[i]._weight += _lastLayerQAlpha * tdError * _qConnections[i]._trace;
+		_qConnections[i]._weight += _lastLayerQAlpha * tdError * (_qConnections[i]._trace > 0.0f ? 1.0f : -1.0f);
 
 		_qConnections[i]._trace = _lastLayerQGammaLambda * _qConnections[i]._trace + _qStates[i];
 	}

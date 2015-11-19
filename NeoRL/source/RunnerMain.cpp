@@ -8,6 +8,7 @@
 #include <runner/Runner.h>
 
 #include <neo/AgentCACLA.h>
+#include <neo/AgentQRoute.h>
 
 #include <time.h>
 #include <iostream>
@@ -116,6 +117,9 @@ int main() {
 
 	for (int i = inputCount; i < inputCount + outputCount; i++)
 		inputTypes[i] = neo::AgentCACLA::_action;
+
+	//for (int i = inputCount + outputCount; i < inputCount + outputCount + outputCount; i++)
+	//	inputTypes[i] = neo::AgentQRoute::_antiAction;
 
 	for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 		inputTypes[i] = neo::AgentCACLA::_q;

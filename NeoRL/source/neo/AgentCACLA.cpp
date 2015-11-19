@@ -179,7 +179,7 @@ void AgentCACLA::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 
 	float newQ = _prevValue + tdError * _qAlpha;
 
-	float predReward = tdError > 0.0f ? 1.0f : 0.0f;
+	float predReward = tdError > 0.0f ? 1.0f : _drift;
 
 	std::cout << newQ << std::endl;
 	_prevValue = q;

@@ -7,7 +7,7 @@ namespace neo {
 	class AgentQRoute {
 	public:
 		enum InputType {
-			_state, _action
+			_state, _action, _antiAction
 		};
 
 		struct QConnection {
@@ -49,7 +49,7 @@ namespace neo {
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha(0.1f),
-				_qAlpha(0.005f), _qGammaLambda(0.95f), _qReluLeak(0.01f)
+				_qAlpha(0.05f), _qGammaLambda(0.95f), _qReluLeak(0.01f)
 			{}
 		};
 
@@ -84,6 +84,9 @@ namespace neo {
 		std::vector<float> _qInputLayerErrors;
 		std::vector<InputType> _inputTypes;
 
+		std::vector<int> _actionIndices;
+		std::vector<int> _antiActionIndices;
+
 		cl_float _prevValue;
 
 		Predictor _firstLayerPred;
@@ -114,9 +117,9 @@ namespace neo {
 
 		AgentQRoute()
 			: _predWeightAlpha(0.1f),
-			_qIter(10),
-			_actionDeriveAlpha(0.04f),
-			_lastLayerQAlpha(0.005f), _lastLayerQGammaLambda(0.95f),
+			_qIter(17),
+			_actionDeriveAlpha(0.05f),
+			_lastLayerQAlpha(0.05f), _lastLayerQGammaLambda(0.95f),
 			_lasyLayerQReluLeak(0.01f),
 			_gamma(0.99f),
 			_explorationPerturbationStdDev(0.05f), _explorationBreakChance(0.01f),
