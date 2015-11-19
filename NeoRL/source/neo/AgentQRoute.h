@@ -4,7 +4,7 @@
 #include "Predictor.h"
 
 namespace neo {
-	class Agent {
+	class AgentQRoute {
 	public:
 		enum InputType {
 			_state, _action
@@ -44,12 +44,12 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4), _qRadius(4),
-				_scIterations(30), _scLeak(0.1f),
+				_scIterations(17), _scLeak(0.1f),
 				_scWeightAlpha(0.01f), _scLateralWeightAlpha(0.05f), _scThresholdAlpha(0.01f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha(0.1f),
-				_qAlpha(0.001f), _qGammaLambda(0.95f), _qReluLeak(0.01f)
+				_qAlpha(0.005f), _qGammaLambda(0.95f), _qReluLeak(0.01f)
 			{}
 		};
 
@@ -66,6 +66,7 @@ namespace neo {
 			// Q
 			DoubleBuffer2D _qStates;
 			DoubleBuffer3D _qWeights;
+			DoubleBuffer2D _qBiases;
 			cl::Image2D _qErrorTemp;
 		};
 
@@ -76,6 +77,8 @@ namespace neo {
 		std::vector<QConnection> _qConnections;
 		std::vector<float> _qStates;
 		std::vector<float> _qErrors;
+
+		std::vector<float> _prediction;
 
 		std::vector<float> _inputLayerStates;
 		std::vector<float> _qInputLayerErrors;
@@ -109,11 +112,11 @@ namespace neo {
 		cl_float _explorationPerturbationStdDev;
 		cl_float _explorationBreakChance;
 
-		Agent()
+		AgentQRoute()
 			: _predWeightAlpha(0.1f),
-			_qIter(5),
-			_actionDeriveAlpha(0.1f),
-			_lastLayerQAlpha(0.0001f), _lastLayerQGammaLambda(0.95f),
+			_qIter(10),
+			_actionDeriveAlpha(0.04f),
+			_lastLayerQAlpha(0.005f), _lastLayerQGammaLambda(0.95f),
 			_lasyLayerQReluLeak(0.01f),
 			_gamma(0.99f),
 			_explorationPerturbationStdDev(0.05f), _explorationBreakChance(0.01f),

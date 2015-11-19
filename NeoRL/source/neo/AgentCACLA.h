@@ -4,8 +4,17 @@
 #include "Predictor.h"
 
 namespace neo {
-	class PredictiveHierarchy {
+	class AgentCACLA {
 	public:
+		enum InputType {
+			_state, _action, _q
+		};
+
+		struct QInput {
+			int _index;
+			float _offset;
+		};
+
 		struct LayerDesc {
 			cl_int2 _size;
 
@@ -21,7 +30,7 @@ namespace neo {
 
 			cl_float _baseLineDecay;
 			cl_float _baseLineSensitivity;
-			
+
 			cl_float _predWeightAlpha;
 
 			LayerDesc()
@@ -47,26 +56,70 @@ namespace neo {
 		};
 
 	private:
+		cl::Image2D _input;
+
 		std::vector<Layer> _layers;
 		std::vector<LayerDesc> _layerDescs;
 
+		std::vector<InputType> _inputTypes;
+		std::vector<QInput> _qInputs;
+
 		Predictor _firstLayerPred;
 
+		std::vector<float> _inputs;
+		std::vector<float> _predictions;
+
 		cl::Kernel _baseLineUpdateKernel;
+
+		float _prevValue;
 
 	public:
 		cl_float _predWeightAlpha;
 
-		PredictiveHierarchy()
-			: _predWeightAlpha(0.1f)
+		cl_float _gamma;
+		cl_float _gammaLambda;
+		cl_float _qAlpha;
+
+		cl_float _explorationStdDev;
+		cl_float _explorationBreakChance;
+
+		AgentCACLA()
+			: _predWeightAlpha(0.1f),
+			_gamma(0.99f),
+			_gammaLambda(0.95f),
+			_qAlpha(0.5f),
+			_explorationStdDev(0.05f),
+			_explorationBreakChance(0.01f),
+			_prevValue(0.0f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			cl_int2 inputSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
+			cl_int2 inputSize, cl_int firstLayerPredictorRadius, 
+			const std::vector<InputType> &inputTypes, const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
 			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange, std::mt19937 &rng);
 
-		void simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn = true);
+		void simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng, bool learn = true);
+
+		void setState(int index, float value) {
+			assert(_inputTypes[index] == _state);
+
+			_inputs[index] = value;
+		}
+
+		void setState(int x, int y, float value) {
+			setState(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x, value);
+		}
+
+		float getAction(int index) const {
+			assert(_inputTypes[index] == _action);
+
+			return _inputs[index];
+		}
+
+		float getAction(int x, int y) const {
+			return getAction(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x);
+		}
 
 		size_t getNumLayers() const {
 			return _layers.size();
