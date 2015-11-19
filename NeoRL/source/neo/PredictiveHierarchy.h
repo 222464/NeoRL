@@ -27,11 +27,11 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
-				_scIterations(20), _scLeak(0.1f),
-				_scWeightAlpha(0.01f), _scLateralWeightAlpha(0.02f), _scThresholdAlpha(0.01f),
+				_scIterations(30), _scLeak(0.1f),
+				_scWeightAlpha(0.01f), _scLateralWeightAlpha(0.05f), _scThresholdAlpha(0.01f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.01f)
+				_predWeightAlpha(0.1f)
 			{}
 		};
 
@@ -58,7 +58,7 @@ namespace neo {
 		cl_float _predWeightAlpha;
 
 		PredictiveHierarchy()
-			: _predWeightAlpha(0.01f)
+			: _predWeightAlpha(0.1f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,

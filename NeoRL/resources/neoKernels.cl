@@ -46,6 +46,14 @@ float sigmoid(float x) {
 	return 1.0f / (1.0f + exp(-x));
 }
 
+float relu(float x, float leak) {
+	return x > 0.0f ? x : leak;
+}
+
+float relud(float x, float leak) {
+	return x > 0.0f ? 1.0f : leak;
+}
+
 bool inBounds0(int2 position, int2 upperBound) {
 	return position.x >= 0 && position.x < upperBound.x && position.y >= 0 && position.y < upperBound.y;
 }
@@ -436,4 +444,148 @@ void kernel phBaseLineUpdate(read_only image2d_t targets, read_only image2d_t pr
 
 	write_imagef(baseLinesFront, position, (float4)(baseLine));
 	write_imagef(rewards, position, (float4)(reward));
+}
+
+// ----------------------------------------- Q Learning -----------------------------------------
+
+void kernel qForward(read_only image3d_t qWeights, read_only image2d_t qStatesPrev, read_only image2d_t qStatesFront,
+	int2 visibleSize, float2 hiddenToVisible, int radius, float reluLeak)
+{
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
+	
+	float sum = 0.0f;
+
+	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
+
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
+
+			if (inBounds0(visiblePosition, visibleSize)) {
+				int2 offset = visiblePosition - fieldLowerBound;
+
+				int wi = offset.y + offset.x * (radius * 2 + 1);
+
+				float weight = read_imagef(qWeights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+
+				float state = read_imagef(qStatesPrev, visiblePosition).x;
+
+				sum += weight * state;
+			}
+		}
+
+	float state = relu(sum, reluLeak);
+
+	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
+}
+
+void kernel qBackward(read_only image3d_t qWeights, read_only image2d_t qStates, read_only image2d_t qErrorsNext, read_only image2d_t qErrors,
+	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii,
+	float reluLeak)
+{
+	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
+	
+	float sum = 0.0f;
+
+	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
+		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
+			int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
+		
+			if (inBounds0(hiddenPosition, hiddenSize)) {
+				// Next layer node's receptive field
+				int2 fieldCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
+
+				int2 fieldLowerBound = fieldCenter - (int2)(radius);
+				int2 fieldUpperBound = fieldCenter + (int2)(radius + 1); // So is included in inBounds
+		
+				// Check for containment
+				if (inBounds(visiblePosition, fieldLowerBound, fieldUpperBound)) {	
+					int2 offset = visiblePosition - fieldLowerBound;
+
+					float errorNext = read_imagef(qErrorsNext, hiddenPosition).x;
+
+					int wi = offset.y + offset.x * (radius * 2 + 1);
+
+					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+				
+					sum += errorNext * weight;
+				}
+			}
+		}
+
+	float state = read_imagef(qStates, visiblePosition).x;
+
+	float error = relud(state, reluLeak) * sum;
+
+	write_imagef(qErrors, visiblePosition, (float4)(error));
+}
+
+void kernel qBackwardFirstLayer(read_only image3d_t qWeights, read_only image2d_t qErrorsNext, read_only image2d_t qErrors,
+	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
+{
+	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
+	
+	float sum = 0.0f;
+
+	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
+		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
+			int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
+		
+			if (inBounds0(hiddenPosition, hiddenSize)) {
+				// Next layer node's receptive field
+				int2 fieldCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
+
+				int2 fieldLowerBound = fieldCenter - (int2)(radius);
+				int2 fieldUpperBound = fieldCenter + (int2)(radius + 1); // So is included in inBounds
+		
+				// Check for containment
+				if (inBounds(visiblePosition, fieldLowerBound, fieldUpperBound)) {	
+					int2 offset = visiblePosition - fieldLowerBound;
+
+					float errorNext = read_imagef(qErrorsNext, hiddenPosition).x;
+
+					int wi = offset.y + offset.x * (radius * 2 + 1);
+
+					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+				
+					sum += errorNext * weight;
+				}
+			}
+		}
+
+	write_imagef(qErrors, visiblePosition, (float4)(sum));
+}
+
+void kernel qWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t qErrors,
+	read_only image3d_t qWeightsBack, write_only image3d_t qWeightsFront,
+	int2 visibleSize, float2 hiddenToVisible, int radius, float alphaTdError, float gammaLambda)
+{
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
+	
+	float error = read_imagef(qErrors, hiddenPosition).x;
+
+	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
+
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
+
+			if (inBounds0(visiblePosition, visibleSize)) {
+				int2 offset = visiblePosition - fieldLowerBound;
+
+				int wi = offset.y + offset.x * (radius * 2 + 1);
+
+				float2 weightPrev = read_imagef(qWeightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
+
+				float state = read_imagef(qStatesPrev, visiblePosition).x;
+
+				float2 weight = (float2)(weightPrev.x + alphaTdError * weightPrev.y, weightPrev.y * gammaLambda + error * state);
+
+				write_imagef(qWeightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
+			}
+		}
 }
