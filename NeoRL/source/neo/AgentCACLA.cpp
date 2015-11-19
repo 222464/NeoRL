@@ -98,7 +98,7 @@ void AgentCACLA::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 	std::normal_distribution<float> pertDist(0.0f, _explorationStdDev);
 	
 	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-	cl::array<cl::size_type, 3> inputRegion = { _layers.front()._sc.getVisibleLayerDesc(0)._size.x, _layers.front()._sc.getVisibleLayerDesc(0)._size.y, 0 };
+	cl::array<cl::size_type, 3> inputRegion = { _layers.front()._sc.getVisibleLayerDesc(0)._size.x, _layers.front()._sc.getVisibleLayerDesc(0)._size.y, 1 };
 
 	// Write input
 	cs.getQueue().enqueueWriteImage(_input, CL_TRUE, zeroOrigin, inputRegion, 0, 0, _inputs.data());
