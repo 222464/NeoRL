@@ -31,7 +31,7 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 
 		int numWeights = weightDiam * weightDiam;
 
-		cl_int3 weightsSize = cl_int3{ _hiddenSize.x, _hiddenSize.y, numWeights };
+		cl_int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
 
 		vl._weights = createDoubleBuffer3D(cs, weightsSize, weightChannels, CL_FLOAT);
 

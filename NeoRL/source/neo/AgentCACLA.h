@@ -39,9 +39,9 @@ namespace neo {
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
 				_scIterations(17), _scLeak(0.1f),
 				_scWeightAlpha(0.01f), _scLateralWeightAlpha(0.05f), _scThresholdAlpha(0.01f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.1f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.01f), _predWeightLambda(0.95f)
+				_predWeightAlpha(0.1f), _predWeightLambda(0.95f)
 			{}
 		};
 
@@ -89,7 +89,7 @@ namespace neo {
 		cl_float _drift;
 
 		AgentCACLA()
-			: _predWeightAlpha(0.01f),
+			: _predWeightAlpha(0.1f),
 			_predWeightLambda(0.95f),
 			_gamma(0.99f),
 			_gammaLambda(0.95f),
