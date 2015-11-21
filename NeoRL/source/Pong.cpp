@@ -89,18 +89,18 @@ int main() {
 	int inWidth = 16;
 	int inHeight = 18;
 
-	std::vector<neo::AgentCACLA::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentQRoute::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
 	layerDescs[1]._size = { 16, 16 };
 
-	neo::AgentCACLA agent;
+	neo::AgentQRoute agent;
 
-	std::vector<neo::AgentCACLA::InputType> inputTypes(inWidth * inHeight, neo::AgentCACLA::_state);
+	std::vector<neo::AgentQRoute::InputType> inputTypes(inWidth * inHeight, neo::AgentQRoute::_state);
 
 	for (int i = 0; i < inWidth; i++) {
-		inputTypes[i + (inHeight - 2) * inWidth] = neo::AgentCACLA::_action;
-		inputTypes[i + (inHeight - 1) * inWidth] = neo::AgentCACLA::_q;
+		inputTypes[i + (inHeight - 2) * inWidth] = neo::AgentQRoute::_action;
+		inputTypes[i + (inHeight - 1) * inWidth] = neo::AgentQRoute::_antiAction;
 	}
 
 	agent.createRandom(cs, prog, { inWidth, inHeight }, 8, inputTypes, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);

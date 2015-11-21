@@ -43,13 +43,13 @@ namespace neo {
 
 			LayerDesc()
 				: _size({ 8, 8 }),
-				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4), _qRadius(4),
+				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4), _qRadius(6),
 				_scIterations(17), _scLeak(0.1f),
 				_scWeightAlpha(0.01f), _scLateralWeightAlpha(0.05f), _scThresholdAlpha(0.01f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.02f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.05f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.1f),
-				_qAlpha(0.05f), _qGammaLambda(0.95f), _qReluLeak(0.01f)
+				_predWeightAlpha(0.5f),
+				_qAlpha(0.5f), _qGammaLambda(0.95f), _qReluLeak(0.01f)
 			{}
 		};
 
@@ -117,12 +117,12 @@ namespace neo {
 
 		AgentQRoute()
 			: _predWeightAlpha(0.1f),
-			_qIter(17),
-			_actionDeriveAlpha(0.05f),
-			_lastLayerQAlpha(0.05f), _lastLayerQGammaLambda(0.95f),
+			_qIter(5),
+			_actionDeriveAlpha(0.1f),
+			_lastLayerQAlpha(0.5f), _lastLayerQGammaLambda(0.95f),
 			_lasyLayerQReluLeak(0.01f),
 			_gamma(0.99f),
-			_explorationPerturbationStdDev(0.05f), _explorationBreakChance(0.01f),
+			_explorationPerturbationStdDev(0.1f), _explorationBreakChance(0.03f),
 			_prevValue(0.0f)
 		{}
 
@@ -131,14 +131,34 @@ namespace neo {
 			cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
 			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange, std::mt19937 &rng);
 
-		void simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rng, bool learn = true);
+		void simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng, bool learn = true);
 
-		void setInput(int index, float value) {
+		void setState(int index, float value) {
+			assert(_inputTypes[index] == _state);
+
 			_inputLayerStates[index] = value;
 		}
 
+		void setState(int x, int y, float value) {
+			setState(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x, value);
+		}
+
 		float getAction(int index) const {
+			assert(_inputTypes[index] == _action);
+
 			return _inputLayerStates[index];
+		}
+
+		float getAction(int x, int y) const {
+			return getAction(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x);
+		}
+
+		float getPrediction(int index) const {
+			return _prediction[index];
+		}
+
+		float getPrediction(int x, int y) const {
+			return getPrediction(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x);
 		}
 
 		size_t getNumLayers() const {

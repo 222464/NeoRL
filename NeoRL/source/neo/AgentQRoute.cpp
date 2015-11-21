@@ -139,7 +139,7 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	}
 }
 
-void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rng, bool learn) {
+void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng, bool learn) {
 	// Feed forward
 	{
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
@@ -180,44 +180,54 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 
 	for (int l = _layers.size() - 1; l >= 0; l--) {
 		std::vector<cl::Image2D> visibleStates;
-		std::vector<cl::Image2D> visibleStatesPrev;
 
 		if (l < _layers.size() - 1) {
 			visibleStates.resize(2);
 
 			visibleStates[0] = _layers[l + 1]._pred.getHiddenStates()[_back];
 			visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
-
-			visibleStatesPrev.resize(2);
-
-			visibleStatesPrev[0] = _layers[l + 1]._pred.getHiddenStates()[_front];
-			visibleStatesPrev[1] = _layers[l]._scHiddenStatesPrev;
 		}
 		else {
 			visibleStates.resize(1);
 
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
-
-			visibleStatesPrev.resize(1);
-
-			visibleStatesPrev[0] = _layers[l]._scHiddenStatesPrev;
 		}
 
 		_layers[l]._pred.activate(cs, visibleStates, true);
-
-		_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 
 		_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scLateralWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 	}
 
 	{
 		std::vector<cl::Image2D> visibleStates(1);
+		
+		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
+		
+		_firstLayerPred.activate(cs, visibleStates, false);
+	}
+
+	for (int l = _layers.size() - 1; l >= 0; l--) {
+		std::vector<cl::Image2D> visibleStatesPrev;
+
+		if (l < _layers.size() - 1) {
+			visibleStatesPrev.resize(2);
+
+			visibleStatesPrev[0] = _layers[l + 1]._pred.getHiddenStates()[_front];
+			visibleStatesPrev[1] = _layers[l]._scHiddenStatesPrev;
+		}
+		else {
+			visibleStatesPrev.resize(1);
+
+			visibleStatesPrev[0] = _layers[l]._scHiddenStatesPrev;
+		}
+
+		_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+	}
+
+	{
 		std::vector<cl::Image2D> visibleStatesPrev(1);
 
-		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
 		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
-
-		_firstLayerPred.activate(cs, visibleStates, false);
 
 		_firstLayerPred.learn(cs, _input, visibleStatesPrev, _predWeightAlpha);
 	}
@@ -286,6 +296,8 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 			for (int i = 0; i < _qStates.size(); i++)
 				q += _qStates[i] * _qConnections[i]._weight;
 
+			q /= _qStates.size();
+
 			std::cout << "Q: " << q << std::endl;
 		}
 
@@ -298,7 +310,7 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 			cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 			
 			for (int i = 0; i < _qErrors.size(); i++)
-				_qErrors[i] = (_qStates[i] > 0.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
+				_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
 
 			cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 		}
@@ -358,12 +370,12 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 				if (dist01(rng) < _explorationBreakChance)
 					_inputLayerStates[_actionIndices[i]] = dist01(rng) * 2.0f - 1.0f;
 				else
-					_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + pertDist(rng) + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]) > 0.0f ? 1.0f : -1.0f)));
+					_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + pertDist(rng) + _actionDeriveAlpha * (_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]])));
 			}
 		}
 		else {
 			for (int i = 0; i < _actionIndices.size(); i++)
-				_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]) > 0.0f ? 1.0f : -1.0f)));
+				_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + _actionDeriveAlpha * (_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]])));
 		}
 
 		// Set anti-actions
@@ -403,6 +415,8 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 		prevLayerSize = _layerDescs[l]._size;
 	}
 
+	float maxQ = q;
+
 	// Compute Q
 	{
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
@@ -415,16 +429,16 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 		for (int i = 0; i < _qStates.size(); i++)
 			q += _qStates[i] * _qConnections[i]._weight;
 
+		q /= _qStates.size();
+
 		//std::cout << "Q: " << q << std::endl;
 	}
 
 	// Q
-	float tdError = reward + _gamma * q - _prevValue;
-
-	_prevValue = q;
+	float tdError = reward + _gamma * maxQ - _prevValue;
 
 	for (int i = 0; i < _qConnections.size(); i++) {
-		_qConnections[i]._weight += _lastLayerQAlpha * tdError * (_qConnections[i]._trace > 0.0f ? 1.0f : -1.0f);
+		_qConnections[i]._weight += _lastLayerQAlpha * tdError * _qConnections[i]._trace;
 
 		_qConnections[i]._trace = _lastLayerQGammaLambda * _qConnections[i]._trace + _qStates[i];
 	}
@@ -470,4 +484,6 @@ void AgentQRoute::simStep(sys::ComputeSystem &cs, float reward, std::mt19937 &rn
 		if (learn)
 			std::swap(_layers[l]._qWeights[_front], _layers[l]._qWeights[_back]);
 	}
+
+	_prevValue = q;
 }

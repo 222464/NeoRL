@@ -447,7 +447,7 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 
 				float state = read_imagef(visibleStatesPrev, visiblePosition).x;
 
-				float newTrace = weightPrev.y * weightLambda * (1.0f - state) + error * state * state;
+				float newTrace = weightPrev.y * weightLambda * (1.0f - state) + error * state;
 
 				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * newTrace, newTrace);
 
@@ -484,7 +484,7 @@ void kernel phBaseLineUpdate(read_only image2d_t targets, read_only image2d_t pr
 
 // ----------------------------------------- Q Route -----------------------------------------
 
-void kernel qForward(read_only image2d_t scHiddenStates, read_only image3d_t qWeights, read_only image2d_t qBiases, read_only image2d_t qStatesPrev, write_only image2d_t qStatesFront,
+void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, read_only image2d_t qBiases, read_only image2d_t qStatesPrev, write_only image2d_t qStatesFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float reluLeak)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
@@ -511,14 +511,14 @@ void kernel qForward(read_only image2d_t scHiddenStates, read_only image3d_t qWe
 			}
 		}
 
-	float scHiddenState = read_imagef(scHiddenStates, hiddenPosition).x;
+	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = relu(sum, reluLeak) * scHiddenState;
+	float state = sigmoid(sum) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
 
-void kernel qBackward(read_only image2d_t scHiddenStates, read_only image3d_t qWeights, read_only image2d_t qStates, read_only image2d_t qErrorsNext, write_only image2d_t qErrors,
+void kernel qBackward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, read_only image2d_t qStates, read_only image2d_t qErrorsNext, write_only image2d_t qErrors,
 	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii,
 	float reluLeak)
 {
@@ -553,11 +553,11 @@ void kernel qBackward(read_only image2d_t scHiddenStates, read_only image3d_t qW
 			}
 		}
 
-	//float scHiddenState = read_imagef(scHiddenStates, visiblePosition).x;
+	//float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
 	float state = read_imagef(qStates, visiblePosition).x;
 
-	float error = relud(state, reluLeak) * sum;
+	float error = sum * state * (1.0f - state);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
