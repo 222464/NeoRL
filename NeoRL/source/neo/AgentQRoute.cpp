@@ -484,8 +484,13 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	
 		std::swap(_layers[l]._qStates[_front], _layers[l]._qStates[_back]);
 
-		if (learn)
+		if (learn) {
 			std::swap(_layers[l]._qWeights[_front], _layers[l]._qWeights[_back]);
+
+			std::swap(_layers[l]._qBiases[_front], _layers[l]._qBiases[_back]);
+		}
+
+		std::swap(_layers[l]._baseLines[_front], _layers[l]._baseLines[_back]);
 	}
 
 	_prevValue = q;

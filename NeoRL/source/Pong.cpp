@@ -107,6 +107,8 @@ int main() {
 
 	// ---------------------------- Game Loop -----------------------------
 
+	std::vector<sf::Texture> layerTextures(layerDescs.size());
+
 	bool quit = false;
 
 	sf::Clock clock;
@@ -259,6 +261,42 @@ int main() {
 			s.setPosition(4.0f * 16.0f, 0.0f);
 
 			window.draw(s);
+
+			float xOffset = 0.0f;
+			float scale = 4.0f;
+
+			for (int l = 0; l < layerDescs.size(); l++) {
+				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
+
+				cs.getQueue().enqueueReadImage(agent.getLayer(l)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+
+				sf::Image img;
+
+				img.create(layerDescs[l]._size.x, layerDescs[l]._size.y);
+
+				for (int x = 0; x < img.getSize().x; x++)
+					for (int y = 0; y < img.getSize().y; y++) {
+						sf::Color c = sf::Color::White;
+
+						c.r = c.b = c.g = 255.0f * data[x + y * img.getSize().x];
+
+						img.setPixel(x, y, c);
+					}
+
+				layerTextures[l].loadFromImage(img);
+
+				sf::Sprite s;
+
+				s.setTexture(layerTextures[l]);
+
+				s.setPosition(xOffset, window.getSize().y - img.getSize().y * scale);
+
+				s.setScale(scale, scale);
+
+				window.draw(s);
+
+				xOffset += img.getSize().x * scale;
+			}
 
 			window.display();
 		}
