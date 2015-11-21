@@ -553,11 +553,11 @@ void kernel qBackward(read_only image2d_t hiddenStates, read_only image3d_t qWei
 			}
 		}
 
-	//float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
+	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
 	float state = read_imagef(qStates, visiblePosition).x;
 
-	float error = sum * state * (1.0f - state);
+	float error = sum * hiddenState;//state * (1.0f - state);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
