@@ -89,7 +89,7 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 		randomUniform(_layers[l]._qWeights[_back], cs, randomUniform3DKernel, qWeightsSize, initWeightRange, rng);
 
-		_layers[l]._qBiases = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_RG, CL_FLOAT);
+		_layers[l]._qBiases = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
 
 		randomUniform(_layers[l]._qBiases[_back], cs, randomUniform2DKernel, _layerDescs[l]._size, initWeightRange, rng);
 
@@ -309,12 +309,12 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			cl::array<cl::size_type, 3> layerRegion = { _layerDescs.back()._size.x, _layerDescs.back()._size.y, 1 };
 
 			// Last layer error
-			//cs.getQueue().enqueueReadImage(_layers.back()._sc.getHiddenStates()[_back], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _scStates.data());
+			cs.getQueue().enqueueReadImage(_layers.back()._sc.getHiddenStates()[_back], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _scStates.data());
 
 			cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 			
 			for (int i = 0; i < _qErrors.size(); i++)
-				_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
+				_qErrors[i] = _scStates[i] * (_qStates[i] > 0.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
 
 			cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 		}
@@ -374,12 +374,14 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 				if (dist01(rng) < _explorationBreakChance)
 					_inputLayerStates[_actionIndices[i]] = dist01(rng) * 2.0f - 1.0f;
 				else
-					_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + pertDist(rng) + _actionDeriveAlpha * (_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]])));
+					_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + pertDist(rng) + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]) > 0.0f ? 1.0f : -1.0f)));
+			
+				//std::cout << _qInputLayerErrors[_actionIndices[i]] << std::endl;
 			}
 		}
 		else {
 			for (int i = 0; i < _actionIndices.size(); i++)
-				_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + _actionDeriveAlpha * (_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]])));
+				_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]) > 0.0f ? 1.0f : -1.0f)));
 		}
 
 		// Set anti-actions
@@ -439,7 +441,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	}
 
 	// Q
-	float tdError = (reward + _gamma * q - _prevValue) > 0.0f ? 1.0f : -1.0f;
+	float tdError = reward + _gamma * q - _prevValue;
 
 	for (int i = 0; i < _qConnections.size(); i++) {
 		_qConnections[i]._weight += _lastLayerQAlpha * tdError * _qConnections[i]._trace;
@@ -457,6 +459,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			int argIndex = 0;
 
 			_qWeightUpdateKernel.setArg(argIndex++, prevLayerState);
+			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
 			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qErrorTemp);
 			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qWeights[_back]);
 			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qWeights[_front]);
@@ -469,7 +472,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qGammaLambda);
 			_qWeightUpdateKernel.setArg(argIndex++, tdError);
 
-			cs.getQueue().enqueueNDRangeKernel(_qWeightUpdateKernel, cl::NullRange, cl::NDRange(_layers.front()._sc.getVisibleLayerDesc(0)._size.x, _layers.front()._sc.getVisibleLayerDesc(0)._size.y));
+			cs.getQueue().enqueueNDRangeKernel(_qWeightUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 
 			prevLayerState = _layers[l]._qStates[_front];
 			prevLayerSize = _layerDescs[l]._size;

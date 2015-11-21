@@ -238,10 +238,10 @@ int main() {
 
 			sf::Image predImg;
 
-			predImg.create(16, 17);
+			predImg.create(inWidth, inHeight);
 
-			for (int x = 0; x < 16; x++)
-				for (int y = 0; y < 17; y++) {
+			for (int x = 0; x < inWidth; x++)
+				for (int y = 0; y < inHeight; y++) {
 					sf::Color c = sf::Color::White;
 
 					c.r = c.g = c.b = 255.0f * std::min(1.0f, std::max(0.0f, agent.getPrediction(x, y)));
@@ -268,7 +268,7 @@ int main() {
 			for (int l = 0; l < layerDescs.size(); l++) {
 				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l)._qBiases[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 
