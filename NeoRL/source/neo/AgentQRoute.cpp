@@ -122,7 +122,8 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_scStates.resize(_qConnections.size());
 
 	_qInputLayerErrors.resize(inputSize.x * inputSize.y);
-	_inputLayerStates.resize(_qInputLayerErrors.size());
+	_inputLayerStates.clear();
+	_inputLayerStates.assign(_qInputLayerErrors.size(), 0.0f);
 	_prediction.resize(_qInputLayerErrors.size());
 
 	_lastLayerError = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs.back()._size.x, _layerDescs.back()._size.y);

@@ -207,7 +207,7 @@ void kernel scSolveHidden(read_only image2d_t hiddenSummationTemp,
 	if (activation > threshold) {
 		spike = 1.0f;
 
-		activation = 0.0f;
+		activation = -threshold;
 	}
 
 	float state = (1.0f - accum) * statePrev + accum * spike;
