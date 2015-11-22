@@ -245,6 +245,8 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	std::normal_distribution<float> pertDist(0.0f, _explorationPerturbationStdDev);
 
 	// Set predicted action as starting point
+	_inputLayerStates = _prediction;
+
 	for (int i = 0; i < _inputTypes.size(); i++) {
 		if (_inputTypes[i] == _action)
 			_inputLayerStates[i] = std::min(1.0f, std::max(-1.0f, _prediction[i]));
