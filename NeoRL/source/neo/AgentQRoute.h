@@ -118,9 +118,9 @@ namespace neo {
 
 		AgentQRoute()
 			: _predWeightAlpha(0.1f),
-			_qIter(3),
+			_qIter(5),
 			_actionDeriveAlpha(0.1f),
-			_lastLayerQAlpha(0.05f), _lastLayerQGammaLambda(0.95f),
+			_lastLayerQAlpha(0.5f), _lastLayerQGammaLambda(0.95f),
 			_lasyLayerQReluLeak(0.01f),
 			_gamma(0.99f),
 			_explorationPerturbationStdDev(0.2f), _explorationBreakChance(0.05f),

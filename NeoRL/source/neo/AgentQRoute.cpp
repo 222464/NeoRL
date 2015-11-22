@@ -379,14 +379,14 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 				if (dist01(rng) < _explorationBreakChance)
 					_inputLayerStates[_actionIndices[i]] = dist01(rng);
 				else
-					_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + pertDist(rng) + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]) > 0.0f ? 1.0f : -1.0f)));
+					_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + pertDist(rng) + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]))));
 			
 				//std::cout << _qInputLayerErrors[_actionIndices[i]] << std::endl;
 			}
 		}
 		else {
 			for (int i = 0; i < _actionIndices.size(); i++)
-				_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]) > 0.0f ? 1.0f : -1.0f)));
+				_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]))));
 		}
 
 		// Set anti-actions
@@ -443,6 +443,74 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		//q /= _qStates.size();
 
 		//std::cout << "Q: " << q << std::endl;
+	}
+
+	// Last backwards (for gradient update)
+	{
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> layerRegion = { _layerDescs.back()._size.x, _layerDescs.back()._size.y, 1 };
+
+		// Last layer error
+		cs.getQueue().enqueueReadImage(_layers.back()._sc.getHiddenStates()[_back], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _scStates.data());
+
+		cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
+
+		//for (int i = 0; i < _qErrors.size(); i++)
+		//	_qErrors[i] = _scStates[i] * (_qStates[i] > 0.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
+
+		for (int i = 0; i < _qErrors.size(); i++)
+			_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
+
+		cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
+	}
+
+	for (int l = _layers.size() - 2; l >= 0; l--) {
+		int argIndex = 0;
+
+		cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(_layers[l + 1]._sc.getVisibleLayer(0)._visibleToHidden.x * _layerDescs[l + 1]._qRadius)),
+			static_cast<int>(std::ceil(_layers[l + 1]._sc.getVisibleLayer(0)._visibleToHidden.y * _layerDescs[l + 1]._qRadius)) };
+
+		_qBackwardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
+		_qBackwardKernel.setArg(argIndex++, _layers[l + 1]._qWeights[_back]);
+		_qBackwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+		_qBackwardKernel.setArg(argIndex++, _layers[l + 1]._qErrorTemp);
+		_qBackwardKernel.setArg(argIndex++, _layers[l]._qErrorTemp);
+		_qBackwardKernel.setArg(argIndex++, _layerDescs[l]._size);
+		_qBackwardKernel.setArg(argIndex++, _layerDescs[l + 1]._size);
+		_qBackwardKernel.setArg(argIndex++, _layers[l + 1]._sc.getVisibleLayer(0)._visibleToHidden);
+		_qBackwardKernel.setArg(argIndex++, _layers[l + 1]._sc.getVisibleLayer(0)._hiddenToVisible);
+		_qBackwardKernel.setArg(argIndex++, _layerDescs[l + 1]._qRadius);
+		_qBackwardKernel.setArg(argIndex++, reverseRadii);
+		_qBackwardKernel.setArg(argIndex++, _layerDescs[l]._qReluLeak);
+
+		cs.getQueue().enqueueNDRangeKernel(_qBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+	}
+
+	// First layer
+	{
+		int argIndex = 0;
+
+		cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(0)._visibleToHidden.x * _layerDescs.front()._qRadius)),
+			static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(0)._visibleToHidden.y * _layerDescs.front()._qRadius)) };
+
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._qWeights[_back]);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._qErrorTemp);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _inputLayerError);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayerDesc(0)._size);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._size);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(0)._visibleToHidden);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(0)._hiddenToVisible);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._qRadius);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, reverseRadii);
+
+		cs.getQueue().enqueueNDRangeKernel(_qBackwardFirstLayerKernel, cl::NullRange, cl::NDRange(_layers.front()._sc.getVisibleLayerDesc(0)._size.x, _layers.front()._sc.getVisibleLayerDesc(0)._size.y));
+	}
+
+	{
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> layerRegion = { _layers.front()._sc.getVisibleLayerDesc(0)._size.x, _layers.front()._sc.getVisibleLayerDesc(0)._size.y, 1 };
+
+		cs.getQueue().enqueueReadImage(_inputLayerError, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qInputLayerErrors.data());
 	}
 
 	// Q
