@@ -27,6 +27,10 @@ sf::Vector2f _ballVelocity;
 
 float _paddlePosition;
 
+float sigmoid(float x) {
+	return 1.0f / (1.0f + std::exp(-x));
+}
+
 void renderScene(sf::RenderTarget &rt) {
 	sf::Vector2f size = sf::Vector2f(rt.getSize().x, rt.getSize().y);
 
@@ -91,8 +95,8 @@ int main() {
 
 	std::vector<neo::AgentQRoute::LayerDesc> layerDescs(2);
 
-	layerDescs[0]._size = { 32, 32 };
-	layerDescs[1]._size = { 16, 16 };
+	layerDescs[0]._size = { 16, 16 };
+	layerDescs[1]._size = { 8, 8 };
 
 	neo::AgentQRoute agent;
 
@@ -268,7 +272,7 @@ int main() {
 			for (int l = 0; l < layerDescs.size(); l++) {
 				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l)._qBiases[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l)._qStates[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 
@@ -278,7 +282,7 @@ int main() {
 					for (int y = 0; y < img.getSize().y; y++) {
 						sf::Color c = sf::Color::White;
 
-						c.r = c.b = c.g = 255.0f * data[x + y * img.getSize().x];
+						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * data[x + y * img.getSize().x]);
 
 						img.setPixel(x, y, c);
 					}

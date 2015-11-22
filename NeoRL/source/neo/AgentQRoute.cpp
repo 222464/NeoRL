@@ -89,7 +89,7 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 		randomUniform(_layers[l]._qWeights[_back], cs, randomUniform3DKernel, qWeightsSize, initWeightRange, rng);
 
-		_layers[l]._qBiases = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
+		_layers[l]._qBiases = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_RG, CL_FLOAT);
 
 		randomUniform(_layers[l]._qBiases[_back], cs, randomUniform2DKernel, _layerDescs[l]._size, initWeightRange, rng);
 
@@ -313,8 +313,11 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 			cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 			
+			//for (int i = 0; i < _qErrors.size(); i++)
+			//	_qErrors[i] = _scStates[i] * (_qStates[i] > 0.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
+
 			for (int i = 0; i < _qErrors.size(); i++)
-				_qErrors[i] = _scStates[i] * (_qStates[i] > 0.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
+				_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
 
 			cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 		}
@@ -372,7 +375,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		if (it == _qIter - 1) {	
 			for (int i = 0; i < _actionIndices.size(); i++) {
 				if (dist01(rng) < _explorationBreakChance)
-					_inputLayerStates[_actionIndices[i]] = dist01(rng) * 2.0f - 1.0f;
+					_inputLayerStates[_actionIndices[i]] = dist01(rng);
 				else
 					_inputLayerStates[_actionIndices[i]] = std::min(1.0f, std::max(-1.0f, _inputLayerStates[_actionIndices[i]] + pertDist(rng) + _actionDeriveAlpha * ((_qInputLayerErrors[_actionIndices[i]] - _qInputLayerErrors[_antiActionIndices[i]]) > 0.0f ? 1.0f : -1.0f)));
 			
@@ -386,7 +389,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 		// Set anti-actions
 		for (int i = 0; i < _antiActionIndices.size(); i++)
-			_inputLayerStates[_antiActionIndices[i]] = 1.0f - _inputLayerStates[_actionIndices[i]];
+			_inputLayerStates[_antiActionIndices[i]] = -_inputLayerStates[_actionIndices[i]];
 
 		// Write new annealed inputs
 		{
