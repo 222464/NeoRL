@@ -47,3 +47,31 @@ void neo::randomUniform(cl::Image3D &image3D, sys::ComputeSystem &cs, cl::Kernel
 
 	cs.getQueue().enqueueNDRangeKernel(randomUniform3DKernel, cl::NullRange, cl::NDRange(size.x, size.y, size.z));
 }
+
+void neo::randomUniformXZ(cl::Image2D &image2D, sys::ComputeSystem &cs, cl::Kernel &randomUniform2DXZKernel, cl_int2 size, cl_float2 range, std::mt19937 &rng) {
+	int argIndex = 0;
+
+	std::uniform_int_distribution<int> seedDist;
+
+	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
+
+	randomUniform2DXZKernel.setArg(argIndex++, image2D);
+	randomUniform2DXZKernel.setArg(argIndex++, seed);
+	randomUniform2DXZKernel.setArg(argIndex++, range);
+
+	cs.getQueue().enqueueNDRangeKernel(randomUniform2DXZKernel, cl::NullRange, cl::NDRange(size.x, size.y));
+}
+
+void neo::randomUniformXZ(cl::Image3D &image3D, sys::ComputeSystem &cs, cl::Kernel &randomUniform3DXZKernel, cl_int3 size, cl_float2 range, std::mt19937 &rng) {
+	int argIndex = 0;
+
+	std::uniform_int_distribution<int> seedDist;
+
+	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
+
+	randomUniform3DXZKernel.setArg(argIndex++, image3D);
+	randomUniform3DXZKernel.setArg(argIndex++, seed);
+	randomUniform3DXZKernel.setArg(argIndex++, range);
+
+	cs.getQueue().enqueueNDRangeKernel(randomUniform3DXZKernel, cl::NullRange, cl::NDRange(size.x, size.y, size.z));
+}

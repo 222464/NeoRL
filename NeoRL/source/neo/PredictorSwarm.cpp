@@ -13,7 +13,7 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 	_visibleLayers.resize(_visibleLayerDescs.size());
 
 	cl::Kernel randomUniform2DKernel = cl::Kernel(program.getProgram(), "randomUniform2D");
-	cl::Kernel randomUniform3DKernel = cl::Kernel(program.getProgram(), "randomUniform3D");
+	cl::Kernel randomUniform3DXZKernel = cl::Kernel(program.getProgram(), "randomUniform3DXZ");
 
 	// Create layers
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -32,7 +32,7 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 
 		vl._weights = createDoubleBuffer3D(cs, weightsSize, CL_RGBA, CL_FLOAT);
 
-		randomUniform(vl._weights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
+		randomUniformXZ(vl._weights[_back], cs, randomUniform3DXZKernel, weightsSize, initWeightRange, rng);
 	}
 
 	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
