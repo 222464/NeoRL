@@ -92,7 +92,10 @@ int main() {
 	visionRT.create(16, 16);
 
 	int inWidth = 16;
-	int inHeight = 18;
+	int inHeight = 16;
+
+	int aWidth = 2;
+	int aHeight = 2;
 
 	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(2);
 
@@ -108,7 +111,7 @@ int main() {
 		//inputTypes[i + (inHeight - 1) * inWidth] = neo::AgentQRoute::_antiAction;
 	}
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, 8, inputTypes, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, 8, 4, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -220,8 +223,8 @@ int main() {
 
 		float act = 0.0f;
 
-		for (int i = 4; i < 5; i++) {
-			act += agent.getAction(i, 16);
+		for (int i = 0; i < 4; i++) {
+			act += agent.getAction(i);
 		}
 
 		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.1f * std::min(1.0f, std::max(-1.0f, act))));
@@ -249,7 +252,7 @@ int main() {
 				for (int y = 0; y < inHeight; y++) {
 					sf::Color c = sf::Color::White;
 
-					c.r = c.g = c.b = 255.0f * std::min(1.0f, std::max(0.0f, agent.getPrediction(x, y)));
+					c.r = c.g = c.b = 255.0f * std::min(1.0f, std::max(0.0f, agent.getAction(x, y)));
 
 					predImg.setPixel(x, y, c);
 				}

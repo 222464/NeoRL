@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SparseCoder.h"
+#include "Predictor.h"
 #include "PredictorSwarm.h"
 
 namespace neo {
@@ -41,7 +42,7 @@ namespace neo {
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
 				_scIterations(17), _scLeak(0.1f),
-				_scWeightAlpha(0.01f), _scLateralWeightAlpha(0.05f), _scThresholdAlpha(0.01f),
+				_scWeightAlpha(0.01f), _scLateralWeightAlpha(0.05f), _scThresholdAlpha(0.005f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha({ 0.01f, 0.01f }),
@@ -62,17 +63,19 @@ namespace neo {
 		};
 
 	private:
-		cl::Image2D _input;
+		cl::Image2D _inputsImage;
+		cl::Image2D _actionsImage;
 
 		std::vector<Layer> _layers;
 		std::vector<LayerDesc> _layerDescs;
 
-		std::vector<InputType> _inputTypes;
-
-		PredictorSwarm _firstLayerPred;
+		Predictor _inputPred;
+		PredictorSwarm _actionPred;
 
 		std::vector<float> _inputs;
-		std::vector<cl_float2> _predictions;
+		std::vector<float> _actions; 
+		std::vector<float> _inputPredictions;
+		std::vector<cl_float2> _actionPredictions;
 
 		cl::Kernel _baseLineUpdateKernel;
 
@@ -96,16 +99,14 @@ namespace neo {
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			cl_int2 inputSize, cl_int firstLayerPredictorRadius,
-			const std::vector<InputType> &inputTypes, const std::vector<LayerDesc> &layerDescs,
+			cl_int2 inputSize, cl_int2 actionSize, cl_int inputPredictorRadius, cl_int actionPredictorRadius,
+			cl_int actionFeedForwardRadius, const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
 			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange, std::mt19937 &rng);
 
 		void simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng, bool learn = true);
 
 		void setState(int index, float value) {
-			assert(_inputTypes[index] == _state);
-
 			_inputs[index] = value;
 		}
 
@@ -114,21 +115,11 @@ namespace neo {
 		}
 
 		float getAction(int index) const {
-			assert(_inputTypes[index] == _action);
-
-			return _inputs[index];
+			return _actions[index];
 		}
 
 		float getAction(int x, int y) const {
-			return getAction(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x);
-		}
-
-		float getPrediction(int index) const {
-			return _predictions[index].x;
-		}
-
-		float getPrediction(int x, int y) const {
-			return getPrediction(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x);
+			return getAction(x + y * _layers.front()._sc.getVisibleLayerDesc(1)._size.x);
 		}
 
 		size_t getNumLayers() const {
@@ -143,8 +134,12 @@ namespace neo {
 			return _layerDescs[index];
 		}
 
-		const PredictorSwarm &getFirstLayerPred() const {
-			return _firstLayerPred;
+		const Predictor &getInputPred() const {
+			return _inputPred;
+		}
+
+		const PredictorSwarm &getActionPred() const {
+			return _actionPred;
 		}
 	};
 }
