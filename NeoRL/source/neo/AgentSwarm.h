@@ -73,7 +73,7 @@ namespace neo {
 		PredictorSwarm _firstLayerPred;
 
 		std::vector<float> _inputs;
-		std::vector<float> _predictions;
+		std::vector<cl_float2> _predictions;
 
 		cl::Kernel _baseLineUpdateKernel;
 
@@ -127,7 +127,7 @@ namespace neo {
 		}
 
 		float getPrediction(int index) const {
-			return _predictions[index];
+			return _predictions[index].x;
 		}
 
 		float getPrediction(int x, int y) const {

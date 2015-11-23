@@ -19,7 +19,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	_inputs.assign(_inputTypes.size(), 0.0f);
 
 	_predictions.clear();
-	_predictions.assign(_inputTypes.size(), 0.0f);
+	_predictions.assign(_inputTypes.size(), { 0.0f, 0.0f });
 
 	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
 
@@ -189,7 +189,7 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 			if (dist01(rng) < _explorationBreakChance)
 				_inputs[i] = dist01(rng) * 2.0f - 1.0f;
 			else
-				_inputs[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, _predictions[i])) + pertDist(rng)));
+				_inputs[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, _predictions[i].x)) + pertDist(rng)));
 
 			break;
 		}

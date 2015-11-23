@@ -9,6 +9,7 @@
 
 #include <neo/AgentCACLA.h>
 #include <neo/AgentQRoute.h>
+#include <neo/AgentSwarm.h>
 
 #include <time.h>
 #include <iostream>
@@ -106,20 +107,20 @@ int main() {
 	prsdr.createRandom(7, 7, 8, inputTypes, layerDescs, -0.01f, 0.01f, 0.01f, 0.05f, 0.5f, generator);
 	*/
 
-	std::vector<neo::AgentCACLA::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
 	layerDescs[1]._size = { 16, 16 };
 
-	neo::AgentCACLA agent;
+	neo::AgentSwarm agent;
 
-	std::vector<neo::AgentCACLA::InputType> inputTypes(8 * 8, neo::AgentCACLA::_state);
+	std::vector<neo::AgentSwarm::InputType> inputTypes(8 * 8, neo::AgentSwarm::_state);
 
 	for (int i = inputCount; i < inputCount + outputCount; i++)
-		inputTypes[i] = neo::AgentCACLA::_action;
+		inputTypes[i] = neo::AgentSwarm::_action;
 
 	for (int i = inputCount + outputCount; i < inputCount + outputCount + outputCount; i++)
-		inputTypes[i] = neo::AgentCACLA::_q;
+		inputTypes[i] = neo::AgentSwarm::_state;
 
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;

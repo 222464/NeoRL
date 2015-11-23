@@ -93,9 +93,9 @@ void kernel randomUniform2DXZ(write_only image2d_t values, uint2 seed, float2 mi
 
 	int2 position = (int2)(get_global_id(0), get_global_id(1));
 
-	float2 values = (float2)(randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x, randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x);
+	float2 v = (float2)(randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x, randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x);
 
-	write_imagef(values, position, (float4)(values.x, 0.0f, values.y, 0.0f));
+	write_imagef(values, position, (float4)(v.x, 0.0f, v.y, 0.0f));
 }
 
 // Initialize a random uniform 3D image (XZ fields)
@@ -104,9 +104,9 @@ void kernel randomUniform3DXZ(write_only image3d_t values, uint2 seed, float2 mi
 
 	int3 position = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
 
-	float2 values = (float2)(randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x, randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x);
+	float2 v = (float2)(randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x, randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x);
 
-	write_imagef(values, (int4)(position, 0), (float4)(values.x, 0.0f, values.y, 0.0f));
+	write_imagef(values, (int4)(position, 0), (float4)(v.x, 0.0f, v.y, 0.0f));
 }
 
 // ----------------------------------------- Sparse Coder -----------------------------------------
@@ -472,7 +472,7 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 
 				float state = read_imagef(visibleStatesPrev, visiblePosition).x;
 
-				float newTrace = weightPrev.y * weightLambda * (1.0f - state) + error * state;
+				float newTrace = weightPrev.y * weightLambda + error * state;
 
 				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * newTrace, newTrace);
 
@@ -503,11 +503,11 @@ void kernel predActivateSwarm(read_only image2d_t visibleStates,
 
 				int wi = offset.y + offset.x * (radius * 2 + 1);
 
-				float2 weights = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xz;
+				float2 weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xz;
 
 				float state = read_imagef(visibleStates, visiblePosition).x;
 
-				sum += weights * state;
+				sum += weight * state;
 			}
 		}
 
@@ -570,10 +570,8 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 
 				float state = read_imagef(visibleStatesPrev, visiblePosition).x;
 
-				float newTrace = weightPrev.y * weightLambda + error * state;
-
-				float4 weight = (float2)(weightPrev.x + weightAlpha * tdError * weightPrev.y, weightPrev.y * weightLambda + error * state,
-						weightPrev.z + weightAlpha * tdError * weightPrev.w, weightPrev.w * weightLambda + state);
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * tdError * weightPrev.y, weightPrev.y * weightLambda.x + error * state,
+						weightPrev.z + weightAlpha.y * tdError * weightPrev.w, weightPrev.w * weightLambda.y + state);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}
