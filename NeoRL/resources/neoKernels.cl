@@ -553,9 +553,9 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 	float2 pred = read_imagef(predictions, hiddenPosition).xy;
 	float2 predPrev = read_imagef(predictionsPrev, hiddenPosition).xy;
 
-	float error = target - predPrev.x;
+	float error = (target - predPrev.x) > 0.0f ? 1.0f : -1.0f;
 
-	float tdError = reward + gamma * pred.y - predPrev.y;
+	float tdError = (reward + gamma * pred.y - predPrev.y) > 0.0f ? 1.0f : -1.0f;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {

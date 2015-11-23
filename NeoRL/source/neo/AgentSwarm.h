@@ -36,7 +36,6 @@ namespace neo {
 
 			cl_float _gamma;
 			cl_float _gammaLambda;
-			cl_float _qAlpha;
 
 			LayerDesc()
 				: _size({ 8, 8 }),
@@ -47,7 +46,7 @@ namespace neo {
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha({ 0.01f, 0.01f }),
 				_predWeightLambda({ 0.95f,0.95f }),
-				_gamma(0.99f), _gammaLambda(0.95f), _qAlpha(0.01f)
+				_gamma(0.99f), _gammaLambda(0.95f)
 			{}
 		};
 
@@ -83,7 +82,6 @@ namespace neo {
 
 		cl_float _gamma;
 		cl_float _gammaLambda;
-		cl_float _qAlpha;
 
 		cl_float _explorationStdDev;
 		cl_float _explorationBreakChance;
@@ -93,7 +91,6 @@ namespace neo {
 			_predWeightLambda({ 0.95f,0.95f }),
 			_gamma(0.99f),
 			_gammaLambda(0.95f),
-			_qAlpha(0.5f),
 			_explorationStdDev(0.1f),
 			_explorationBreakChance(0.05f)
 		{}

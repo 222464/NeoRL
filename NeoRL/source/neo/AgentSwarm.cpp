@@ -155,6 +155,8 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 	// Retrieve predictions
 	cs.getQueue().enqueueReadImage(_firstLayerPred.getHiddenStates()[_back], CL_TRUE, zeroOrigin, inputRegion, 0, 0, _predictions.data());
 
+	std::cout << "Q: " << _predictions[23].y << std::endl;
+
 	// Learn predictions modulated by reward
 	for (int l = _layers.size() - 1; l >= 0; l--) {
 		std::vector<cl::Image2D> visibleStatesPrev;
