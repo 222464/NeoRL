@@ -12,6 +12,7 @@
 
 #include <neo/AgentCACLA.h>
 #include <neo/AgentQRoute.h>
+#include <neo/AgentSwarm.h>
 
 #include <time.h>
 #include <iostream>
@@ -93,18 +94,18 @@ int main() {
 	int inWidth = 16;
 	int inHeight = 18;
 
-	std::vector<neo::AgentQRoute::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
 	layerDescs[1]._size = { 8, 8 };
 
-	neo::AgentQRoute agent;
+	neo::AgentSwarm agent;
 
-	std::vector<neo::AgentQRoute::InputType> inputTypes(inWidth * inHeight, neo::AgentQRoute::_state);
+	std::vector<neo::AgentSwarm::InputType> inputTypes(inWidth * inHeight, neo::AgentSwarm::_state);
 
 	for (int i = 0; i < inWidth; i++) {
-		inputTypes[i + (inHeight - 2) * inWidth] = neo::AgentQRoute::_action;
-		inputTypes[i + (inHeight - 1) * inWidth] = neo::AgentQRoute::_antiAction;
+		inputTypes[i + (inHeight - 2) * inWidth] = neo::AgentSwarm::_action;
+		//inputTypes[i + (inHeight - 1) * inWidth] = neo::AgentQRoute::_antiAction;
 	}
 
 	agent.createRandom(cs, prog, { inWidth, inHeight }, 8, inputTypes, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
@@ -272,7 +273,7 @@ int main() {
 			for (int l = 0; l < layerDescs.size(); l++) {
 				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l)._qErrorTemp, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l)._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 

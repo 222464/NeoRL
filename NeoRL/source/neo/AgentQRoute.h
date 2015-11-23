@@ -45,11 +45,11 @@ namespace neo {
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4), _qRadius(4),
 				_scIterations(17), _scLeak(0.1f),
-				_scWeightAlpha(0.002f), _scLateralWeightAlpha(0.02f), _scThresholdAlpha(0.005f),
+				_scWeightAlpha(0.01f), _scLateralWeightAlpha(0.02f), _scThresholdAlpha(0.005f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha(0.2f),
-				_qAlpha(0.05f), _qGammaLambda(0.95f), _qReluLeak(0.1f)
+				_qAlpha(0.1f), _qGammaLambda(0.95f), _qReluLeak(0.1f)
 			{}
 		};
 
@@ -119,8 +119,8 @@ namespace neo {
 		AgentQRoute()
 			: _predWeightAlpha(0.1f),
 			_qIter(1),
-			_actionDeriveAlpha(0.05f),
-			_lastLayerQAlpha(0.05f), _lastLayerQGammaLambda(0.95f),
+			_actionDeriveAlpha(0.1f),
+			_lastLayerQAlpha(0.1f), _lastLayerQGammaLambda(0.95f),
 			_lasyLayerQReluLeak(0.1f),
 			_gamma(0.99f),
 			_explorationPerturbationStdDev(0.2f), _explorationBreakChance(0.05f),
