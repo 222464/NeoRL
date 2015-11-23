@@ -106,20 +106,20 @@ int main() {
 	prsdr.createRandom(7, 7, 8, inputTypes, layerDescs, -0.01f, 0.01f, 0.01f, 0.05f, 0.5f, generator);
 	*/
 
-	std::vector<neo::AgentQRoute::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentCACLA::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
 	layerDescs[1]._size = { 16, 16 };
 
-	neo::AgentQRoute agent;
+	neo::AgentCACLA agent;
 
-	std::vector<neo::AgentQRoute::InputType> inputTypes(8 * 8, neo::AgentQRoute::_state);
+	std::vector<neo::AgentCACLA::InputType> inputTypes(8 * 8, neo::AgentCACLA::_state);
 
 	for (int i = inputCount; i < inputCount + outputCount; i++)
-		inputTypes[i] = neo::AgentQRoute::_action;
+		inputTypes[i] = neo::AgentCACLA::_action;
 
 	for (int i = inputCount + outputCount; i < inputCount + outputCount + outputCount; i++)
-		inputTypes[i] = neo::AgentQRoute::_antiAction;
+		inputTypes[i] = neo::AgentCACLA::_q;
 
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
