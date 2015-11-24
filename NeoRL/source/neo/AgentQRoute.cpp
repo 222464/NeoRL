@@ -290,12 +290,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i]));
 
 	// Write initial inputs
-	{
-		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-		cl::array<cl::size_type, 3> layerRegion = { _layers.front()._sc.getVisibleLayerDesc(0)._size.x, _layers.front()._sc.getVisibleLayerDesc(0)._size.y, 1 };
-
-		cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _actions.data());
-	}
+	cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
 
 	// Optimize actions to maximize Q
 	float q;
@@ -425,12 +420,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		}
 
 		// Write new annealed actions
-		{
-			cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-			cl::array<cl::size_type, 3> layerRegion = { _layers.front()._sc.getVisibleLayerDesc(0)._size.x, _layers.front()._sc.getVisibleLayerDesc(0)._size.y, 1 };
-
-			cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _actions.data());
-		}
+		cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
 	}
 
 	// Last forwards
