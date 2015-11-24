@@ -350,11 +350,11 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 			cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 			
-			for (int i = 0; i < _qErrors.size(); i++)
-				_qErrors[i] = _scStates[i] * (_qStates[i] > 0.0f && _qStates[i] < 1.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
-
 			//for (int i = 0; i < _qErrors.size(); i++)
-			//	_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
+			//	_qErrors[i] = _scStates[i] * (_qStates[i] > 0.0f && _qStates[i] < 1.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
+
+			for (int i = 0; i < _qErrors.size(); i++)
+				_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
 
 			cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 		}
@@ -406,8 +406,8 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		// Move actions - final iteration has exploration
 		if (it == _qIter - 1) {	
 			for (int i = 0; i < _actions.size(); i++)
-				_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i] + _actionDeriveAlpha * _actionErrors[i]));
-
+				_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i] + _actionDeriveAlpha * (_actionErrors[i] > 0.0f ? 1.0f : -1.0f)));
+			std::cout << _actionErrors[0] << std::endl;
 			// Write new annealed actions
 			cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
 
@@ -423,7 +423,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		}
 		else {
 			for (int i = 0; i < _actions.size(); i++)
-				_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i] + _actionDeriveAlpha * _actionErrors[i]));
+				_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i] + _actionDeriveAlpha * (_actionErrors[i] > 0.0f ? 1.0f : -1.0f)));
 		
 			// Write new annealed actions
 			cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
@@ -481,11 +481,11 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 		cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 
-		for (int i = 0; i < _qErrors.size(); i++)
-			_qErrors[i] = _scStates[i] * (_qStates[i] > 0.0f && _qStates[i] < 1.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
-
 		//for (int i = 0; i < _qErrors.size(); i++)
-		//	_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
+		//	_qErrors[i] = _scStates[i] * (_qStates[i] > 0.0f && _qStates[i] < 1.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
+
+		for (int i = 0; i < _qErrors.size(); i++)
+			_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
 
 		cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 	}
