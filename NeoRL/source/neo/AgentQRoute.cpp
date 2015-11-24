@@ -277,7 +277,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
 
-		_actionPred.learn(cs, _inputsImage, visibleStatesPrev, _predWeightAlpha);
+		_actionPred.learn(cs, _actionsImage, visibleStatesPrev, _predWeightAlpha);
 	}
 
 	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
