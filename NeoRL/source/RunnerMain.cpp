@@ -125,7 +125,7 @@ int main() {
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
 
-	agent.createRandom(cs, prog, { 8, 8 }, 8, inputTypes, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 6, 8, 5, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
 
 	std::vector<int> actionIndices;
 
@@ -194,7 +194,7 @@ int main() {
 			agent.simStep(reward, cs, generator);
 
 			for (int i = 0; i < action.size(); i++)
-				action[i] = agent.getAction(inputCount + i) * 0.5f + 0.5f;
+				action[i] = agent.getAction(i) * 0.5f + 0.5f;
 
 			runner0.motorUpdate(action, 12.0f);
 

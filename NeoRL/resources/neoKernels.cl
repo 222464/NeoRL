@@ -232,7 +232,7 @@ void kernel scSolveHidden(read_only image2d_t hiddenSummationTemp,
 	if (activation > threshold) {
 		spike = 1.0f;
 
-		activation = -threshold;
+		activation = 0.0f;
 	}
 
 	float state = (1.0f - accum) * statePrev + accum * spike;
@@ -281,7 +281,7 @@ void kernel scLearnSparseCoderWeights(read_only image2d_t reconstructionError,
 
 				float error = read_imagef(reconstructionError, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * state * (error - state * weightPrev);
+				float weight = weightPrev + weightAlpha * state * error * state;
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
@@ -315,7 +315,7 @@ void kernel scLearnSparseCoderWeightsTraces(read_only image2d_t reconstructionEr
 
 				float error = read_imagef(reconstructionError, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * weightPrev.y, weightPrev.y * weightTraceLambda + state * (error - state * weightPrev.x));
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightTraceLambda + weightAlpha * state * error);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -472,9 +472,9 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 
 				float state = read_imagef(visibleStatesPrev, visiblePosition).x;
 
-				float newTrace = weightPrev.y * weightLambda + error * state;
+				float newTrace = weightPrev.y * weightLambda + weightAlpha * error * state;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * newTrace, newTrace);
+				float2 weight = (float2)(weightPrev.x + reward * newTrace, newTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -570,11 +570,11 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 
 				float statePrev = read_imagef(visibleStatesPrev, visiblePosition).x;
 
-				float newYTrace = weightPrev.y * weightLambda.x + error * statePrev;
-				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
+				float newYTrace = weightPrev.y * weightLambda.x + weightAlpha.x * error * statePrev;
+				float newWTrace = weightPrev.w * weightLambda.y + weightAlpha.y * statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * tdError * newYTrace, newYTrace,
-						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
+				float4 weight = (float4)(weightPrev.x + (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
+						weightPrev.z + tdError * newWTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}

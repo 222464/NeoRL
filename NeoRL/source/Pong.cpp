@@ -286,7 +286,7 @@ int main() {
 					for (int y = 0; y < img.getSize().y; y++) {
 						sf::Color c = sf::Color::White;
 
-						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * data[x + y * img.getSize().x]);
+						c.r = c.b = c.g = 255.0f * data[x + y * img.getSize().x];
 
 						img.setPixel(x, y, c);
 					}

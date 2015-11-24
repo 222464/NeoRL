@@ -32,7 +32,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 	for (int l = 0; l < _layers.size(); l++) {
 		if (l == 0) {
-			std::vector<SparseCoder::VisibleLayerDesc> scDescs(3);
+			std::vector<SparseCoder::VisibleLayerDesc> scDescs(2);
 
 			scDescs[0]._size = inputSize;
 			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
@@ -40,8 +40,8 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			scDescs[1]._size = actionSize;
 			scDescs[1]._radius = actionFeedForwardRadius;
 
-			scDescs[2]._size = _layerDescs[l]._size;
-			scDescs[2]._radius = _layerDescs[l]._recurrentRadius;
+			//scDescs[2]._size = _layerDescs[l]._size;
+			//scDescs[2]._radius = _layerDescs[l]._recurrentRadius;
 
 			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initLateralWeightRange, initThreshold, initCodeRange, initReconstructionErrorRange, true, rng);
 		}
@@ -117,7 +117,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng, bool learn) {
 	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
-	std::normal_distribution<float> pertDist(0.0f, _explorationStdDev);
+	std::normal_distribution<float> pertDist(0.0f, 1.0f);
 
 	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 	cl::array<cl::size_type, 3> inputRegion = { _layers.front()._sc.getVisibleLayerDesc(0)._size.x, _layers.front()._sc.getVisibleLayerDesc(0)._size.y, 1 };
@@ -130,11 +130,11 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 	// Feed forward
 	for (int l = 0; l < _layers.size(); l++) {
 		if (l == 0) {
-			std::vector<cl::Image2D> visibleStates(3);
+			std::vector<cl::Image2D> visibleStates(2);
 
 			visibleStates[0] = _inputsImage;
 			visibleStates[1] = _actionsImage;
-			visibleStates[2] = _layers[l]._scHiddenStatesPrev;
+			//visibleStates[2] = _layers[l]._scHiddenStatesPrev;
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
 		}
@@ -198,14 +198,14 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 
 		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
 
-		_actionPred.activate(cs, visibleStates, true);
+		_actionPred.activate(cs, visibleStates, false);
 	}
 
 	// Retrieve predictions
 	cs.getQueue().enqueueReadImage(_inputPred.getHiddenStates()[_back], CL_TRUE, zeroOrigin, inputRegion, 0, 0, _inputPredictions.data());
 	cs.getQueue().enqueueReadImage(_actionPred.getHiddenStates()[_back], CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actionPredictions.data());
 
-	std::cout << "Q: " << _actionPredictions[0].y << std::endl;
+	std::cout << "Q: " << _actionPredictions[0].x << std::endl;
 
 	// Learn predictions modulated by reward
 	for (int l = _layers.size() - 1; l >= 0; l--) {
@@ -249,7 +249,7 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 		if (dist01(rng) < _explorationBreakChance)
 			_actions[i] = dist01(rng) * 2.0f - 1.0f;
 		else
-			_actions[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, _actionPredictions[i].x)) + pertDist(rng)));
+			_actions[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, _actionPredictions[i].x)) + pertDist(rng) * _explorationStdDev));
 	}
 
 	// Buffer updates
