@@ -521,9 +521,11 @@ void kernel predSolveHiddenSwarm(read_only image2d_t hiddenSummationTemp,
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	
 	float2 sum = read_imagef(hiddenSummationTemp, hiddenPosition).xy;
+
+	float2 state = (float2)(sigmoid(sum.x) * 2.0f - 1.0f, sum.y);
 	
-	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(sum, 0.0f, 0.0f));
-	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(sum, 0.0f, 0.0f));
+	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
+	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
 }
 
 void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTemp,
