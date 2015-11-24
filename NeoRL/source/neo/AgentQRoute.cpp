@@ -395,12 +395,12 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _inputLayerError);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayerDesc(0)._size);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._size);
-			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(0)._visibleToHidden);
-			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(0)._hiddenToVisible);
+			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._visibleToHidden);
+			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._hiddenToVisible);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._qRadius);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, reverseRadii);
 
-			cs.getQueue().enqueueNDRangeKernel(_qBackwardFirstLayerKernel, cl::NullRange, cl::NDRange(_layers.front()._sc.getVisibleLayerDesc(0)._size.x, _layers.front()._sc.getVisibleLayerDesc(0)._size.y));
+			cs.getQueue().enqueueNDRangeKernel(_qBackwardFirstLayerKernel, cl::NullRange, cl::NDRange(_layers.front()._sc.getVisibleLayerDesc(1)._size.x, _layers.front()._sc.getVisibleLayerDesc(1)._size.y));
 		}
 
 		{
@@ -529,12 +529,12 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		_qBackwardFirstLayerKernel.setArg(argIndex++, _inputLayerError);
 		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayerDesc(0)._size);
 		_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._size);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(0)._visibleToHidden);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(0)._hiddenToVisible);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._visibleToHidden);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._hiddenToVisible);
 		_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._qRadius);
 		_qBackwardFirstLayerKernel.setArg(argIndex++, reverseRadii);
 
-		cs.getQueue().enqueueNDRangeKernel(_qBackwardFirstLayerKernel, cl::NullRange, cl::NDRange(_layers.front()._sc.getVisibleLayerDesc(0)._size.x, _layers.front()._sc.getVisibleLayerDesc(0)._size.y));
+		cs.getQueue().enqueueNDRangeKernel(_qBackwardFirstLayerKernel, cl::NullRange, cl::NDRange(_layers.front()._sc.getVisibleLayerDesc(1)._size.x, _layers.front()._sc.getVisibleLayerDesc(1)._size.y));
 	}
 
 	{
