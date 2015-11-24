@@ -82,6 +82,7 @@ namespace neo {
 	public:
 		cl_float2 _predWeightAlpha;
 		cl_float2 _predWeightLambda;
+		float _inputPredWeightAlpha;
 
 		cl_float _gamma;
 		cl_float _gammaLambda;
@@ -92,6 +93,7 @@ namespace neo {
 		AgentSwarm()
 			: _predWeightAlpha({ 0.01f, 0.01f }),
 			_predWeightLambda({ 0.95f,0.95f }),
+			_inputPredWeightAlpha(0.1f),
 			_gamma(0.99f),
 			_gammaLambda(0.95f),
 			_explorationStdDev(0.1f),
@@ -120,6 +122,14 @@ namespace neo {
 
 		float getAction(int x, int y) const {
 			return getAction(x + y * _layers.front()._sc.getVisibleLayerDesc(1)._size.x);
+		}
+
+		float getPrediction(int index) const {
+			return _inputPredictions[index];
+		}
+
+		float getPrediction(int x, int y) const {
+			return getPrediction(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x);
 		}
 
 		size_t getNumLayers() const {

@@ -246,13 +246,13 @@ int main() {
 
 			sf::Image predImg;
 
-			predImg.create(aWidth, aHeight);
+			predImg.create(inWidth, inHeight);
 
-			for (int x = 0; x < aWidth; x++)
-				for (int y = 0; y < aHeight; y++) {
+			for (int x = 0; x < inWidth; x++)
+				for (int y = 0; y < inHeight; y++) {
 					sf::Color c = sf::Color::White;
 
-					c.r = c.g = c.b = 255.0f * std::min(1.0f, std::max(0.0f, agent.getAction(x, y)));
+					c.r = c.g = c.b = 255.0f * std::min(1.0f, std::max(0.0f, agent.getPrediction(x, y)));
 
 					predImg.setPixel(x, y, c);
 				}

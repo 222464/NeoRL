@@ -109,7 +109,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		predDescs[0]._size = _layerDescs.front()._size;
 		predDescs[0]._radius = actionPredictorRadius;
 
-		_actionPred.createRandom(cs, program, predDescs, inputSize, initWeightRange, rng);
+		_actionPred.createRandom(cs, program, predDescs, actionSize, initWeightRange, rng);
 	}
 
 	_baseLineUpdateKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdate");
@@ -232,7 +232,7 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 
 		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
 
-		_inputPred.learn(cs, _inputsImage, visibleStatesPrev, _predWeightAlpha.x);
+		_inputPred.learn(cs, _inputsImage, visibleStatesPrev, _inputPredWeightAlpha);
 	}
 
 	// Action
