@@ -111,7 +111,7 @@ int main() {
 		//inputTypes[i + (inHeight - 1) * inWidth] = neo::AgentQRoute::_antiAction;
 	}
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, 8, 4, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, 16, 4, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -246,10 +246,10 @@ int main() {
 
 			sf::Image predImg;
 
-			predImg.create(inWidth, inHeight);
+			predImg.create(aWidth, aHeight);
 
-			for (int x = 0; x < inWidth; x++)
-				for (int y = 0; y < inHeight; y++) {
+			for (int x = 0; x < aWidth; x++)
+				for (int y = 0; y < aHeight; y++) {
 					sf::Color c = sf::Color::White;
 
 					c.r = c.g = c.b = 255.0f * std::min(1.0f, std::max(0.0f, agent.getAction(x, y)));

@@ -232,7 +232,7 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 
 		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
 
-		_inputPred.learnTrace(cs, reward, _inputsImage, visibleStatesPrev, _predWeightAlpha.x, _predWeightLambda.x);
+		_inputPred.learn(cs, _inputsImage, visibleStatesPrev, _predWeightAlpha.x);
 	}
 
 	// Action
