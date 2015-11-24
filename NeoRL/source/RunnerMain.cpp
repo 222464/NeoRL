@@ -188,10 +188,10 @@ int main() {
 			for (int i = 0; i < action.size(); i++) {
 				action[i] = agent.getAction(i) * 0.5f + 0.5f;
 
-				std::cout << action[i] << " ";
-
+				//std::cout << action[i] << " ";
 			}
-			std::cout << std::endl;
+
+			//std::cout << std::endl;
 
 			runner0.motorUpdate(action, 12.0f);
 

@@ -20,6 +20,7 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	_inputsImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inputSize.x, inputSize.y);
 	_actionsImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), actionSize.x, actionSize.y);
+	_actionsExploratoryImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), actionSize.x, actionSize.y);
 
 	for (int l = 0; l < _layers.size(); l++) {
 		if (l == 0) {
@@ -148,6 +149,9 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_actions.clear();
 	_actions.assign(actionSize.x * actionSize.y, 0.0f);
 
+	_actionsExploratory.clear();
+	_actionsExploratory.assign(_actions.size(), 0.0f);
+
 	_actionErrors.clear();
 	_actionErrors.assign(_actions.size(), 0.0f);
 
@@ -166,13 +170,14 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	// Write input
 	cs.getQueue().enqueueWriteImage(_inputsImage, CL_TRUE, zeroOrigin, inputRegion, 0, 0, _inputs.data());
 	cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
+	cs.getQueue().enqueueWriteImage(_actionsExploratoryImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actionsExploratory.data());
 
 	for (int l = 0; l < _layers.size(); l++) {
 		if (l == 0) {
 			std::vector<cl::Image2D> visibleStates(2);
 
 			visibleStates[0] = _inputsImage;
-			visibleStates[1] = _actionsImage;
+			visibleStates[1] = _actionsExploratoryImage;
 			//visibleStates[2] = _layers[l]._scHiddenStatesPrev;
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
@@ -322,7 +327,6 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 		// Compute Q
 		{
-			cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 			cl::array<cl::size_type, 3> layerRegion = { _layerDescs.back()._size.x, _layerDescs.back()._size.y, 1 };
 
 			cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
@@ -401,24 +405,33 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 		// Move actions - final iteration has exploration
 		if (it == _qIter - 1) {	
+			for (int i = 0; i < _actions.size(); i++)
+				_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i] + _actionDeriveAlpha * _actionErrors[i]));
+
+			// Write new annealed actions
+			cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
+
 			for (int i = 0; i < _actions.size(); i++) {
 				if (dist01(rng) < _explorationBreakChance)
-					_actions[i] = dist01(rng);
+					_actionsExploratory[i] = dist01(rng) * 2.0f - 1.0f;
 				else
-					_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i] + pertDist(rng) + _actionDeriveAlpha * (_actionErrors[i] > 0.0f ? 1.0f : -1.0f)));
+					_actionsExploratory[i] = std::min(1.0f, std::max(-1.0f, _actions[i] + pertDist(rng)));
 			}
+
+			// Write new annealed exploratory actions
+			cs.getQueue().enqueueWriteImage(_actionsExploratoryImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actionsExploratory.data());
 		}
 		else {
 			for (int i = 0; i < _actions.size(); i++)
-				_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i] + pertDist(rng) + _actionDeriveAlpha * (_actionErrors[i] > 0.0f ? 1.0f : -1.0f)));
+				_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i] + _actionDeriveAlpha * _actionErrors[i]));
+		
+			// Write new annealed actions
+			cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
 		}
-
-		// Write new annealed actions
-		cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
 	}
 
 	// Last forwards
-	cl::Image2D prevLayerState = _actionsImage;
+	cl::Image2D prevLayerState = _actionsExploratoryImage;
 
 	cl_int2 prevLayerSize = _actionPred.getHiddenSize();
 
@@ -445,7 +458,6 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 	// Compute Q
 	{
-		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs.back()._size.x, _layerDescs.back()._size.y, 1 };
 
 		cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
@@ -462,7 +474,6 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 	// Last backwards (for gradient update)
 	{
-		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs.back()._size.x, _layerDescs.back()._size.y, 1 };
 
 		// Last layer error
@@ -501,39 +512,17 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		cs.getQueue().enqueueNDRangeKernel(_qBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 	}
 
-	// First layer
-	{
-		int argIndex = 0;
-
-		cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(1)._visibleToHidden.x * _layerDescs.front()._qRadius)),
-			static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(1)._visibleToHidden.y * _layerDescs.front()._qRadius)) };
-
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._qWeights[_back]);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._qErrorTemp);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _inputLayerError);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayerDesc(1)._size);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._size);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._visibleToHidden);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._hiddenToVisible);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._qRadius);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, reverseRadii);
-
-		cs.getQueue().enqueueNDRangeKernel(_qBackwardFirstLayerKernel, cl::NullRange, cl::NDRange(_layers.front()._sc.getVisibleLayerDesc(1)._size.x, _layers.front()._sc.getVisibleLayerDesc(1)._size.y));
-	}
-
-	cs.getQueue().enqueueReadImage(_inputLayerError, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actionErrors.data());
-
 	// Q
 	float tdError = reward + _gamma * q - _prevValue;
 
 	for (int i = 0; i < _qConnections.size(); i++) {
-		_qConnections[i]._weight += _lastLayerQAlpha * tdError * _qConnections[i]._trace;
+		_qConnections[i]._weight += tdError * _qConnections[i]._trace;
 
-		_qConnections[i]._trace = _lastLayerQGammaLambda * _qConnections[i]._trace + _qStates[i];
+		_qConnections[i]._trace = _lastLayerQGammaLambda * _qConnections[i]._trace + _lastLayerQAlpha * _qStates[i];
 	}
 
 	// Weight update
-	prevLayerState = _actionsImage;
+	prevLayerState = _actionsExploratoryImage;
 
 	prevLayerSize = _actionPred.getHiddenSize();
 
@@ -565,7 +554,6 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 	// Buffer updates
 	for (int l = 0; l < _layers.size(); l++) {
-		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
 
 		cs.getQueue().enqueueCopyImage(_layers[l]._sc.getHiddenStates()[_back], _layers[l]._scHiddenStatesPrev, zeroOrigin, zeroOrigin, layerRegion);
