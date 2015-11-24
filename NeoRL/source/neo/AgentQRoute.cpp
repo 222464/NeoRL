@@ -381,13 +381,13 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		{
 			int argIndex = 0;
 
-			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(0)._visibleToHidden.x * _layerDescs.front()._qRadius)),
-				static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(0)._visibleToHidden.y * _layerDescs.front()._qRadius)) };
+			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(1)._visibleToHidden.x * _layerDescs.front()._qRadius)),
+				static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(1)._visibleToHidden.y * _layerDescs.front()._qRadius)) };
 
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._qWeights[_back]);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._qErrorTemp);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _inputLayerError);
-			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayerDesc(0)._size);
+			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayerDesc(1)._size);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._size);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._visibleToHidden);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._hiddenToVisible);
@@ -505,13 +505,13 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	{
 		int argIndex = 0;
 
-		cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(0)._visibleToHidden.x * _layerDescs.front()._qRadius)),
-			static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(0)._visibleToHidden.y * _layerDescs.front()._qRadius)) };
+		cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(1)._visibleToHidden.x * _layerDescs.front()._qRadius)),
+			static_cast<int>(std::ceil(_layers.front()._sc.getVisibleLayer(1)._visibleToHidden.y * _layerDescs.front()._qRadius)) };
 
 		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._qWeights[_back]);
 		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._qErrorTemp);
 		_qBackwardFirstLayerKernel.setArg(argIndex++, _inputLayerError);
-		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayerDesc(0)._size);
+		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayerDesc(1)._size);
 		_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._size);
 		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._visibleToHidden);
 		_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._hiddenToVisible);
@@ -552,6 +552,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._size);
 			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
 			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qAlpha);
+			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qBiasAlpha);
 			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qGammaLambda);
 			_qWeightUpdateKernel.setArg(argIndex++, tdError);
 
