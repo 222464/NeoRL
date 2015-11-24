@@ -7,15 +7,6 @@
 namespace neo {
 	class AgentSwarm {
 	public:
-		enum InputType {
-			_state, _action
-		};
-
-		struct QInput {
-			int _index;
-			float _offset;
-		};
-
 		struct LayerDesc {
 			cl_int2 _size;
 

@@ -6,10 +6,6 @@
 namespace neo {
 	class AgentQRoute {
 	public:
-		enum InputType {
-			_state, _action, _antiAction
-		};
-
 		struct QConnection {
 			float _weight;
 
@@ -79,18 +75,17 @@ namespace neo {
 		std::vector<float> _scStates;
 		std::vector<float> _qErrors;
 
-		std::vector<float> _prediction;
+		std::vector<float> _inputPredictions;
+		std::vector<float> _actionPredictions;
 
-		std::vector<float> _inputLayerStates;
-		std::vector<float> _qInputLayerErrors;
-		std::vector<InputType> _inputTypes;
-
-		std::vector<int> _actionIndices;
-		std::vector<int> _antiActionIndices;
+		std::vector<float> _inputs;
+		std::vector<float> _actions;
+		std::vector<float> _actionErrors;
 
 		cl_float _prevValue;
 
-		Predictor _firstLayerPred;
+		Predictor _inputPred;
+		Predictor _actionPred;
 
 		cl::Kernel _baseLineUpdateKernel;
 
@@ -99,7 +94,8 @@ namespace neo {
 		cl::Kernel _qBackwardFirstLayerKernel;
 		cl::Kernel _qWeightUpdateKernel;
 
-		cl::Image2D _input;
+		cl::Image2D _inputsImage;
+		cl::Image2D _actionsImage;
 		cl::Image2D _lastLayerError;
 		cl::Image2D _inputLayerError;
 
@@ -128,16 +124,15 @@ namespace neo {
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			cl_int2 inputSize, cl_int firstLayerPredictorRadius, const std::vector<InputType> &inputTypes, const std::vector<LayerDesc> &layerDescs,
+			cl_int2 inputSize, cl_int2 actionSize, cl_int inputPredictorRadius, cl_int actionPredictorRadius,
+			cl_int actionFeedForwardRadius, const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
 			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange, std::mt19937 &rng);
 
 		void simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng, bool learn = true);
 
 		void setState(int index, float value) {
-			assert(_inputTypes[index] == _state);
-
-			_inputLayerStates[index] = value;
+			_inputs[index] = value;
 		}
 
 		void setState(int x, int y, float value) {
@@ -145,17 +140,15 @@ namespace neo {
 		}
 
 		float getAction(int index) const {
-			assert(_inputTypes[index] == _action);
-
-			return _inputLayerStates[index];
+			return _actions[index];
 		}
 
 		float getAction(int x, int y) const {
-			return getAction(x + y * _layers.front()._sc.getVisibleLayerDesc(0)._size.x);
+			return getAction(x + y * _layers.front()._sc.getVisibleLayerDesc(1)._size.x);
 		}
 
 		float getPrediction(int index) const {
-			return _prediction[index];
+			return _inputPredictions[index];
 		}
 
 		float getPrediction(int x, int y) const {
@@ -172,10 +165,6 @@ namespace neo {
 
 		const LayerDesc &getLayerDescs(int index) const {
 			return _layerDescs[index];
-		}
-
-		const Predictor &getFirstLayerPred() const {
-			return _firstLayerPred;
 		}
 	};
 }
