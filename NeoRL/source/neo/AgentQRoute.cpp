@@ -49,7 +49,6 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initLateralWeightRange, initThreshold, initCodeRange, initReconstructionErrorRange, true, rng);
 		}
 
-
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
 		if (l < _layers.size() - 1) {
@@ -159,7 +158,7 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_actionPredictions.resize(_actions.size());
 
 	_lastLayerError = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs.back()._size.x, _layerDescs.back()._size.y);
-	_inputLayerError = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), actionSize.x, actionSize.y);
+	_actionErrorsImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), actionSize.x, actionSize.y);
 }
 
 void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng, bool learn) {
@@ -390,7 +389,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._qWeights[_back]);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._qErrorTemp);
-			_qBackwardFirstLayerKernel.setArg(argIndex++, _inputLayerError);
+			_qBackwardFirstLayerKernel.setArg(argIndex++, _actionErrorsImage);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayerDesc(1)._size);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layerDescs.front()._size);
 			_qBackwardFirstLayerKernel.setArg(argIndex++, _layers.front()._sc.getVisibleLayer(1)._visibleToHidden);
@@ -401,7 +400,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			cs.getQueue().enqueueNDRangeKernel(_qBackwardFirstLayerKernel, cl::NullRange, cl::NDRange(_layers.front()._sc.getVisibleLayerDesc(1)._size.x, _layers.front()._sc.getVisibleLayerDesc(1)._size.y));
 		}
 
-		cs.getQueue().enqueueReadImage(_inputLayerError, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actionErrors.data());
+		cs.getQueue().enqueueReadImage(_actionErrorsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actionErrors.data());
 
 		// Move actions - final iteration has exploration
 		if (it == _qIter - 1) {	
