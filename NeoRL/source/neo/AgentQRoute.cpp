@@ -518,7 +518,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	float tdError = reward + _gamma * maxQ - _prevValue;
 
 	for (int i = 0; i < _qConnections.size(); i++) {
-		_qConnections[i]._weight += _lastLayerQAlpha * tdError * _qConnections[i]._trace;
+		_qConnections[i]._weight += _lastLayerQAlpha * (tdError * _qConnections[i]._trace > 0.0f ? 1.0f : 0.0f);
 
 		_qConnections[i]._trace = _lastLayerQGammaLambda * _qConnections[i]._trace + _qStates[i];
 	}
