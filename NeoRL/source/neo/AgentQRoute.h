@@ -45,8 +45,8 @@ namespace neo {
 				_scWeightAlpha(0.01f), _scLateralWeightAlpha(0.02f), _scThresholdAlpha(0.005f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.05f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.2f),
-				_qAlpha(0.1f), _qBiasAlpha(0.005f), _qGammaLambda(0.95f), _qReluLeak(0.01f)
+				_predWeightAlpha(0.1f),
+				_qAlpha(0.01f), _qBiasAlpha(0.005f), _qGammaLambda(0.95f), _qReluLeak(0.01f)
 			{}
 		};
 
@@ -103,7 +103,8 @@ namespace neo {
 		cl::Image2D _actionErrorsImage;
 
 	public:
-		cl_float _predWeightAlpha;
+		cl_float _predInputWeightAlpha;
+		cl_float _predActionWeightAlpha;
 		cl_int _qIter;
 		cl_float _actionDeriveAlpha;
 		cl_float _lastLayerQAlpha;
@@ -116,10 +117,11 @@ namespace neo {
 		cl_float _explorationBreakChance;
 
 		AgentQRoute()
-			: _predWeightAlpha(0.1f),
-			_qIter(1),
+			: _predInputWeightAlpha(0.1f),
+			_predActionWeightAlpha(0.1f),
+			_qIter(3),
 			_actionDeriveAlpha(0.1f),
-			_lastLayerQAlpha(0.02f), _lastLayerQGammaLambda(0.95f),
+			_lastLayerQAlpha(0.002f), _lastLayerQGammaLambda(0.95f),
 			_lasyLayerQReluLeak(0.1f),
 			_gamma(0.99f),
 			_explorationPerturbationStdDev(0.04f), _explorationBreakChance(0.01f),

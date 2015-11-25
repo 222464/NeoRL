@@ -47,14 +47,11 @@ float sigmoid(float x) {
 }
 
 float relu(float x, float leak) {
-	if (x < 1.0f)
-		return x > 0.0f ? x : x * leak;
-
-	return (x - 1.0f) * leak + 1.0f;
+	return x > 0.0f ? x : x * leak;
 }
 
 float relud(float x, float leak) {
-	return x > 0.0f && x < 1.0f ? 1.0f : leak;
+	return x > 0.0f ? 1.0f : leak;
 }
 
 bool inBounds0(int2 position, int2 upperBound) {
@@ -621,7 +618,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
-	float sum = 0.0f;//read_imagef(qBiases, hiddenPosition).x;
+	float sum = read_imagef(qBiases, hiddenPosition).x;
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
@@ -644,7 +641,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = sigmoid(sum) * hiddenState;
+	float state = relu(sum, reluLeak) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
@@ -688,7 +685,7 @@ void kernel qBackward(read_only image2d_t hiddenStates, read_only image3d_t qWei
 
 	float state = read_imagef(qStates, visiblePosition).x;
 
-	float error = sum * state * (1.0f - state);
+	float error = sum * relud(state, reluLeak) * hiddenState;
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -766,7 +763,7 @@ void kernel qWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t q
 
 				float oneMinusStatePrev = 1.0f - statePrev;
 
-				float2 weight = (float2)(weightPrev.x + tdError * weightPrev.y, weightPrev.y * gammaLambda * oneMinusStatePrev + alpha * error * statePrev);
+				float2 weight = (float2)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * gammaLambda + error * statePrev);
 
 				write_imagef(qWeightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
