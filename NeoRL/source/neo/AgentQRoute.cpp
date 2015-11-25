@@ -537,7 +537,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
 			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qBiases[_front]);
 			_qWeightUpdateKernel.setArg(argIndex++, prevLayerSize);
-			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._size);
+			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(l == 0 ? 1 : 0)._hiddenToVisible);
 			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
 			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qAlpha);
 			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qBiasAlpha);
