@@ -280,6 +280,9 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		_actionPred.learn(cs, _actionsImage, visibleStatesPrev, _predActionWeightAlpha);
 	}
 
+	// Keep previous predicted action around for momentum
+	std::vector<float> actionPredictionsPrev = _actionPredictions;
+
 	// Retrieve predictions
 	cs.getQueue().enqueueReadImage(_inputPred.getHiddenStates()[_back], CL_TRUE, zeroOrigin, inputRegion, 0, 0, _inputPredictions.data());
 	cs.getQueue().enqueueReadImage(_actionPred.getHiddenStates()[_back], CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actionPredictions.data());
@@ -291,7 +294,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	_actions = _actionPredictions;
 
 	for (int i = 0; i < _actions.size(); i++)
-		_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i]));
+		_actions[i] = std::min(1.0f, std::max(-1.0f, _actionPredictions[i] + (_actions[i] - actionPredictionsPrev[i]) * _actionMomentum));
 
 	// Write initial inputs
 	cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
@@ -512,7 +515,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	}
 
 	// Q
-	float tdError = reward + _gamma * q - _prevValue;
+	float tdError = reward + _gamma * maxQ - _prevValue;
 
 	for (int i = 0; i < _qConnections.size(); i++) {
 		_qConnections[i]._weight += _lastLayerQAlpha * tdError * _qConnections[i]._trace;
@@ -568,5 +571,5 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		std::swap(_layers[l]._baseLines[_front], _layers[l]._baseLines[_back]);
 	}
 
-	_prevValue = q;
+	_prevValue = maxQ;
 }

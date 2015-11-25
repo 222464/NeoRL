@@ -55,7 +55,7 @@ float relud(float x, float leak) {
 }
 
 float elu(float x, float alpha) {
-	return x >= 0.0f ? x : alpha * exp(x) - 1.0f;
+	return x >= 0.0f ? x : alpha * (exp(x) - 1.0f);
 }
 
 float elud(float x, float alpha) {
@@ -750,7 +750,7 @@ void kernel qWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t q
 	// Bias
 	float2 biasPrev = read_imagef(qBiasesBack, hiddenPosition).xy;
 
-	float2 bias = (float2)(biasPrev.x + biasAlpha * (0.5f - state), biasPrev.y * gammaLambda + error);
+	float2 bias = (float2)(biasPrev.x + alpha * error * biasPrev.y, biasPrev.y * gammaLambda + error);
 
 	write_imagef(qBiasesFront, hiddenPosition, (float4)(bias, 0.0f, 0.0f));
 
@@ -769,7 +769,7 @@ void kernel qWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t q
 
 				float statePrev = read_imagef(qStatesPrev, visiblePosition).x;
 
-				float oneMinusStatePrev = 1.0f - statePrev;
+				//float oneMinusStatePrev = 1.0f - statePrev;
 
 				float2 weight = (float2)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * gammaLambda + error * statePrev);
 
