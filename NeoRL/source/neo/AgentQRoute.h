@@ -36,7 +36,7 @@ namespace neo {
 			cl_float _qAlpha;
 			cl_float _qBiasAlpha;
 			cl_float _qGammaLambda;
-			cl_float _qReluLeak;
+			cl_float _qEluAlpha;
 
 			LayerDesc()
 				: _size({ 8, 8 }),
@@ -46,7 +46,7 @@ namespace neo {
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.05f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha(0.1f),
-				_qAlpha(0.01f), _qBiasAlpha(0.005f), _qGammaLambda(0.95f), _qReluLeak(0.01f)
+				_qAlpha(0.01f), _qBiasAlpha(0.005f), _qGammaLambda(0.95f), _qEluAlpha(0.2f)
 			{}
 		};
 
@@ -66,6 +66,14 @@ namespace neo {
 			DoubleBuffer2D _qBiases;
 			cl::Image2D _qErrorTemp;
 		};
+
+		static float elu(float x, float alpha) {
+			return x >= 0.0f ? x : alpha * std::exp(x) - 1.0f;
+		}
+
+		static float elud(float x, float alpha) {
+			return x >= 0.0f ? 1.0f : x + alpha;
+		}
 
 	private:
 		std::vector<Layer> _layers;
@@ -109,7 +117,6 @@ namespace neo {
 		cl_float _actionDeriveAlpha;
 		cl_float _lastLayerQAlpha;
 		cl_float _lastLayerQGammaLambda;
-		cl_float _lasyLayerQReluLeak;
 
 		cl_float _gamma;
 
@@ -122,7 +129,6 @@ namespace neo {
 			_qIter(3),
 			_actionDeriveAlpha(0.1f),
 			_lastLayerQAlpha(0.002f), _lastLayerQGammaLambda(0.95f),
-			_lasyLayerQReluLeak(0.1f),
 			_gamma(0.99f),
 			_explorationPerturbationStdDev(0.04f), _explorationBreakChance(0.01f),
 			_prevValue(0.0f)

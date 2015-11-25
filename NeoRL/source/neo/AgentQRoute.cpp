@@ -316,7 +316,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			_qForwardKernel.setArg(argIndex++, prevLayerSize);
 			_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(l == 0 ? 1 : 0)._hiddenToVisible);
 			_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
-			_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qReluLeak);
+			_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qEluAlpha);
 
 			cs.getQueue().enqueueNDRangeKernel(_qForwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 
@@ -350,7 +350,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 			
 			for (int i = 0; i < _qErrors.size(); i++)
-				_qErrors[i] = _scStates[i] * (_qStates[i] > 0.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
+				_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
 
 			//for (int i = 0; i < _qErrors.size(); i++)
 			//	_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
@@ -375,7 +375,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			_qBackwardKernel.setArg(argIndex++, _layers[l + 1]._sc.getVisibleLayer(0)._hiddenToVisible);
 			_qBackwardKernel.setArg(argIndex++, _layerDescs[l + 1]._qRadius);
 			_qBackwardKernel.setArg(argIndex++, reverseRadii);
-			_qBackwardKernel.setArg(argIndex++, _layerDescs[l]._qReluLeak);
+			_qBackwardKernel.setArg(argIndex++, _layerDescs[l]._qEluAlpha);
 
 			cs.getQueue().enqueueNDRangeKernel(_qBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 		}
@@ -445,7 +445,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		_qForwardKernel.setArg(argIndex++, prevLayerSize);
 		_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(l == 0 ? 1 : 0)._hiddenToVisible);
 		_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
-		_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qReluLeak);
+		_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qEluAlpha);
 
 		cs.getQueue().enqueueNDRangeKernel(_qForwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 
@@ -481,7 +481,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 
 		for (int i = 0; i < _qErrors.size(); i++)
-			_qErrors[i] = _scStates[i] * (_qStates[i] > 0.0f ? 1.0f : _layerDescs.back()._qReluLeak) * _qConnections[i]._weight;
+			_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
 
 		//for (int i = 0; i < _qErrors.size(); i++)
 		//	_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
@@ -506,7 +506,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		_qBackwardKernel.setArg(argIndex++, _layers[l + 1]._sc.getVisibleLayer(0)._hiddenToVisible);
 		_qBackwardKernel.setArg(argIndex++, _layerDescs[l + 1]._qRadius);
 		_qBackwardKernel.setArg(argIndex++, reverseRadii);
-		_qBackwardKernel.setArg(argIndex++, _layerDescs[l]._qReluLeak);
+		_qBackwardKernel.setArg(argIndex++, _layerDescs[l]._qEluAlpha);
 
 		cs.getQueue().enqueueNDRangeKernel(_qBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 	}
