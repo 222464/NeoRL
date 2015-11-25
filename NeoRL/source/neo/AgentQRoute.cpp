@@ -17,6 +17,7 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	
 	cl::Kernel randomUniform2DKernel = cl::Kernel(program.getProgram(), "randomUniform2D");
 	cl::Kernel randomUniform3DKernel = cl::Kernel(program.getProgram(), "randomUniform3D");
+	cl::Kernel randomUniform3DXZKernel = cl::Kernel(program.getProgram(), "randomUniform3DXZ");
 
 	_inputsImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inputSize.x, inputSize.y);
 	_actionsImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), actionSize.x, actionSize.y);
@@ -93,9 +94,17 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 		cl_int3 qWeightsSize = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, numQWeights };
 
-		_layers[l]._qWeights = createDoubleBuffer3D(cs, qWeightsSize, CL_RG, CL_FLOAT);
+		// First layer has extra for anti-actions
+		if (l == 0) {
+			_layers[l]._qWeights = createDoubleBuffer3D(cs, qWeightsSize, CL_RGBA, CL_FLOAT);
 
-		randomUniform(_layers[l]._qWeights[_back], cs, randomUniform3DKernel, qWeightsSize, initWeightRange, rng);
+			randomUniformXZ(_layers[l]._qWeights[_back], cs, randomUniform3DXZKernel, qWeightsSize, initWeightRange, rng);
+		}
+		else {
+			_layers[l]._qWeights = createDoubleBuffer3D(cs, qWeightsSize, CL_RG, CL_FLOAT);
+
+			randomUniform(_layers[l]._qWeights[_back], cs, randomUniform3DKernel, qWeightsSize, initWeightRange, rng);
+		}
 
 		_layers[l]._qBiases = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_RG, CL_FLOAT);
 
@@ -127,9 +136,11 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_baseLineUpdateKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdate");
 
 	_qForwardKernel = cl::Kernel(program.getProgram(), "qForward");
+	_qForwardFirstLayerKernel = cl::Kernel(program.getProgram(), "qForwardFirstLayer");
 	_qBackwardKernel = cl::Kernel(program.getProgram(), "qBackward");
 	_qBackwardFirstLayerKernel = cl::Kernel(program.getProgram(), "qBackwardFirstLayer");
 	_qWeightUpdateKernel = cl::Kernel(program.getProgram(), "qWeightUpdate");
+	_qWeightUpdateFirstLayerKernel = cl::Kernel(program.getProgram(), "qWeightUpdateFirstLayer");
 
 	_qConnections.resize(_layerDescs.back()._size.x * _layerDescs.back()._size.y);
 
@@ -309,19 +320,37 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		cl_int2 prevLayerSize = _actionPred.getHiddenSize();
 
 		for (int l = 0; l < _layers.size(); l++) {
-			int argIndex = 0;
-			
-			_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
-			_qForwardKernel.setArg(argIndex++, _layers[l]._qWeights[_back]);
-			_qForwardKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
-			_qForwardKernel.setArg(argIndex++, prevLayerState);
-			_qForwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
-			_qForwardKernel.setArg(argIndex++, prevLayerSize);
-			_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(l == 0 ? 1 : 0)._hiddenToVisible);
-			_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
-			_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qEluAlpha);
+			if (l == 0) {
+				int argIndex = 0;
 
-			cs.getQueue().enqueueNDRangeKernel(_qForwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+				_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
+				_qForwardFirstLayerKernel.setArg(argIndex++, _actionPred.getHiddenStates()[_back]);
+				_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qWeights[_back]);
+				_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
+				_qForwardFirstLayerKernel.setArg(argIndex++, prevLayerState);
+				_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+				_qForwardFirstLayerKernel.setArg(argIndex++, prevLayerSize);
+				_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(1)._hiddenToVisible);
+				_qForwardFirstLayerKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
+				_qForwardFirstLayerKernel.setArg(argIndex++, _layerDescs[l]._qEluAlpha);
+
+				cs.getQueue().enqueueNDRangeKernel(_qForwardFirstLayerKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+			}
+			else {
+				int argIndex = 0;
+
+				_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
+				_qForwardKernel.setArg(argIndex++, _layers[l]._qWeights[_back]);
+				_qForwardKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
+				_qForwardKernel.setArg(argIndex++, prevLayerState);
+				_qForwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+				_qForwardKernel.setArg(argIndex++, prevLayerSize);
+				_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(0)._hiddenToVisible);
+				_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
+				_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qEluAlpha);
+
+				cs.getQueue().enqueueNDRangeKernel(_qForwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+			}
 
 			prevLayerState = _layers[l]._qStates[_front];
 			prevLayerSize = _layerDescs[l]._size;
@@ -352,11 +381,11 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 			cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 			
-			for (int i = 0; i < _qErrors.size(); i++)
-				_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
-
 			//for (int i = 0; i < _qErrors.size(); i++)
-			//	_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
+			//	_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
+
+			for (int i = 0; i < _qErrors.size(); i++)
+				_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
 
 			cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 		}
@@ -438,19 +467,37 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	cl_int2 prevLayerSize = _actionPred.getHiddenSize();
 
 	for (int l = 0; l < _layers.size(); l++) {
-		int argIndex = 0;
+		if (l == 0) {
+			int argIndex = 0;
 
-		_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
-		_qForwardKernel.setArg(argIndex++, _layers[l]._qWeights[_back]);
-		_qForwardKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
-		_qForwardKernel.setArg(argIndex++, prevLayerState);
-		_qForwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
-		_qForwardKernel.setArg(argIndex++, prevLayerSize);
-		_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(l == 0 ? 1 : 0)._hiddenToVisible);
-		_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
-		_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qEluAlpha);
+			_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
+			_qForwardFirstLayerKernel.setArg(argIndex++, _actionPred.getHiddenStates()[_back]);
+			_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qWeights[_back]);
+			_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
+			_qForwardFirstLayerKernel.setArg(argIndex++, prevLayerState);
+			_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+			_qForwardFirstLayerKernel.setArg(argIndex++, prevLayerSize);
+			_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(1)._hiddenToVisible);
+			_qForwardFirstLayerKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
+			_qForwardFirstLayerKernel.setArg(argIndex++, _layerDescs[l]._qEluAlpha);
 
-		cs.getQueue().enqueueNDRangeKernel(_qForwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+			cs.getQueue().enqueueNDRangeKernel(_qForwardFirstLayerKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+		}
+		else {
+			int argIndex = 0;
+
+			_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
+			_qForwardKernel.setArg(argIndex++, _layers[l]._qWeights[_back]);
+			_qForwardKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
+			_qForwardKernel.setArg(argIndex++, prevLayerState);
+			_qForwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+			_qForwardKernel.setArg(argIndex++, prevLayerSize);
+			_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(0)._hiddenToVisible);
+			_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
+			_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qEluAlpha);
+
+			cs.getQueue().enqueueNDRangeKernel(_qForwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+		}
 
 		prevLayerState = _layers[l]._qStates[_front];
 		prevLayerSize = _layerDescs[l]._size;
@@ -483,11 +530,11 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 		cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 
-		for (int i = 0; i < _qErrors.size(); i++)
-			_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
-
 		//for (int i = 0; i < _qErrors.size(); i++)
-		//	_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
+		//	_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
+
+		for (int i = 0; i < _qErrors.size(); i++)
+			_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
 
 		cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 	}
@@ -518,7 +565,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	float tdError = reward + _gamma * maxQ - _prevValue;
 
 	for (int i = 0; i < _qConnections.size(); i++) {
-		_qConnections[i]._weight += _lastLayerQAlpha * (tdError * _qConnections[i]._trace > 0.0f ? 1.0f : 0.0f);
+		_qConnections[i]._weight += _lastLayerQAlpha * tdError * _qConnections[i]._trace;
 
 		_qConnections[i]._trace = _lastLayerQGammaLambda * _qConnections[i]._trace + _qStates[i];
 	}
@@ -530,25 +577,48 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 	if (learn) {
 		for (int l = 0; l < _layers.size(); l++) {
-			int argIndex = 0;
+			if (l == 0) {
+				int argIndex = 0;
 
-			_qWeightUpdateKernel.setArg(argIndex++, prevLayerState);
-			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
-			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qErrorTemp);
-			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qWeights[_back]);
-			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qWeights[_front]);
-			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
-			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qBiases[_front]);
-			_qWeightUpdateKernel.setArg(argIndex++, prevLayerSize);
-			_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(l == 0 ? 1 : 0)._hiddenToVisible);
-			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
-			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qAlpha);
-			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qBiasAlpha);
-			_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qGammaLambda);
-			_qWeightUpdateKernel.setArg(argIndex++, tdError);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, prevLayerState);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _actionPred.getHiddenStates()[_back]);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layers[l]._qErrorTemp);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layers[l]._qWeights[_back]);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layers[l]._qWeights[_front]);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layers[l]._qBiases[_front]);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, prevLayerSize);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(1)._hiddenToVisible);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layerDescs[l]._qAlpha);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layerDescs[l]._qBiasAlpha);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, _layerDescs[l]._qGammaLambda);
+				_qWeightUpdateFirstLayerKernel.setArg(argIndex++, tdError);
 
-			cs.getQueue().enqueueNDRangeKernel(_qWeightUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+				cs.getQueue().enqueueNDRangeKernel(_qWeightUpdateFirstLayerKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+			}
+			else {
+				int argIndex = 0;
 
+				_qWeightUpdateKernel.setArg(argIndex++, prevLayerState);
+				_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+				_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qErrorTemp);
+				_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qWeights[_back]);
+				_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qWeights[_front]);
+				_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
+				_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._qBiases[_front]);
+				_qWeightUpdateKernel.setArg(argIndex++, prevLayerSize);
+				_qWeightUpdateKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(0)._hiddenToVisible);
+				_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
+				_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qAlpha);
+				_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qBiasAlpha);
+				_qWeightUpdateKernel.setArg(argIndex++, _layerDescs[l]._qGammaLambda);
+				_qWeightUpdateKernel.setArg(argIndex++, tdError);
+
+				cs.getQueue().enqueueNDRangeKernel(_qWeightUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+			}
+			
 			prevLayerState = _layers[l]._qStates[_front];
 			prevLayerSize = _layerDescs[l]._size;
 		}

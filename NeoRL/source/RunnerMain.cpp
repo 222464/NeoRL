@@ -30,7 +30,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_gpu);
+	cs.create(sys::ComputeSystem::_cpu);
 
 	sys::ComputeProgram prog;
 
@@ -107,17 +107,17 @@ int main() {
 	prsdr.createRandom(7, 7, 8, inputTypes, layerDescs, -0.01f, 0.01f, 0.01f, 0.05f, 0.5f, generator);
 	*/
 
-	std::vector<neo::AgentQRoute::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(1);
 
-	layerDescs[0]._size = { 16, 16 };
-	layerDescs[1]._size = { 8, 8 };
+	layerDescs[0]._size = { 8, 8 };
+	//layerDescs[1]._size = { 8, 8 };
 
-	neo::AgentQRoute agent;
+	neo::AgentSwarm agent;
 
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
 
-	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 6, 8, 5, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 6, 8, 5, layerDescs, { -0.1f, 0.1f }, { 0.01f, 0.05f }, 0.1f, { -0.1f, 0.1f }, { -0.1f, 0.1f }, generator);
 	
 	std::vector<int> actionIndices;
 

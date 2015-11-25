@@ -43,10 +43,10 @@ namespace neo {
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4), _qRadius(5),
 				_scIterations(17), _scLeak(0.1f),
 				_scWeightAlpha(0.01f), _scLateralWeightAlpha(0.02f), _scThresholdAlpha(0.005f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.05f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha(0.2f),
-				_qAlpha(0.01f), _qBiasAlpha(0.005f), _qGammaLambda(0.95f), _qEluAlpha(0.2f)
+				_qAlpha(0.2f), _qBiasAlpha(0.005f), _qGammaLambda(0.95f), _qEluAlpha(0.2f)
 			{}
 		};
 
@@ -100,9 +100,11 @@ namespace neo {
 		cl::Kernel _baseLineUpdateKernel;
 
 		cl::Kernel _qForwardKernel;
+		cl::Kernel _qForwardFirstLayerKernel;
 		cl::Kernel _qBackwardKernel;
 		cl::Kernel _qBackwardFirstLayerKernel;
 		cl::Kernel _qWeightUpdateKernel;
+		cl::Kernel _qWeightUpdateFirstLayerKernel;
 
 		cl::Image2D _inputsImage;
 		cl::Image2D _actionsImage;
@@ -127,13 +129,13 @@ namespace neo {
 
 		AgentQRoute()
 			: _predInputWeightAlpha(0.1f),
-			_predActionWeightAlpha(0.2f),
+			_predActionWeightAlpha(0.1f),
 			_qIter(1),
-			_actionDeriveAlpha(0.1f),
-			_lastLayerQAlpha(0.002f), _lastLayerQGammaLambda(0.95f),
+			_actionDeriveAlpha(0.05f),
+			_lastLayerQAlpha(0.02f), _lastLayerQGammaLambda(0.95f),
 			_gamma(0.99f),
 			_explorationPerturbationStdDev(0.04f), _explorationBreakChance(0.01f),
-			_actionMomentum(0.5f),
+			_actionMomentum(0.1f),
 			_prevValue(0.0f)
 		{}
 
