@@ -92,7 +92,7 @@ int main() {
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 			quit = true;
 
-		ballVelocity += 0.0f * ballPosition + 0.01f * action;
+		ballVelocity += 0.001f * ballPosition + 0.03f * action;
 		
 		ballPosition += ballVelocity;
 
