@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SparseCoder.h"
+#include "ComparisonSparseCoder.h"
 #include "Predictor.h"
 
 namespace neo {
@@ -51,7 +51,7 @@ namespace neo {
 		};
 
 		struct Layer {
-			SparseCoder _sc;
+			ComparisonSparseCoder _sc;
 			Predictor _pred;
 
 			DoubleBuffer2D _baseLines;
