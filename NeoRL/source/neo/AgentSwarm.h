@@ -35,7 +35,7 @@ namespace neo {
 				_scWeightAlpha(0.001f), _scLateralWeightAlpha(0.1f), _scThresholdAlpha(0.02f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.1f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha({ 0.02f, 0.01f }),
+				_predWeightAlpha({ 0.1f, 0.002f }),
 				_predWeightLambda({ 0.95f,0.95f }),
 				_gamma(0.99f)
 			{}
@@ -80,9 +80,9 @@ namespace neo {
 		cl_float _explorationBreakChance;
 
 		AgentSwarm()
-			: _predWeightAlpha({ 0.02f, 0.01f }),
+			: _predWeightAlpha({ 0.1f, 0.002f }),
 			_predWeightLambda({ 0.95f,0.95f }),
-			_inputPredWeightAlpha(0.1f),
+			_inputPredWeightAlpha(0.02f),
 			_gamma(0.99f),
 			_explorationStdDev(0.2f),
 			_explorationBreakChance(0.07f)
