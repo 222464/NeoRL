@@ -32,7 +32,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 	for (int l = 0; l < _layers.size(); l++) {
 		if (l == 0) {
-			std::vector<SparseCoder::VisibleLayerDesc> scDescs(2);
+			std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
 
 			scDescs[0]._size = inputSize;
 			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
@@ -46,7 +46,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initLateralWeightRange, initThreshold, initCodeRange, initReconstructionErrorRange, true, rng);
 		}
 		else {
-			std::vector<SparseCoder::VisibleLayerDesc> scDescs(2);
+			std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
 
 			scDescs[0]._size = _layerDescs[l - 1]._size;
 			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
@@ -136,7 +136,7 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 			visibleStates[1] = _actionsImage;
 			//visibleStates[2] = _layers[l]._scHiddenStatesPrev;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
+			_layers[l]._sc.activate(cs, visibleStates);
 		}
 		else {
 			std::vector<cl::Image2D> visibleStates(2);
@@ -144,7 +144,7 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 			visibleStates[0] = _layers[l - 1]._sc.getHiddenStates()[_back];
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
+			_layers[l]._sc.activate(cs, visibleStates);
 		}
 
 		// Get reward

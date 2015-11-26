@@ -8,7 +8,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 
-#include <neo/SparseCoder.h>
+#include <neo/ComparisonSparseCoder.h>
 
 #include <time.h>
 #include <iostream>
@@ -39,9 +39,9 @@ int main() {
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), sampleWidth, sampleHeight);
 
-	neo::SparseCoder sparseCoder;
+	neo::ComparisonSparseCoder sparseCoder;
 
-	std::vector<neo::SparseCoder::VisibleLayerDesc> layerDescs(1);
+	std::vector<neo::ComparisonSparseCoder::VisibleLayerDesc> layerDescs(1);
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 8;
@@ -144,9 +144,9 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 20, 0.2f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage));
 
-			sparseCoder.learn(cs, 0.001f, 0.1f, 0.01f, 0.1f);
+			sparseCoder.learn(cs, 0.001f, 0.04f, 0.01f, 0.05f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
