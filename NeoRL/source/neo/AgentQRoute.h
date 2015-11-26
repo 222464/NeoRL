@@ -46,7 +46,7 @@ namespace neo {
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.05f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha(0.05f),
-				_qAlpha(0.005f), _qBiasAlpha(0.005f), _qGammaLambda(0.95f), _qEluAlpha(0.2f)
+				_qAlpha(0.05f), _qBiasAlpha(0.005f), _qGammaLambda(0.95f), _qEluAlpha(0.2f)
 			{}
 		};
 
@@ -131,8 +131,8 @@ namespace neo {
 			: _predInputWeightAlpha(0.05f),
 			_predActionWeightAlpha(0.05f),
 			_qIter(3),
-			_actionDeriveAlpha(0.04f),
-			_lastLayerQAlpha(0.002f), _lastLayerQGammaLambda(0.95f),
+			_actionDeriveAlpha(0.06f),
+			_lastLayerQAlpha(0.01f), _lastLayerQGammaLambda(0.95f),
 			_gamma(0.99f),
 			_explorationPerturbationStdDev(0.04f), _explorationBreakChance(0.01f),
 			_actionMomentum(0.1f),
