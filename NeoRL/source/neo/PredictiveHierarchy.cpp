@@ -14,7 +14,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	cl_int2 prevLayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<SparseCoder::VisibleLayerDesc> scDescs(2);
+		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
 
 		scDescs[0]._size = prevLayerSize;
 		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
@@ -80,7 +80,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStates[0] = prevLayerState;
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
+			_layers[l]._sc.activate(cs, visibleStates);
 		}
 
 		// Get reward
