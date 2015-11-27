@@ -57,7 +57,7 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarm");
 }
 
-void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold) {
+void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold, float noise, std::mt19937 &rng) {
 	// Start by clearing summation buffer
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -88,6 +88,10 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 		std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 	}
 
+	std::uniform_int_distribution<int> seedDist;
+
+	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
+
 	if (threshold) {
 		int argIndex = 0;
 
@@ -96,6 +100,8 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenStates[_front]);
 		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenActivations[_back]);
 		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenActivations[_front]);
+		_solveHiddenThresholdKernel.setArg(argIndex++, noise);
+		_solveHiddenThresholdKernel.setArg(argIndex++, seed);
 
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenThresholdKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
@@ -107,6 +113,8 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_back]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_front]);
+		_solveHiddenKernel.setArg(argIndex++, noise);
+		_solveHiddenKernel.setArg(argIndex++, seed);
 
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
@@ -116,7 +124,7 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 	std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
 }
 
-void PredictorSwarm::learnTrace(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda) {
+void PredictorSwarm::learnTrace(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float3 weightAlpha, cl_float2 weightLambda) {
 	// Learn weights
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 		VisibleLayer &vl = _visibleLayers[vli];
@@ -126,8 +134,9 @@ void PredictorSwarm::learnTrace(sys::ComputeSystem &cs, float reward, float gamm
 
 		_learnWeightsTracesKernel.setArg(argIndex++, visibleStatesPrev[vli]);
 		_learnWeightsTracesKernel.setArg(argIndex++, targets);
+		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_back]);
 		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenActivations[_back]);
-		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenActivations[_front]);
+		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_front]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_back]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_front]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vld._size);

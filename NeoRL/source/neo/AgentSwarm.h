@@ -23,8 +23,10 @@ namespace neo {
 			cl_float _baseLineDecay;
 			cl_float _baseLineSensitivity;
 
-			cl_float2 _predWeightAlpha;
+			cl_float3 _predWeightAlpha;
 			cl_float2 _predWeightLambda;
+
+			cl_float _explorationBreakChance;
 
 			cl_float _gamma;
 	
@@ -33,10 +35,11 @@ namespace neo {
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(5), _predictiveRadius(5),
 				_scIterations(20), _scLeak(0.02f),
 				_scWeightAlpha(0.001f), _scLateralWeightAlpha(0.1f), _scThresholdAlpha(0.005f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.01f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.05f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha({ 0.1f, 0.001f }),
+				_predWeightAlpha({ 0.005f, 0.001f, 0.01f }),
 				_predWeightLambda({ 0.95f,0.95f }),
+				_explorationBreakChance(0.05f),
 				_gamma(0.99f)
 			{}
 		};
@@ -70,22 +73,20 @@ namespace neo {
 		cl::Kernel _baseLineUpdateKernel;
 
 	public:
-		cl_float2 _predWeightAlpha;
+		cl_float3 _predWeightAlpha;
 		cl_float2 _predWeightLambda;
 		float _inputPredWeightAlpha;
 
 		cl_float _gamma;
 
 		cl_float _explorationStdDev;
-		cl_float _explorationBreakChance;
-
+		
 		AgentSwarm()
-			: _predWeightAlpha({ 0.1f, 0.001f }),
+			: _predWeightAlpha({ 0.005f, 0.001f, 0.01f }),
 			_predWeightLambda({ 0.95f,0.95f }),
 			_inputPredWeightAlpha(0.02f),
 			_gamma(0.99f),
-			_explorationStdDev(0.1f),
-			_explorationBreakChance(0.04f)
+			_explorationStdDev(0.1f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,

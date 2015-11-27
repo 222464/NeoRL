@@ -182,7 +182,7 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates, true);
+		_layers[l]._pred.activate(cs, visibleStates, true, _layerDescs[l]._explorationBreakChance, rng);
 	}
 
 	// Input
@@ -200,7 +200,7 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 
 		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
 
-		_actionPred.activate(cs, visibleStates, false);
+		_actionPred.activate(cs, visibleStates, false, _explorationStdDev, rng);
 	}
 
 	// Retrieve predictions
@@ -248,10 +248,7 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 
 	// Alter inputs
 	for (int i = 0; i < _actions.size(); i++) {
-		if (dist01(rng) < _explorationBreakChance)
-			_actions[i] = dist01(rng) * 2.0f - 1.0f;
-		else
-			_actions[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, _actionPredictions[i].x)) + pertDist(rng) * _explorationStdDev));
+		_actions[i] = std::min(1.0f, std::max(-1.0f, _actionPredictions[i].x));
 	}
 
 	// Buffer updates

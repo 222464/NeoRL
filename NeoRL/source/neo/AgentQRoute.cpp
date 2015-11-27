@@ -305,7 +305,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	_actions = _actionPredictions;
 
 	for (int i = 0; i < _actions.size(); i++)
-		_actions[i] = std::min(1.0f, std::max(-1.0f, _actionPredictions[i] + (_actions[i] - actionPredictionsPrev[i]) * _actionMomentum));
+		_actions[i] = std::min(1.0f, std::max(-1.0f, _actionPredictions[i]));
 
 	// Write initial inputs
 	cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
