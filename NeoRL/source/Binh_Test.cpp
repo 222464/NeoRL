@@ -32,9 +32,13 @@ int main()
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
+	layerDescs[0]._size = { 16, 16 };
+	layerDescs[1]._size = { 16, 16 };
+	layerDescs[2]._size = { 16, 16 };
+
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 2, 2 }, 8, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { 2, 2 }, 16, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
 
 
 #ifdef _USE_ECG_DATA
@@ -109,7 +113,7 @@ int main()
 			// z - index of PQRSTU: P=1, Q=2, R= 3, S=4, T=5, U=6
 			float value = y*4;	// without amplifying the amplitude, it is very difficult to make a sequence pattern QRST
 #else
-			float value = index % 10 >= 5 ? 1.0f : -1.0f;// anomalyOffset + anomalyAmpl*std::sin(0.125f * 3.141596f * index * anomalyFreq + anomalyPhase) + 0.5f * std::sin(0.3f * 3.141596f * index * anomalyFreq + anomalyPhase);
+			float value = anomalyOffset + anomalyAmpl*std::sin(0.125f * 3.141596f * index * anomalyFreq + anomalyPhase) + 0.5f * std::sin(0.3f * 3.141596f * index * anomalyFreq + anomalyPhase);
 #endif
 
 			std::vector<float> vals(4);
@@ -130,16 +134,6 @@ int main()
 			std::vector<float> sdr(64);
 
 			cs.getQueue().enqueueReadImage(ph.getLayer(0)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, sdr.data());
-
-			for (int x = 0; x < 8; x++) {
-			for (int y = 0; y < 8; y++)
-			std::cout << sdr[x + y * 8] << " ";
-
-			std::cout << std::endl;
-			}
-
-
-			std::cout << res[0] << std::endl;
 
 			// plot target data
 			vis::Point p;
