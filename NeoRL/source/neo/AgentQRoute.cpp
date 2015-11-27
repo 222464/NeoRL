@@ -369,7 +369,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 			//q /= _qStates.size();
 
-			//std::cout << "Q: " << q << std::endl;
+			std::cout << "Q: " << q << std::endl;
 		}
 
 		// Backwards
@@ -381,11 +381,11 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 			cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 			
-			//for (int i = 0; i < _qErrors.size(); i++)
-			//	_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
-
 			for (int i = 0; i < _qErrors.size(); i++)
-				_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
+				_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
+
+			//for (int i = 0; i < _qErrors.size(); i++)
+			//	_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
 
 			cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 		}
@@ -518,7 +518,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 		//q /= _qStates.size();
 
-		//std::cout << "Q: " << q << std::endl;
+		std::cout << "Q: " << q << std::endl;
 	}
 
 	// Last backwards (for gradient update)
@@ -530,11 +530,11 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 		cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 
-		//for (int i = 0; i < _qErrors.size(); i++)
-		//	_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
-
 		for (int i = 0; i < _qErrors.size(); i++)
-			_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
+			_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
+
+		//for (int i = 0; i < _qErrors.size(); i++)
+		//	_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
 
 		cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 	}
@@ -562,7 +562,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	}
 
 	// Q
-	float tdError = reward + _gamma * maxQ - _prevValue;
+	float tdError = reward + _gamma * q - _prevValue;
 
 	for (int i = 0; i < _qConnections.size(); i++) {
 		_qConnections[i]._weight += _lastLayerQAlpha * tdError * _qConnections[i]._trace;
@@ -641,5 +641,5 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		std::swap(_layers[l]._baseLines[_front], _layers[l]._baseLines[_back]);
 	}
 
-	_prevValue = maxQ;
+	_prevValue = q;
 }
