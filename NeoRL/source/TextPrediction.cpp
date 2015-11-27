@@ -62,16 +62,14 @@ int main() {
 
 	int inputsRoot = std::ceil(std::sqrt(static_cast<float>(numInputs)));
 
-	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(4);
+	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 32, 32 };
+	layerDescs[0]._size = { 16, 16 };
 	layerDescs[0]._feedForwardRadius = 6;
 	
-	layerDescs[1]._size = { 24, 24 };
+	layerDescs[1]._size = { 12, 12 };
 
-	layerDescs[2]._size = { 16, 16 };
-
-	layerDescs[3]._size = { 12, 12 };
+	layerDescs[2]._size = { 8, 8 };
 
 	neo::PredictiveHierarchy ph;
 

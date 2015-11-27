@@ -97,12 +97,12 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentQRoute::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
 	layerDescs[1]._size = { 8, 8 };
 
-	neo::AgentQRoute agent;
+	neo::AgentSwarm agent;
 
 	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, 16, 4, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
 

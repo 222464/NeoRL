@@ -735,7 +735,7 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 	
 	float2 sum = read_imagef(hiddenSummationTemp, hiddenPosition).xy;
 	
-	float s = sigmoid(sum.x) * 2.0f - 1.0f;
+	float s = sum.x > 0.0f ? 1.0f : 0.0f;
 
 	float2 state = (float2)(fmax(0.0f, s), sum.y);
 	
