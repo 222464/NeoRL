@@ -604,10 +604,12 @@ void kernel predSolveHiddenThreshold(read_only image2d_t hiddenSummationTemp,
 	
 	float sum = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
-	float state = sum > 0.0f ? 1.0f : 0.0f;
+	float s = sigmoid(sum) * 2.0f - 1.0f;
+
+	float state = fmax(0.0f, s);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
-	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(sum));
+	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s));
 }
 
 void kernel predLearnWeights(read_only image2d_t visibleStatesPrev, 
@@ -743,9 +745,11 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 	
 	float2 sum = read_imagef(hiddenSummationTemp, hiddenPosition).xy;
 	
-	float s = sum.x > 0.0f ? 1.0f : 0.0f;
+	float s = sigmoid(sum.x) * 2.0f - 1.0f;
 
-	float2 state = (float2)(randFloat(&seedValue) < noise ? 1.0f - s : s, sum.y);
+	float t = fmax(0.0f, s);
+
+	float2 state = (float2)(randFloat(&seedValue) < noise ? 1.0f - t : t, sum.y);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s, sum.y, 0.0f, 0.0f));

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ComparisonSparseCoder.h"
+#include "SparseCoder.h"
 #include "Predictor.h"
 
 namespace neo {
@@ -16,6 +16,8 @@ namespace neo {
 			cl_float _scThresholdAlpha;
 			cl_float _scWeightTraceLambda;
 			cl_float _scActiveRatio;
+			cl_float _scLeak;
+			cl_int _scIterations;
 
 			cl_float _baseLineDecay;
 			cl_float _baseLineSensitivity;
@@ -26,14 +28,14 @@ namespace neo {
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
 				_scWeightAlpha(0.001f), _scLateralWeightAlpha(0.1f), _scThresholdAlpha(0.004f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.01f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.01f), _scLeak(0.1f), _scIterations(17),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
 				_predWeightAlpha(0.05f)
 			{}
 		};
 
 		struct Layer {
-			ComparisonSparseCoder _sc;
+			SparseCoder _sc;
 			Predictor _pred;
 
 			DoubleBuffer2D _baseLines;
