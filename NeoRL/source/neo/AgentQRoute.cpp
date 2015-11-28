@@ -25,7 +25,7 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	for (int l = 0; l < _layers.size(); l++) {
 		if (l == 0) {
-			std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(3);
+			std::vector<SparseCoder::VisibleLayerDesc> scDescs(3);
 
 			scDescs[0]._size = inputSize;
 			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
@@ -36,10 +36,10 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 			scDescs[2]._size = _layerDescs[l]._size;
 			scDescs[2]._radius = _layerDescs[l]._recurrentRadius;
 
-			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._lateralRadius, _layerDescs[l]._size, initWeightRange, initThreshold, true, rng);
+			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initLateralWeightRange, initThreshold, initCodeRange, initReconstructionErrorRange, true, rng);
 		}
 		else {
-			std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
+			std::vector<SparseCoder::VisibleLayerDesc> scDescs(2);
 
 			scDescs[0]._size = _layerDescs[l - 1]._size;
 			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
@@ -47,7 +47,7 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 			scDescs[1]._size = _layerDescs[l]._size;
 			scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
 
-			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._lateralRadius, _layerDescs[l]._size, initWeightRange, initThreshold, true, rng);
+			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initLateralWeightRange, initThreshold, initCodeRange, initReconstructionErrorRange, true, rng);
 		}
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
@@ -190,9 +190,9 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			visibleStates[1] = _actionsExploratoryImage;
 			visibleStates[2] = _layers[l]._scHiddenStatesPrev;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
 
-			_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scLateralWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scLateralWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 		}
 		else {
 			std::vector<cl::Image2D> visibleStates(2);
@@ -200,7 +200,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			visibleStates[0] = _layers[l - 1]._sc.getHiddenStates()[_back];
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
 		}
 
 		// Get reward
