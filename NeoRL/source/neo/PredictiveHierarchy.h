@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SparseCoder.h"
+#include "ComparisonSparseCoder.h"
 #include "Predictor.h"
 
 namespace neo {
@@ -12,12 +12,9 @@ namespace neo {
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
 
 			cl_float _scWeightAlpha;
-			cl_float _scLateralWeightAlpha;
 			cl_float _scThresholdAlpha;
 			cl_float _scWeightTraceLambda;
 			cl_float _scActiveRatio;
-			cl_float _scLeak;
-			cl_int _scIterations;
 
 			cl_float _baseLineDecay;
 			cl_float _baseLineSensitivity;
@@ -27,15 +24,15 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
-				_scWeightAlpha(0.001f), _scLateralWeightAlpha(0.1f), _scThresholdAlpha(0.004f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.01f), _scLeak(0.1f), _scIterations(17),
+				_scWeightAlpha(0.01f), _scThresholdAlpha(0.2f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.1f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.05f)
+				_predWeightAlpha(0.02f)
 			{}
 		};
 
 		struct Layer {
-			SparseCoder _sc;
+			ComparisonSparseCoder _sc;
 			Predictor _pred;
 
 			DoubleBuffer2D _baseLines;
@@ -57,13 +54,13 @@ namespace neo {
 		cl_float _predWeightAlpha;
 
 		PredictiveHierarchy()
-			: _predWeightAlpha(0.05f)
+			: _predWeightAlpha(0.02f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			cl_int2 inputSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
-			cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
-			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange, std::mt19937 &rng);
+			cl_float2 initWeightRange, float initThreshold,
+			std::mt19937 &rng);
 
 		void simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn = true);
 

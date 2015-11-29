@@ -7,8 +7,8 @@ using namespace neo;
 void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, cl_int2 actionSize, cl_int inputPredictorRadius, cl_int actionPredictorRadius,
 	cl_int actionFeedForwardRadius, const std::vector<LayerDesc> &layerDescs,
-	cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
-	cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange, std::mt19937 &rng)
+	cl_float2 initWeightRange, cl_float initThreshold,
+	std::mt19937 &rng)
 {
 	_layerDescs = layerDescs;
 	_layers.resize(_layerDescs.size());
@@ -32,7 +32,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 	for (int l = 0; l < _layers.size(); l++) {
 		if (l == 0) {
-			std::vector<SparseCoder::VisibleLayerDesc> scDescs(2);
+			std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
 
 			scDescs[0]._size = inputSize;
 			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
@@ -43,10 +43,10 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			//scDescs[2]._size = _layerDescs[l]._size;
 			//scDescs[2]._radius = _layerDescs[l]._recurrentRadius;
 
-			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initLateralWeightRange, initThreshold, initCodeRange, initReconstructionErrorRange, true, rng);
+			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, true, rng);
 		}
 		else {
-			std::vector<SparseCoder::VisibleLayerDesc> scDescs(2);
+			std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
 
 			scDescs[0]._size = _layerDescs[l - 1]._size;
 			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
@@ -54,7 +54,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			scDescs[1]._size = _layerDescs[l]._size;
 			scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
 
-			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initLateralWeightRange, initThreshold, initCodeRange, initReconstructionErrorRange, true, rng);
+			_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, true, rng);
 		}
 
 		std::vector<PredictorSwarm::VisibleLayerDesc> predDescs;
@@ -136,9 +136,9 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 			visibleStates[1] = _actionsImage;
 			//visibleStates[2] = _layers[l]._scHiddenStatesPrev;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
-			_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scLateralWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 		}
 		else {
 			std::vector<cl::Image2D> visibleStates(2);
@@ -146,9 +146,9 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 			visibleStates[0] = _layers[l - 1]._sc.getHiddenStates()[_back];
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
-			_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scLateralWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 		}
 
 		// Get reward

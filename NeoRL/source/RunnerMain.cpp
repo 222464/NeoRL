@@ -30,7 +30,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_cpu);
+	cs.create(sys::ComputeSystem::_gpu);
 
 	sys::ComputeProgram prog;
 
@@ -117,7 +117,7 @@ int main() {
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
 
-	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 6, 8, 5, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.0f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 6, 8, 5, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
 	
 	std::vector<int> actionIndices;
 

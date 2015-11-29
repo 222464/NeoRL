@@ -3,8 +3,8 @@
 using namespace neo;
 
 void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-	const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int lateralRadius,
-	cl_int2 hiddenSize, cl_float2 initWeightRange, cl_float initThreshold,
+	const std::vector<VisibleLayerDesc> &visibleLayerDescs,
+	cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float initThreshold,
 	bool enableTraces,
 	std::mt19937 &rng)
 {
@@ -76,10 +76,12 @@ void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputePro
 void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio) {
 	// Start by clearing summation buffer to thresholds
 	{
+		//cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
 		cs.getQueue().enqueueCopyImage(_hiddenThresholds[_back], _hiddenSummationTemp[_back], zeroOrigin, zeroOrigin, hiddenRegion);
+		//cs.getQueue().enqueueFillImage(_hiddenSummationTemp[_back], zeroColor, zeroOrigin, hiddenRegion);
 	}
 
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -120,7 +122,7 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 }
 
-void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float weightAlpha, float weightLateralAlpha, float thresholdAlpha, float activeRatio) {
+void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float weightAlpha, float thresholdAlpha, float activeRatio) {
 	// Learn Thresholds
 	{
 		int argIndex = 0;
@@ -145,6 +147,7 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const std::vector<cl::
 
 		_learnWeightsKernel.setArg(argIndex++, visibleStates[vli]);
 		_learnWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_learnWeightsKernel.setArg(argIndex++, _hiddenSummationTemp[_front]);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_back]);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_front]);
 		_learnWeightsKernel.setArg(argIndex++, vld._size);
@@ -158,7 +161,7 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const std::vector<cl::
 	}
 }
 
-void ComparisonSparseCoder::learnTrace(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const cl::Image2D &rewards, float weightAlpha, float weightLateralAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio) {
+void ComparisonSparseCoder::learnTrace(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const cl::Image2D &rewards, float weightAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio) {
 	// Learn Thresholds
 	{
 		int argIndex = 0;
@@ -183,6 +186,7 @@ void ComparisonSparseCoder::learnTrace(sys::ComputeSystem &cs, const std::vector
 
 		_learnWeightsTracesKernel.setArg(argIndex++, visibleStates[vli]);
 		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenSummationTemp[_front]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_back]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_front]);
 		_learnWeightsTracesKernel.setArg(argIndex++, rewards);

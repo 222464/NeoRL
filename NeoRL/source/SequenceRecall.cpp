@@ -25,12 +25,12 @@ int main() {
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 16, 16 };
-	layerDescs[1]._size = { 16, 16 };
-	layerDescs[2]._size = { 16, 16 };
+	layerDescs[1]._size = { 12, 12 };
+	layerDescs[2]._size = { 8, 8 };
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 4, 4 }, 16, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.0f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { 4, 4 }, 6, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.0f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
 
 	std::uniform_int_distribution<int> item_dist(0, 9);
 

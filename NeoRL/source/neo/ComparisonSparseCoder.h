@@ -51,15 +51,15 @@ namespace neo {
 	public:
 		// Create with randomly initialized weights
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int lateralRadius, 
-			cl_int2 hiddenSize, cl_float2 initWeightRange, cl_float initThreshold,
+			const std::vector<VisibleLayerDesc> &visibleLayerDescs,
+			cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float initThreshold,
 			bool enableTraces,
 			std::mt19937 &rng);
 
 		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio);
 
-		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float weightAlpha, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
-		void learnTrace(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const cl::Image2D &rewards, float weightAlpha, float weightLateralAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float weightAlpha, float thresholdAlpha, float activeRatio);
+		void learnTrace(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const cl::Image2D &rewards, float weightAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio);
 
 		size_t getNumVisibleLayers() const {
 			return _visibleLayers.size();

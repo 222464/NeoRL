@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SparseCoder.h"
+#include "ComparisonSparseCoder.h"
 #include "Predictor.h"
 #include "PredictorSwarm.h"
 
@@ -12,10 +12,7 @@ namespace neo {
 
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
 
-			cl_int _scIterations;
-			cl_float _scLeak;
 			cl_float _scWeightAlpha;
-			cl_float _scLateralWeightAlpha;
 			cl_float _scThresholdAlpha;
 			cl_float _scWeightTraceLambda;
 			cl_float _scActiveRatio;
@@ -33,11 +30,10 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(5), _predictiveRadius(5),
-				_scIterations(20), _scLeak(0.02f),
-				_scWeightAlpha(0.001f), _scLateralWeightAlpha(0.1f), _scThresholdAlpha(0.005f),
+				_scWeightAlpha(0.01f), _scThresholdAlpha(0.05f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.05f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha({ 0.02f, 0.001f, 0.1f }),
+				_predWeightAlpha({ 0.02f, 0.001f, 0.01f }),
 				_predWeightLambda({ 0.95f,0.95f }),
 				_explorationBreakChance(0.05f),
 				_gamma(0.99f)
@@ -45,7 +41,7 @@ namespace neo {
 		};
 
 		struct Layer {
-			SparseCoder _sc;
+			ComparisonSparseCoder _sc;
 			PredictorSwarm _pred;
 
 			DoubleBuffer2D _baseLines;
@@ -82,7 +78,7 @@ namespace neo {
 		cl_float _explorationStdDev;
 		
 		AgentSwarm()
-			: _predWeightAlpha({ 0.02f, 0.001f, 0.1f }),
+			: _predWeightAlpha({ 0.02f, 0.001f, 0.01f }),
 			_predWeightLambda({ 0.95f,0.95f }),
 			_inputPredWeightAlpha(0.02f),
 			_gamma(0.99f),
@@ -92,8 +88,8 @@ namespace neo {
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			cl_int2 inputSize, cl_int2 actionSize, cl_int inputPredictorRadius, cl_int actionPredictorRadius,
 			cl_int actionFeedForwardRadius, const std::vector<LayerDesc> &layerDescs,
-			cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
-			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange, std::mt19937 &rng);
+			cl_float2 initWeightRange, cl_float initThreshold,
+			std::mt19937 &rng);
 
 		void simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng, bool learn = true);
 
