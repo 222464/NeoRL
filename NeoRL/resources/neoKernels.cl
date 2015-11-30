@@ -298,7 +298,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 }
 
 void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only image2d_t visibleStates, read_only image2d_t visibleErrors,
-	 read_only image2d_t hiddenErrors, read_only image2d_t hiddenStates,
+	read_only image2d_t hiddenErrors, read_only image2d_t hiddenStates,
 	read_only image3d_t weightsBack, write_only image3d_t weightsFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda)
 {
@@ -505,7 +505,7 @@ void kernel scLearnSparseCoderWeights(read_only image2d_t reconstructionError,
 
 				float error = read_imagef(reconstructionError, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * state * error * state;
+				float weight = weightPrev + weightAlpha * error * state;
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}

@@ -142,6 +142,9 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 
+	// Swap hidden state buffers
+	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
+
 	// Reconstruct (second layer forward + error step)
 	reconstructError(cs, visibleStates);
 
@@ -174,9 +177,6 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 		// Swap buffers
 		std::swap(_hiddenErrorSummationTemp[_front], _hiddenErrorSummationTemp[_back]);
 	}
-
-	// Swap hidden state buffers
-	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 }
 
 void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float weightAlpha, float boostAlpha, float activeRatio) {
