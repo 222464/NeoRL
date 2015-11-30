@@ -130,7 +130,7 @@ void Predictor::learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::v
 
 		_learnWeightsKernel.setArg(argIndex++, visibleStatesPrev[vli]);
 		_learnWeightsKernel.setArg(argIndex++, targets);
-		_learnWeightsKernel.setArg(argIndex++, _hiddenActivations[_front]);
+		_learnWeightsKernel.setArg(argIndex++, _hiddenStates[_front]);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_back]);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_front]);
 		_learnWeightsKernel.setArg(argIndex++, vld._size);
@@ -154,7 +154,7 @@ void Predictor::learnTrace(sys::ComputeSystem &cs, float reward, const cl::Image
 
 		_learnWeightsTracesKernel.setArg(argIndex++, visibleStatesPrev[vli]);
 		_learnWeightsTracesKernel.setArg(argIndex++, targets);
-		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenActivations[_front]);
+		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_front]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_back]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_front]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vld._size);

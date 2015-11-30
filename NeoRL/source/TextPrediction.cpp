@@ -64,12 +64,12 @@ int main() {
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 16, 16 };
+	layerDescs[0]._size = { 64, 64 };
 	layerDescs[0]._feedForwardRadius = 6;
 	
-	layerDescs[1]._size = { 12, 12 };
+	layerDescs[1]._size = { 48, 48 };
 
-	layerDescs[2]._size = { 8, 8 };
+	layerDescs[2]._size = { 32, 32 };
 
 	neo::PredictiveHierarchy ph;
 

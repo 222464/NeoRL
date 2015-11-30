@@ -192,7 +192,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
-			_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
 		else {
 			std::vector<cl::Image2D> visibleStates(2);

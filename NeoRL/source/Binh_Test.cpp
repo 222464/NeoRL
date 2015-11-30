@@ -38,7 +38,7 @@ int main()
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 2, 2 }, 16, layerDescs, { -0.01f, 0.01f }, 0.1f, generator);
+	ph.createRandom(cs, prog, { 2, 2 }, 16, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
 
 
 #ifdef _USE_ECG_DATA
@@ -133,7 +133,7 @@ int main()
 
 			std::vector<float> sdr(64);
 
-			cs.getQueue().enqueueReadImage(ph.getLayer(0)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, sdr.data());
+			cs.getQueue().enqueueReadImage(ph.getLayer(0)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, sdr.data());
 
 			for (int x = 0; x < 8; x++) {
 				for (int y = 0; y < 8; y++)
