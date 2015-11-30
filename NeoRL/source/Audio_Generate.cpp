@@ -117,14 +117,14 @@ int main() {
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(4);
 
-	layerDescs[0]._size = { 32, 32 };
-	layerDescs[1]._size = { 32, 32 };
-	layerDescs[2]._size = { 32, 32 };
-	layerDescs[3]._size = { 32, 32 };
+	layerDescs[0]._size = { 64, 64 };
+	layerDescs[1]._size = { 64, 64 };
+	layerDescs[2]._size = { 64, 64 };
+	layerDescs[3]._size = { 64, 64 };
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { dimV, dimV }, 6, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { dimV, dimV }, 6, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
 
 	sf::SoundBuffer buffer;
 
@@ -134,7 +134,7 @@ int main() {
 
 	int featuresCount = static_cast<int>(std::floor(buffer.getSampleCount() / static_cast<float>(trainStride)));
 
-	for (int t = 0; t < 6; t++) {
+	for (int t = 0; t < 16; t++) {
 		for (int s = 0; s < featuresCount; s++) {
 			// Extract features
 			int start = s * trainStride;
@@ -163,13 +163,15 @@ int main() {
 	std::cout << "Generating extra..." << std::endl;
 
 	// Extend song
-	int extraFeatures = 700;
+	int extraFeatures = 3000;
 
 	std::vector<float> extraSamplesf((extraFeatures + 1) * trainStride, 0.0f);
 	std::vector<float> extraSamplesSums((extraFeatures + 1) * trainStride, 0.0f);
+	std::vector<float> pred(aeSamplesSize);
+	std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 	for (int s = 0; s < extraFeatures; s++) {
-		if (false){//s < featuresCount) {
+		if (s < featuresCount) {
 			int start = s * trainStride;
 
 			for (int i = 0; i < aeSamplesSize; i++) {
@@ -184,12 +186,13 @@ int main() {
 			cs.getQueue().enqueueWriteImage(input, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(dimV), static_cast<cl::size_type>(dimV), 1 }, 0, 0, visibleStates.data());
 		}
 		else {
-			cs.getQueue().enqueueCopyImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], input, { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(dimV), static_cast<cl::size_type>(dimV), 1 });
+			for (int i = 0; i < aeSamplesSize; i++)
+				visibleStates[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, pred[i])) + noiseDist(generator) * 0.1f));
+
+			cs.getQueue().enqueueWriteImage(input, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(dimV), static_cast<cl::size_type>(dimV), 1 }, 0, 0, visibleStates.data());
 		}
 
 		ph.simStep(cs, input, false);
-
-		std::vector<float> pred(aeSamplesSize);
 
 		cs.getQueue().enqueueReadImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(dimV), static_cast<cl::size_type>(dimV), 1 }, 0, 0, pred.data());
 
