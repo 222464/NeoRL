@@ -194,7 +194,7 @@ void kernel cscLearnThresholds(read_only image2d_t hiddenThresholdsBack, write_o
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float threshold = fmax(0.0f, thresholdPrev + thresholdAlpha * (activeRatio - hiddenState));
+	float threshold = thresholdPrev + thresholdAlpha * (activeRatio - hiddenState);
 
 	write_imagef(hiddenThresholdsFront, hiddenPosition, (float4)(threshold));
 }
@@ -224,7 +224,7 @@ void kernel cscLearnWeights(read_only image2d_t visibleStates,
 
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * state * (visibleState - activation * weightPrev);
+				float weight = weightPrev + weightAlpha * state * (visibleState - weightPrev);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
@@ -259,7 +259,7 @@ void kernel cscLearnWeightsTraces(read_only image2d_t visibleStates,
 
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightTraceLambda + weightAlpha * state * (visibleState - activation * weightPrev.x));
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightTraceLambda + weightAlpha * state * (visibleState - weightPrev.x));
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}

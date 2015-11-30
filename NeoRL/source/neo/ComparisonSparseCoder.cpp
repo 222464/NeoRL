@@ -147,7 +147,7 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const std::vector<cl::
 
 		_learnWeightsKernel.setArg(argIndex++, visibleStates[vli]);
 		_learnWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
-		_learnWeightsKernel.setArg(argIndex++, _hiddenSummationTemp[_front]);
+		_learnWeightsKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_back]);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_front]);
 		_learnWeightsKernel.setArg(argIndex++, vld._size);
@@ -186,7 +186,7 @@ void ComparisonSparseCoder::learnTrace(sys::ComputeSystem &cs, const std::vector
 
 		_learnWeightsTracesKernel.setArg(argIndex++, visibleStates[vli]);
 		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_back]);
-		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenSummationTemp[_front]);
+		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_back]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_front]);
 		_learnWeightsTracesKernel.setArg(argIndex++, rewards);
