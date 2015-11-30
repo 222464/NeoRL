@@ -4,7 +4,6 @@ using namespace neo;
 
 void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
-	cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange,
 	bool enableTraces,
 	std::mt19937 &rng)
 {
@@ -15,6 +14,12 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_hiddenSize = hiddenSize;
 
 	_lateralRadius = lateralRadius;
+
+	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+	cl_float4 thresholdColor = { initThreshold, initThreshold, initThreshold, initThreshold };
+
+	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+	cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
 	_visibleLayers.resize(_visibleLayerDescs.size());
 
@@ -39,8 +44,8 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 		// Create images
 		vl._reconstructionError = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
 
-		randomUniform(vl._reconstructionError, cs, randomUniform2DKernel, vld._size, initReconstructionErrorRange, rng);
-
+		cs.getQueue().enqueueFillImage(vl._reconstructionError, zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), 1 });
+		
 		int weightDiam = vld._radius * 2 + 1;
 
 		int numWeights = weightDiam * weightDiam;
@@ -72,12 +77,6 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	
 		randomUniform(_lateralWeights[_back], cs, randomUniform3DKernel, lateralWeightsSize, initLateralWeightRange, rng);
 	}
-
-	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-	cl_float4 thresholdColor = { initThreshold, initThreshold, initThreshold, initThreshold };
-
-	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-	cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
 	cs.getQueue().enqueueFillImage(_hiddenThresholds[_back], thresholdColor, zeroOrigin, hiddenRegion);
 
