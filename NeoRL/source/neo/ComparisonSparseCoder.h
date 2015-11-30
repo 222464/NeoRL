@@ -21,8 +21,6 @@ namespace neo {
 		};
 
 		struct VisibleLayer {
-			cl::Image2D _reconstructionError;
-
 			DoubleBuffer3D _weights;
 
 			cl_float2 _hiddenToVisible;
@@ -33,27 +31,22 @@ namespace neo {
 
 	private:
 		DoubleBuffer2D _hiddenStates;
-		DoubleBuffer2D _hiddenBiases;
+		DoubleBuffer2D _hiddenThresholds;
 
 		cl_int _lateralRadius;
 
 		cl_int2 _hiddenSize;
 
-		DoubleBuffer2D _hiddenActivationSummationTemp;
-		DoubleBuffer2D _hiddenErrorSummationTemp;
+		DoubleBuffer2D _hiddenSummationTemp;
 
 		std::vector<VisibleLayerDesc> _visibleLayerDescs;
 		std::vector<VisibleLayer> _visibleLayers;
 
-		cl::Kernel _forwardErrorKernel;
 		cl::Kernel _activateKernel;
 		cl::Kernel _solveHiddenKernel;
-		cl::Kernel _learnHiddenBiasesKernel;
-		cl::Kernel _learnHiddenBiasesTracesKernel;
-		cl::Kernel _learnHiddenWeightsKernel;
-		cl::Kernel _learnHiddenWeightsTracesKernel;
-
-		void reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
+		cl::Kernel _learnThresholdsKernel;
+		cl::Kernel _learnWeightsKernel;
+		cl::Kernel _learnWeightsTracesKernel;
 
 	public:
 		// Create with randomly initialized weights
@@ -65,8 +58,8 @@ namespace neo {
 
 		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio);
 
-		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float weightAlpha, float boostAlpha, float activeRatio);
-		void learnTrace(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const cl::Image2D &rewards, float weightAlpha, float weightLambda, float boostAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float weightAlpha, float thresholdAlpha, float activeRatio);
+		void learnTrace(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const cl::Image2D &rewards, float weightAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio);
 
 		size_t getNumVisibleLayers() const {
 			return _visibleLayers.size();
@@ -88,8 +81,8 @@ namespace neo {
 			return _hiddenStates;
 		}
 
-		const DoubleBuffer2D &getHiddenBiases() const {
-			return _hiddenBiases;
+		const DoubleBuffer2D &getHiddenThresholds() const {
+			return _hiddenThresholds;
 		}
 	};
 }

@@ -11,6 +11,7 @@ namespace neo {
 
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
 
+			cl_int _scSolveIter;
 			cl_float _scWeightAlpha;
 			cl_float _scThresholdAlpha;
 			cl_float _scWeightTraceLambda;
@@ -24,10 +25,10 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
-				_scWeightAlpha(0.01f), _scThresholdAlpha(0.05f),
+				_scSolveIter(17), _scWeightAlpha(0.01f), _scThresholdAlpha(0.04f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.1f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.02f)
+				_predWeightAlpha(0.01f)
 			{}
 		};
 
@@ -54,12 +55,12 @@ namespace neo {
 		cl_float _predWeightAlpha;
 
 		PredictiveHierarchy()
-			: _predWeightAlpha(0.02f)
+			: _predWeightAlpha(0.01f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			cl_int2 inputSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
-			cl_float2 initWeightRange, float initThreshold,
+			cl_float2 initWeightRange, cl_float2 initLateralWeightRange, float initThreshold,
 			std::mt19937 &rng);
 
 		void simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn = true);

@@ -48,7 +48,7 @@ void AgentCACLA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		scDescs[1]._size = _layerDescs[l]._size;
 		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initLateralWeightRange, initThreshold, initCodeRange, initReconstructionErrorRange, true, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initLateralWeightRange, initThreshold, true, rng);
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 

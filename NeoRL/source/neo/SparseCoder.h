@@ -62,7 +62,6 @@ namespace neo {
 		// Create with randomly initialized weights
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
-			cl_float2 initCodeRange, cl_float2 initReconstructionErrorRange,
 			bool enableTraces,
 			std::mt19937 &rng);
 
