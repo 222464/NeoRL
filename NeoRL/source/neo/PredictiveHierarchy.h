@@ -23,11 +23,11 @@ namespace neo {
 
 			LayerDesc()
 				: _size({ 8, 8 }),
-				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(5), _predictiveRadius(5),
-				_scWeightAlpha(0.0004f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.06f), _scBoostAlpha(0.005f),
+				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
+				_scWeightAlpha(0.001f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.1f), _scBoostAlpha(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.005f)
+				_predWeightAlpha(0.1f)
 			{}
 		};
 
@@ -54,7 +54,7 @@ namespace neo {
 		cl_float _predWeightAlpha;
 
 		PredictiveHierarchy()
-			: _predWeightAlpha(0.001f)
+			: _predWeightAlpha(0.1f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
@@ -63,6 +63,8 @@ namespace neo {
 			std::mt19937 &rng);
 
 		void simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn = true);
+
+		void clearMemory(sys::ComputeSystem &cs);
 
 		size_t getNumLayers() const {
 			return _layers.size();

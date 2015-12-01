@@ -1,5 +1,7 @@
 #include "ComparisonSparseCoder.h"
 
+#include <iostream>
+
 using namespace neo;
 
 void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
@@ -15,6 +17,11 @@ void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputePro
 	_lateralRadius = lateralRadius;
 
 	_hiddenSize = hiddenSize;
+
+	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+	cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
 	_visibleLayers.resize(_visibleLayerDescs.size());
 
@@ -43,7 +50,7 @@ void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputePro
 
 		int numWeights = weightDiam * weightDiam;
 
-		cl_int3 weightsSize = cl_int3{ _hiddenSize.x, _hiddenSize.y, numWeights };
+		cl_int3 weightsSize = cl_int3 { _hiddenSize.x, _hiddenSize.y, numWeights };
 
 		vl._weights = createDoubleBuffer3D(cs, weightsSize, weightChannels, CL_FLOAT);
 
@@ -60,16 +67,12 @@ void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputePro
 	_hiddenActivationSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 	_hiddenErrorSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
-	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-	cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
-
 	cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
-
+	
 	// Create kernels
 	_forwardErrorKernel = cl::Kernel(program.getProgram(), "cscForwardError");
 	_activateKernel = cl::Kernel(program.getProgram(), "cscActivate");
+	_activateIgnoreMiddleKernel = cl::Kernel(program.getProgram(), "cscActivateIgnoreMiddle");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "cscSolveHidden");
 	_learnHiddenBiasesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenBiases");
 	_learnHiddenBiasesTracesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenBiasesTraces");
@@ -112,17 +115,32 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-		int argIndex = 0;
+		if (vld._ignoreMiddle) {
+			int argIndex = 0;
 
-		_activateKernel.setArg(argIndex++, visibleStates[vli]);
-		_activateKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
-		_activateKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_front]);
-		_activateKernel.setArg(argIndex++, vl._weights[_back]);
-		_activateKernel.setArg(argIndex++, vld._size);
-		_activateKernel.setArg(argIndex++, vl._hiddenToVisible);
-		_activateKernel.setArg(argIndex++, vld._radius);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, visibleStates[vli]);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_front]);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, vl._weights[_back]);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, vld._size);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, vl._hiddenToVisible);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, vld._radius);
 
-		cs.getQueue().enqueueNDRangeKernel(_activateKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			cs.getQueue().enqueueNDRangeKernel(_activateIgnoreMiddleKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		}
+		else {
+			int argIndex = 0;
+
+			_activateKernel.setArg(argIndex++, visibleStates[vli]);
+			_activateKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
+			_activateKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_front]);
+			_activateKernel.setArg(argIndex++, vl._weights[_back]);
+			_activateKernel.setArg(argIndex++, vld._size);
+			_activateKernel.setArg(argIndex++, vl._hiddenToVisible);
+			_activateKernel.setArg(argIndex++, vld._radius);
+
+			cs.getQueue().enqueueNDRangeKernel(_activateKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		}
 
 		// Swap buffers
 		std::swap(_hiddenActivationSummationTemp[_front], _hiddenActivationSummationTemp[_back]);
@@ -162,17 +180,32 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-		int argIndex = 0;
+		if (vld._ignoreMiddle) {
+			int argIndex = 0;
 
-		_activateKernel.setArg(argIndex++, vl._reconstructionError);
-		_activateKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_back]);
-		_activateKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_front]);
-		_activateKernel.setArg(argIndex++, vl._weights[_back]);
-		_activateKernel.setArg(argIndex++, vld._size);
-		_activateKernel.setArg(argIndex++, vl._hiddenToVisible);
-		_activateKernel.setArg(argIndex++, vld._radius);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, vl._reconstructionError);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_back]);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_front]);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, vl._weights[_back]);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, vld._size);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, vl._hiddenToVisible);
+			_activateIgnoreMiddleKernel.setArg(argIndex++, vld._radius);
 
-		cs.getQueue().enqueueNDRangeKernel(_activateKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			cs.getQueue().enqueueNDRangeKernel(_activateIgnoreMiddleKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		}
+		else {
+			int argIndex = 0;
+
+			_activateKernel.setArg(argIndex++, vl._reconstructionError);
+			_activateKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_back]);
+			_activateKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_front]);
+			_activateKernel.setArg(argIndex++, vl._weights[_back]);
+			_activateKernel.setArg(argIndex++, vld._size);
+			_activateKernel.setArg(argIndex++, vl._hiddenToVisible);
+			_activateKernel.setArg(argIndex++, vld._radius);
+
+			cs.getQueue().enqueueNDRangeKernel(_activateKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		}
 
 		// Swap buffers
 		std::swap(_hiddenErrorSummationTemp[_front], _hiddenErrorSummationTemp[_back]);
@@ -269,4 +302,13 @@ void ComparisonSparseCoder::learnTrace(sys::ComputeSystem &cs, const std::vector
 
 		std::swap(vl._weights[_front], vl._weights[_back]);
 	}
+}
+
+void ComparisonSparseCoder::clearMemory(sys::ComputeSystem &cs) {
+	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+
+	cl::array<cl::size_type, 3> layerRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
+
+	cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, layerRegion);
 }

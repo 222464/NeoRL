@@ -151,7 +151,7 @@ void AgentCACLA::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates, true);
+		//_layers[l]._pred.activate(cs, visibleStates, true);
 
 		_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scLateralWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 	}
@@ -161,7 +161,7 @@ void AgentCACLA::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 		
 		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
 		
-		_firstLayerPred.activate(cs, visibleStates, false);
+		//_firstLayerPred.activate(cs, visibleStates, false);
 	}
 
 	// Retrieve predictions

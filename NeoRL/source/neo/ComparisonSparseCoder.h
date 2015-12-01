@@ -15,8 +15,10 @@ namespace neo {
 
 			cl_int _radius;
 
+			bool _ignoreMiddle;
+
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _radius(4)
+				: _size({ 8, 8 }), _radius(4), _ignoreMiddle(false)
 			{}
 		};
 
@@ -47,6 +49,7 @@ namespace neo {
 
 		cl::Kernel _forwardErrorKernel;
 		cl::Kernel _activateKernel;
+		cl::Kernel _activateIgnoreMiddleKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnHiddenBiasesKernel;
 		cl::Kernel _learnHiddenBiasesTracesKernel;
@@ -68,6 +71,8 @@ namespace neo {
 		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float weightAlpha, float boostAlpha, float activeRatio);
 		void learnTrace(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const cl::Image2D &rewards, float weightAlpha, float weightLambda, float boostAlpha, float activeRatio);
 
+		void clearMemory(sys::ComputeSystem &cs);
+
 		size_t getNumVisibleLayers() const {
 			return _visibleLayers.size();
 		}
@@ -86,6 +91,10 @@ namespace neo {
 
 		const DoubleBuffer2D &getHiddenStates() const {
 			return _hiddenStates;
+		}
+
+		const DoubleBuffer2D &getHiddenActivations() const {
+			return _hiddenActivationSummationTemp;
 		}
 
 		const DoubleBuffer2D &getHiddenBiases() const {
