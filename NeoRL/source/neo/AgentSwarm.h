@@ -12,7 +12,6 @@ namespace neo {
 
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
 
-			cl_int _scSolveIter;
 			cl_float _scWeightAlpha;
 			cl_float _scThresholdAlpha;
 			cl_float _scWeightTraceLambda;
@@ -32,12 +31,12 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(5), _predictiveRadius(5),
-				_scSolveIter(10), _scWeightAlpha(0.01f), _scThresholdAlpha(0.05f),
+				_scWeightAlpha(0.001f), _scThresholdAlpha(0.05f),
 				_scWeightTraceLambda(0.95f), _scActiveRatio(0.05f), _scBoostAlpha(0.1f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha({ 0.02f, 0.001f, 0.01f }),
+				_predWeightAlpha({ 0.004f, 0.0004f, 0.01f }),
 				_predWeightLambda({ 0.95f,0.95f }),
-				_explorationBreakChance(0.05f),
+				_explorationBreakChance(0.03f),
 				_gamma(0.99f)
 			{}
 		};
@@ -80,7 +79,7 @@ namespace neo {
 		cl_float _explorationStdDev;
 		
 		AgentSwarm()
-			: _predWeightAlpha({ 0.02f, 0.001f, 0.01f }),
+			: _predWeightAlpha({ 0.004f, 0.0004f, 0.01f }),
 			_predWeightLambda({ 0.95f,0.95f }),
 			_inputPredWeightAlpha(0.01f),
 			_gamma(0.99f),

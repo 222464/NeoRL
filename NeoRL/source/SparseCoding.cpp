@@ -46,13 +46,13 @@ int main() {
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 8;
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 5, { -0.01f, 0.01f }, 0.04f, false, generator);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 5, { -0.01f, 0.01f }, 0.0f, false, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 
 	sf::Image sampleImage;
 
-	sampleImage.loadFromFile("testImage_whitened.png");
+	sampleImage.loadFromFile("testImage.png");
 
 	sf::Texture sampleTexture;
 
@@ -146,7 +146,7 @@ int main() {
 
 			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.1f);
 
-			sparseCoder.learn(cs, std::vector<cl::Image2D>(1, inputImage), 0.005f, 0.01f, 0.1f);
+			sparseCoder.learn(cs, std::vector<cl::Image2D>(1, inputImage), 0.001f, 0.1f, 0.1f);
 		}
 
 		/*if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {

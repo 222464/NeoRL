@@ -57,7 +57,7 @@ int main() {
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(4);
 
 	layerDescs[0]._size = { 64, 64 };
-	layerDescs[0]._feedForwardRadius = 10;
+	layerDescs[0]._feedForwardRadius = 8;
 
 	layerDescs[1]._size = { 48, 48 };
 
@@ -67,7 +67,7 @@ int main() {
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 64, 64 }, 8, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { 64, 64 }, 8, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
 
 	float avgError = 1.0f;
 

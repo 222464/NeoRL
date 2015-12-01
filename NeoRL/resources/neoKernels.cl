@@ -221,7 +221,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? activation : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -289,8 +289,9 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 				float weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
+				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * visibleState * error;
+				float weight = weightPrev + weightAlpha * (visibleState * error + visibleError * state);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
@@ -325,8 +326,9 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
 
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
+				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * weightPrev.y, weightPrev.y * weightLambda + visibleState * error);
+				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * weightPrev.y, weightPrev.y * weightLambda + visibleState * error + visibleError * state);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -629,8 +631,9 @@ void kernel predSolveHiddenThreshold(read_only image2d_t hiddenSummationTemp,
 	
 	float sum = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
-	float state = fmax(0.0f, fabs(sum) - 0.25f) * (sum > 0.0f ? 1.0f : -1.0f);
-	
+	//float state = fmax(0.0f, fabs(sum) - 0.25f) * (sum > 0.0f ? 1.0f : -1.0f);
+	float state = sum > 0.5f ? 1.0f : 0.0f;
+
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(sum));
 }
@@ -768,16 +771,16 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 	
 	float2 sum = read_imagef(hiddenSummationTemp, hiddenPosition).xy;
 	
-	float s = fmax(0.0f, fabs(sum.x) - 0.25f) * (sum.x > 0.0f ? 1.0f : -1.0f);
+	//float s = fmax(0.0f, fabs(sum.x) - 0.25f) * (sum.x > 0.0f ? 1.0f : -1.0f);
 
-	float sumNoise = sum.x + noise * randNormal(&seedValue);
+	//float sumNoise = sum.x + noise * randNormal(&seedValue);
 
-	float sNoise = fmax(0.0f, fabs(sumNoise) - 0.25f) * (sumNoise > 0.0f ? 1.0f : -1.0f);
+	//float sNoise = fmax(0.0f, fabs(sumNoise) - 0.25f) * (sumNoise > 0.0f ? 1.0f : -1.0f);
 
-	float2 state = (float2)(sNoise, sum.y);
+	float2 state = (float2)(randFloat(&seedValue) < noise ? (sum.x > 0.5f ? 1.0f : 0.0f) : (sum.x > 0.5f ? 0.0f : 1.0f), sum.y);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
-	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s, sum.y, 0.0f, 0.0f));
+	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(sum, 0.0f, 0.0f));
 }
 
 void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, 
@@ -790,7 +793,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 	
 	float target = read_imagef(targets, hiddenPosition).x;
-	float2 pred = read_imagef(predictionStates, hiddenPosition).xy;
+	float2 state = read_imagef(predictionStates, hiddenPosition).xy;
 	float predActPrev = read_imagef(predictionActivationsPrev, hiddenPosition).x;
 	float2 predPrev = read_imagef(predictionStatesPrev, hiddenPosition).xy;
 
@@ -798,7 +801,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 
 	float randError = predPrev.x - predActPrev;
 
-	float tdError = reward + gamma * pred.y - predPrev.y;
+	float tdError = reward + gamma * state.y - predPrev.y;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
