@@ -64,21 +64,22 @@ int main() {
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 8, 8 };
+	layerDescs[0]._size = { 32, 32 };
 	layerDescs[0]._feedForwardRadius = 6;
 	
-	layerDescs[1]._size = { 8, 8 };
+	layerDescs[1]._size = { 32, 32 };
 
-	layerDescs[2]._size = { 8, 8 };
+	layerDescs[2]._size = { 32, 32 };
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { inputsRoot, inputsRoot }, 8, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+	ph.createRandom(cs, prog, { inputsRoot, inputsRoot }, 12, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inputsRoot, inputsRoot);
 
 	std::vector<float> input(inputsRoot * inputsRoot, 0.0f);
 	std::vector<float> pred(inputsRoot * inputsRoot, 0.0f);
+	char predChar = 0;
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -103,6 +104,14 @@ int main() {
 	avgText.setFont(font);
 	avgText.setPosition(sf::Vector2f(100.0f, 100.0f));
 
+	bool modeGenerate = false;
+
+	bool tildePressed = false;
+
+	float noiseAmount = 0.05f;
+
+	std::normal_distribution<float> noiseDist(0.0f, 1.0f);
+
 	do {
 		clock.restart();
 
@@ -123,7 +132,22 @@ int main() {
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 			quit = true;
 
-		
+		if (!tildePressed && sf::Keyboard::isKeyPressed(sf::Keyboard::Tilde)) {
+			modeGenerate = !modeGenerate;
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
+			noiseAmount += 0.001f;
+
+			std::cout << noiseAmount << std::endl;
+		}
+		else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
+			noiseAmount = std::max(0.0f, noiseAmount - 0.001f);
+
+			std::cout << noiseAmount << std::endl;
+		}
+
+		tildePressed = sf::Keyboard::isKeyPressed(sf::Keyboard::Tilde);
 		{
 			window.clear();
 			
@@ -134,16 +158,26 @@ int main() {
 			window.display();
 		}
 
-		for (int i = 0; i < inputsRoot * inputsRoot; i++)
-			input[i] = 0.0f;
+		if (modeGenerate) {
+			for (int i = 0; i < inputsRoot * inputsRoot; i++)
+				input[i] = noiseDist(generator) * noiseAmount;
 
-		int index = test[current] - minimum;
+			int index = predChar - minimum;
 
-		input[index] = 1.0f;
+			input[index] = 1.0f + noiseDist(generator) * noiseAmount;
+		}
+		else {
+			for (int i = 0; i < inputsRoot * inputsRoot; i++)
+				input[i] = 0.0f;
+
+			int index = test[current] - minimum;
+
+			input[index] = 1.0f;
+		}
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inputsRoot), static_cast<cl::size_type>(inputsRoot), 1 }, 0, 0, input.data());
 
-		ph.simStep(cs, inputImage);
+		ph.simStep(cs, inputImage, !modeGenerate);
 
 		cs.getQueue().enqueueReadImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inputsRoot), static_cast<cl::size_type>(inputsRoot), 1 }, 0, 0, pred.data());
 
@@ -153,7 +187,7 @@ int main() {
 			if (pred[i] > pred[predIndex])
 				predIndex = i;
 
-		char predChar = predIndex + minimum;
+		predChar = predIndex + minimum;
 
 		std::cout << predChar;
 
