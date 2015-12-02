@@ -94,6 +94,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 
 			_baseLineUpdateKernel.setArg(argIndex++, _firstLayerPred.getVisibleLayer(0)._errors);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
+			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_front]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._reward);
@@ -107,6 +108,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l - 1]._pred.getVisibleLayer(1)._errors);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
+			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_front]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._reward);

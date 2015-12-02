@@ -255,7 +255,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? activation : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -362,7 +362,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * weightPrev.y, weightPrev.y * weightLambda * (1.0f - state) + visibleState * error + visibleError * state);
+				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * weightPrev.y, weightPrev.y * weightLambda + visibleState * error + visibleError * state);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -460,7 +460,7 @@ void kernel predSolveHiddenThreshold(read_only image2d_t hiddenSummationTemp,
 	
 	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
-	float state = activation > 0.5f ? 1.0f : 0.0f;
+	float state = fmax(0.0f, fabs(activation) - 0.25f) * (activation > 0.0f ? 1.0f : -1.0f);
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(activation));
@@ -659,15 +659,17 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 
 // ----------------------------------------- Predictive Hierarchy -----------------------------------------
 
-void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_t errorsCurrent,
+void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
 	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
 	float decay, float sensitivity)
 {
 	int2 position = (int2)(get_global_id(0), get_global_id(1));
 	
+	float state = read_imagef(hiddenStates, position).x;
+
 	float error = read_imagef(errorsLower, position).x + read_imagef(errorsCurrent, position).x;
 
-	float error2 = error * error;
+	float error2 = state * error * error;
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 

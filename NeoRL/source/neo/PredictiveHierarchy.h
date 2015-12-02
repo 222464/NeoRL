@@ -25,9 +25,9 @@ namespace neo {
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
 				_scWeightAlpha(0.001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.1f), _scBoostAlpha(0.02f),
-				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.1f)
+				_scActiveRatio(0.1f), _scBoostAlpha(0.0f),
+				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
+				_predWeightAlpha(0.01f)
 			{}
 		};
 
@@ -54,7 +54,7 @@ namespace neo {
 		cl_float _predWeightAlpha;
 
 		PredictiveHierarchy()
-			: _predWeightAlpha(0.1f)
+			: _predWeightAlpha(0.01f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
