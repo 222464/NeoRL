@@ -292,7 +292,7 @@ void kernel cscLearnHiddenBiasesTraces(read_only image2d_t rewards,
 
 	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
 
-	float2 bias = (float2)(biasPrev.x + biasAlpha * reward * biasPrev.y + boostAlpha * (activeRatio - state), biasPrev.y * biasLambda * (1.0f - state) + error);
+	float2 bias = (float2)(biasPrev.x + biasAlpha * reward * biasPrev.y + boostAlpha * (activeRatio - state), biasPrev.y * biasLambda + error);
 
 	write_imagef(visibleBiasesFront, hiddenPosition, (float4)(bias, 0.0f, 0.0f));
 }
