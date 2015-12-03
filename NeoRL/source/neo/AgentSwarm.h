@@ -31,12 +31,12 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(5), _predictiveRadius(5),
-				_scWeightAlpha(0.001f), _scThresholdAlpha(0.02f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.05f), _scBoostAlpha(0.1f),
+				_scWeightAlpha(0.002f), _scThresholdAlpha(0.02f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.1f), _scBoostAlpha(0.005f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha({ 0.05f, 0.002f, 0.1f }),
+				_predWeightAlpha({ 0.02f, 0.001f, 0.1f }),
 				_predWeightLambda({ 0.95f,0.95f }),
-				_explorationBreakChance(0.2f),
+				_explorationBreakChance(0.1f),
 				_gamma(0.99f)
 			{}
 		};
@@ -80,11 +80,11 @@ namespace neo {
 		cl_float _explorationStdDev;
 		
 		AgentSwarm()
-			: _predWeightAlpha({ 0.2f, 0.002f, 0.4f }),
+			: _predWeightAlpha({ 0.1f, 0.001f, 0.2f }),
 			_predWeightLambda({ 0.95f,0.95f }),
 			_inputPredWeightAlpha(0.01f),
 			_gamma(0.99f),
-			_explorationStdDev(0.2f)
+			_explorationStdDev(0.1f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,

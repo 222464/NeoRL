@@ -104,7 +104,7 @@ int main() {
 
 	neo::AgentSwarm agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, 16, 4, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, { -0.01f, 0.01f }, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, 16, 4, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
 
 	// ---------------------------- Game Loop -----------------------------
 
