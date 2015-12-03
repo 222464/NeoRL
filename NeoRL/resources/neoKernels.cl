@@ -272,7 +272,7 @@ void kernel cscLearnHiddenBiases(read_only image2d_t visibleBiasesBack, write_on
 	
 	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f / exp(state));
 
-	float bias = biasPrev + biasAlpha * error + boostAlpha * (activeRatio - state);
+	float bias = biasPrev + biasAlpha * error + boostAlpha * (activeRatio - (state == 0.0f ? 0.0f : 1.0f));
 
 	write_imagef(visibleBiasesFront, hiddenPosition, (float4)(bias));
 }
@@ -292,7 +292,7 @@ void kernel cscLearnHiddenBiasesTraces(read_only image2d_t rewards,
 
 	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f / exp(state));
 
-	float2 bias = (float2)(biasPrev.x + biasAlpha * reward * biasPrev.y + boostAlpha * (activeRatio - state), biasPrev.y * biasLambda + error);
+	float2 bias = (float2)(biasPrev.x + biasAlpha * reward * biasPrev.y + boostAlpha * (activeRatio - (state == 0.0f ? 0.0f : 1.0f)), biasPrev.y * biasLambda + error);
 
 	write_imagef(visibleBiasesFront, hiddenPosition, (float4)(bias, 0.0f, 0.0f));
 }
@@ -665,7 +665,7 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_
 
 	float error = read_imagef(errorsLower, position).x + read_imagef(errorsCurrent, position).x;
 
-	float error2 = state * error * error;
+	float error2 = error * error;
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
@@ -687,7 +687,7 @@ void kernel phBaseLineUpdateFirstLayerSwarm(read_only image2d_t errorsLowerInput
 
 	float error = read_imagef(errorsLowerInput, position).x + read_imagef(errorsLowerAction, position).x + read_imagef(errorsCurrent, position).x;
 
-	float error2 = state * error * error;
+	float error2 = error * error;
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
