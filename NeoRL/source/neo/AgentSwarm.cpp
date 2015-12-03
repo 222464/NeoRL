@@ -153,7 +153,6 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 		}
 
 		// Get reward
-		// Get reward
 		if (l == 0) {
 			int argIndex = 0;
 
