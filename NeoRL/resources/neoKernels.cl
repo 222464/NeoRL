@@ -681,6 +681,28 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_
 	write_imagef(rewards, position, (float4)(reward));
 }
 
+void kernel phBaseLineUpdateFirstLayerSwarm(read_only image2d_t errorsLowerInput, read_only image2d_t errorsLowerAction, read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
+	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
+	float decay, float sensitivity)
+{
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float state = read_imagef(hiddenStates, position).x;
+
+	float error = read_imagef(errorsLowerInput, position).x + read_imagef(errorsLowerAction, position).x + read_imagef(errorsCurrent, position).x;
+
+	float error2 = state * error * error;
+
+	float baseLinePrev = read_imagef(baseLinesBack, position).x;
+
+	float reward = (baseLinePrev - error2) > 0.0f ? 1.0f : 0.0f;
+
+	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
+
+	write_imagef(baseLinesFront, position, (float4)(baseLine));
+	write_imagef(rewards, position, (float4)(reward));
+}
+
 // ----------------------------------------- Q Route -----------------------------------------
 
 void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, read_only image2d_t qBiases, read_only image2d_t qStatesPrev, write_only image2d_t qStatesFront,

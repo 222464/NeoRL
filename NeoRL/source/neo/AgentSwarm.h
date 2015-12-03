@@ -67,6 +67,7 @@ namespace neo {
 		std::vector<float> _inputPredictions;
 		std::vector<cl_float2> _actionPredictions;
 
+		cl::Kernel _baseLineUpdateFirstLayerSwarmKernel;
 		cl::Kernel _baseLineUpdateKernel;
 
 	public:

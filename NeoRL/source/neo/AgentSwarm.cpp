@@ -62,11 +62,11 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		if (l < _layers.size() - 1) {
 			predDescs.resize(2);
 
-			predDescs[0]._size = _layerDescs[l + 1]._size;
-			predDescs[0]._radius = _layerDescs[l]._feedBackRadius;
+			predDescs[0]._size = _layerDescs[l]._size;
+			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 
-			predDescs[1]._size = _layerDescs[l]._size;
-			predDescs[1]._radius = _layerDescs[l]._predictiveRadius;
+			predDescs[1]._size = _layerDescs[l + 1]._size;
+			predDescs[1]._radius = _layerDescs[l]._feedBackRadius;		
 		}
 		else {
 			predDescs.resize(1);
@@ -113,6 +113,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	}
 
 	_baseLineUpdateKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdate");
+	_baseLineUpdateFirstLayerSwarmKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdateFirstLayerSwarm");
 }
 
 void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng, bool learn) {
@@ -138,7 +139,7 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
-			//_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
 		else {
 			std::vector<cl::Image2D> visibleStates(2);
@@ -148,15 +149,32 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
-			//_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
 
 		// Get reward
-		{
+		// Get reward
+		if (l == 0) {
 			int argIndex = 0;
 
+			_baseLineUpdateFirstLayerSwarmKernel.setArg(argIndex++, _inputPred.getVisibleLayer(0)._errors);
+			_baseLineUpdateFirstLayerSwarmKernel.setArg(argIndex++, _actionPred.getVisibleLayer(0)._errors);
+			_baseLineUpdateFirstLayerSwarmKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
+			_baseLineUpdateFirstLayerSwarmKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
+			_baseLineUpdateFirstLayerSwarmKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
+			_baseLineUpdateFirstLayerSwarmKernel.setArg(argIndex++, _layers[l]._baseLines[_front]);
+			_baseLineUpdateFirstLayerSwarmKernel.setArg(argIndex++, _layers[l]._reward);
+			_baseLineUpdateFirstLayerSwarmKernel.setArg(argIndex++, _layerDescs[l]._baseLineDecay);
+			_baseLineUpdateFirstLayerSwarmKernel.setArg(argIndex++, _layerDescs[l]._baseLineSensitivity);
+
+			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateFirstLayerSwarmKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+		}
+		else {
+			int argIndex = 0;
+
+			_baseLineUpdateKernel.setArg(argIndex++, _layers[l - 1]._pred.getVisibleLayer(1)._errors);
+			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
-			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getHiddenStates()[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_front]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._reward);
@@ -173,8 +191,8 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 		if (l < _layers.size() - 1) {
 			visibleStates.resize(2);
 
-			visibleStates[0] = _layers[l + 1]._pred.getHiddenStates()[_back];
-			visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
+			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
+			visibleStates[1] = _layers[l + 1]._pred.getHiddenStates()[_back];
 		}
 		else {
 			visibleStates.resize(1);
@@ -183,6 +201,8 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 		}
 
 		_layers[l]._pred.activate(cs, visibleStates, true, _layerDescs[l]._explorationBreakChance, rng);
+
+		_layers[l]._pred.propagateError(cs, _layers[l]._sc.getHiddenStates()[_back]);
 	}
 
 	// Input
@@ -192,6 +212,8 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
 
 		_inputPred.activate(cs, visibleStates, false);
+
+		_inputPred.propagateError(cs, _inputsImage);
 	}
 
 	// Action
@@ -201,6 +223,8 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
 
 		_actionPred.activate(cs, visibleStates, false, _explorationStdDev, rng);
+
+		_actionPred.propagateError(cs, _actionsImage);
 	}
 
 	// Retrieve predictions
@@ -216,8 +240,8 @@ void AgentSwarm::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rng
 		if (l < _layers.size() - 1) {
 			visibleStatesPrev.resize(2);
 
-			visibleStatesPrev[0] = _layers[l + 1]._pred.getHiddenStates()[_front];
-			visibleStatesPrev[1] = _layers[l]._scHiddenStatesPrev;
+			visibleStatesPrev[0] = _layers[l]._scHiddenStatesPrev;
+			visibleStatesPrev[1] = _layers[l + 1]._pred.getHiddenStates()[_front];
 		}
 		else {
 			visibleStatesPrev.resize(1);
