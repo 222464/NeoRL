@@ -460,7 +460,7 @@ void kernel predSolveHiddenThreshold(read_only image2d_t hiddenSummationTemp,
 	
 	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
-	float state = fmax(0.0f, activation);
+	float state = log(1.0f + fmax(0.0f, activation));
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(activation));
