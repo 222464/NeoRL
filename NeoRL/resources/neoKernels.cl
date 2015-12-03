@@ -601,10 +601,10 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 	
 	float sumNoise = sum.x + noise * randNormal(&seedValue);
 
-	float2 state = (float2)(fmax(0.0f, sumNoise), sum.y);
+	float2 state = (float2)(log(1.0f + fmax(0.0f, sumNoise)), sum.y);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
-	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(fmax(0.0f, sum.x), sum.y, 0.0f, 0.0f));
+	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(log(1.0f + fmax(0.0f, sum.x)), sum.y, 0.0f, 0.0f));
 }
 
 void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, 
