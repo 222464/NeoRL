@@ -15,8 +15,10 @@ namespace neo {
 
 			cl_int _radius;
 
+			bool _ignoreMiddle;
+
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _radius(4)
+				: _size({ 8, 8 }), _radius(4), _ignoreMiddle(false)
 			{}
 		};
 
