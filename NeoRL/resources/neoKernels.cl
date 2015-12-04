@@ -255,7 +255,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? fmax(0.0f, activation) : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -461,7 +461,7 @@ void kernel predSolveHiddenThreshold(read_only image2d_t hiddenSummationTemp,
 	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
 	//float state = log(1.0f + fmax(0.0f, activation));
-	float state = activation > 0.5f ? 1.0f : 0.0f;
+	float state = fmax(0.0f, activation);
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(activation));
@@ -600,13 +600,13 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 	
 	float2 sum = read_imagef(hiddenSummationTemp, hiddenPosition).xy;
 	
-	//float sumNoise = sum.x + noise * randNormal(&seedValue);
+	float sNoise = fmax(0.0f, sum.x + noise * randNormal(&seedValue));
 
 	//float2 state = (float2)(log(1.0f + fmax(0.0f, sumNoise)), sum.y);
 
-	float s = sum.x > 0.5f ? 1.0f : 0.0f;
+	float s = fmax(0.0f, sum.x);
 
-	float2 state = (float2)(randFloat(&seedValue) < noise ? 1.0f - s : s, sum.y);
+	float2 state = (float2)(sNoise, sum.y);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s, sum.y, 0.0f, 0.0f));
