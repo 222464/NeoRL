@@ -4,7 +4,7 @@ using namespace neo;
 
 void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
-	cl_float2 initWeightRange, cl_float2 initInhibitionRange, float initThreshold,
+	cl_float2 initWeightRange, float initThreshold,
 	std::mt19937 &rng)
 {
 	_layerDescs = layerDescs;
@@ -13,19 +13,6 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	cl_int2 prevLayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-#ifdef USE_EXPLAINING_AWAY
-		std::vector<SparseCoder::VisibleLayerDesc> scDescs(2);
-
-		scDescs[0]._size = prevLayerSize;
-		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
-		scDescs[0]._ignoreMiddle = false;
-
-		scDescs[1]._size = _layerDescs[l]._size;
-		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
-		scDescs[1]._ignoreMiddle = true;
-
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initInhibitionRange, initThreshold, true, rng);
-#else
 		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
 
 		scDescs[0]._size = prevLayerSize;
@@ -37,8 +24,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		scDescs[1]._ignoreMiddle = true;
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, true, rng);
-#endif
-
+	
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
 		if (l < _layers.size() - 1) {
@@ -96,18 +82,10 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStates[0] = prevLayerState;
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
-#ifdef USE_EXPLAINING_AWAY
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
-#else
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
-#endif
-			if (learn) {
-#ifdef USE_EXPLAINING_AWAY
-				_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scWeightLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
-#else
+
+			if (learn)
 				_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
-#endif
-			}
 		}
 
 		// Get reward
