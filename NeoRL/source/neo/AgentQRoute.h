@@ -41,11 +41,11 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(5), _predictiveRadius(5), _qRadius(5),
-				_scSolveIter(10), _scWeightAlpha(0.002f), _scLateralWeightAlpha(0.1f), _scThresholdAlpha(0.005f),
-				_scWeightTraceLambda(0.95f), _scActiveRatio(0.04f), _scBoostAlpha(0.01f),
+				_scSolveIter(10), _scWeightAlpha(0.001f), _scLateralWeightAlpha(0.1f), _scThresholdAlpha(0.005f),
+				_scWeightTraceLambda(0.95f), _scActiveRatio(0.02f), _scBoostAlpha(0.01f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(4.0f),
-				_predWeightAlpha(0.05f),
-				_qAlpha(0.1f), _qBiasAlpha(0.01f), _qGammaLambda(0.95f), _qEluAlpha(1.0f)
+				_predWeightAlpha(0.1f),
+				_qAlpha(0.4f), _qBiasAlpha(0.01f), _qGammaLambda(0.95f), _qEluAlpha(1.0f)
 			{}
 		};
 
@@ -60,6 +60,7 @@ namespace neo {
 			cl::Image2D _scHiddenStatesPrev;
 
 			// Q
+			DoubleBuffer2D _qActivations;
 			DoubleBuffer2D _qStates;
 			DoubleBuffer3D _qWeights;
 			DoubleBuffer2D _qBiases;
@@ -79,6 +80,7 @@ namespace neo {
 		std::vector<LayerDesc> _layerDescs;
 
 		std::vector<QConnection> _qConnections;
+		std::vector<float> _qActivations; 
 		std::vector<float> _qStates;
 		std::vector<float> _scStates;
 		std::vector<float> _qErrors;
@@ -127,11 +129,11 @@ namespace neo {
 		cl_float _actionMomentum;
 
 		AgentQRoute()
-			: _predInputWeightAlpha(0.03f),
-			_predActionWeightAlpha(0.03f),
-			_qIter(1),
-			_actionDeriveAlpha(0.1f),
-			_lastLayerQAlpha(0.01f), _lastLayerQGammaLambda(0.95f),
+			: _predInputWeightAlpha(0.4f),
+			_predActionWeightAlpha(0.4f),
+			_qIter(4),
+			_actionDeriveAlpha(0.07f),
+			_lastLayerQAlpha(0.02f), _lastLayerQGammaLambda(0.95f),
 			_gamma(0.99f),
 			_explorationPerturbationStdDev(0.1f), _explorationBreakChance(0.05f),
 			_actionMomentum(0.0f),

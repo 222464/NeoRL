@@ -52,7 +52,7 @@ int main() {
 
 	sf::Image sampleImage;
 
-	sampleImage.loadFromFile("testImage.png");
+	sampleImage.loadFromFile("testImage_whitened.png");
 
 	sf::Texture sampleTexture;
 

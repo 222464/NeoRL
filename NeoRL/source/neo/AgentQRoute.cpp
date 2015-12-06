@@ -92,6 +92,10 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 		cs.getQueue().enqueueFillImage(_layers[l]._qStates[_back], zeroColor, zeroOrigin, layerRegion);
 
+		_layers[l]._qActivations = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
+
+		cs.getQueue().enqueueFillImage(_layers[l]._qActivations[_back], zeroColor, zeroOrigin, layerRegion);
+
 		cl_int3 qWeightsSize = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, numQWeights };
 
 		// First layer has extra for anti-actions
@@ -152,6 +156,7 @@ void AgentQRoute::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 	_qStates.resize(_qConnections.size());
 	_qErrors.resize(_qConnections.size());
 	_scStates.resize(_qConnections.size());
+	_qActivations.resize(_qConnections.size());
 
 	_inputs.clear();
 	_inputs.assign(inputSize.x * inputSize.y, 0.0f);
@@ -201,6 +206,8 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
+		
+			_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightTraceLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
 
 		// Get reward
@@ -317,10 +324,8 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 	std::normal_distribution<float> pertDist(0.0f, _explorationPerturbationStdDev);
 
 	// Set predicted action as starting point
-	_actions = _actionPredictions;
-
 	for (int i = 0; i < _actions.size(); i++)
-		_actions[i] = std::min(1.0f, std::max(-1.0f, _actionPredictions[i]));
+		_actions[i] = std::min(1.0f, std::max(-1.0f, _actions[i]));
 
 	// Write initial inputs
 	cs.getQueue().enqueueWriteImage(_actionsImage, CL_TRUE, zeroOrigin, actionRegion, 0, 0, _actions.data());
@@ -344,6 +349,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 				_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
 				_qForwardFirstLayerKernel.setArg(argIndex++, prevLayerState);
 				_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+				_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qActivations[_front]); 
 				_qForwardFirstLayerKernel.setArg(argIndex++, prevLayerSize);
 				_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(1)._hiddenToVisible);
 				_qForwardFirstLayerKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
@@ -359,6 +365,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 				_qForwardKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
 				_qForwardKernel.setArg(argIndex++, prevLayerState);
 				_qForwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+				_qForwardKernel.setArg(argIndex++, _layers[l]._qActivations[_front]); 
 				_qForwardKernel.setArg(argIndex++, prevLayerSize);
 				_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(0)._hiddenToVisible);
 				_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
@@ -395,12 +402,14 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			cs.getQueue().enqueueReadImage(_layers.back()._sc.getHiddenStates()[_back], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _scStates.data());
 
 			cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
-			
+
+			cs.getQueue().enqueueReadImage(_layers.back()._qActivations[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qActivations.data());
+
 			for (int i = 0; i < _qErrors.size(); i++)
-				_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
+				_qErrors[i] = _scStates[i] * elud(_qActivations[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
 
 			//for (int i = 0; i < _qErrors.size(); i++)
-			//	_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
+			//	_qErrors[i] = _scStates[i] * _qActivations[i] * (1.0f - _qActivations[i]) * _qConnections[i]._weight;
 
 			cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 		}
@@ -414,6 +423,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			_qBackwardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 			_qBackwardKernel.setArg(argIndex++, _layers[l + 1]._qWeights[_back]);
 			_qBackwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+			_qBackwardKernel.setArg(argIndex++, _layers[l]._qActivations[_front]);
 			_qBackwardKernel.setArg(argIndex++, _layers[l + 1]._qErrorTemp);
 			_qBackwardKernel.setArg(argIndex++, _layers[l]._qErrorTemp); 
 			_qBackwardKernel.setArg(argIndex++, _layerDescs[l]._size);
@@ -491,6 +501,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
 			_qForwardFirstLayerKernel.setArg(argIndex++, prevLayerState);
 			_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+			_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._qActivations[_front]);
 			_qForwardFirstLayerKernel.setArg(argIndex++, prevLayerSize);
 			_qForwardFirstLayerKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(1)._hiddenToVisible);
 			_qForwardFirstLayerKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
@@ -506,6 +517,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 			_qForwardKernel.setArg(argIndex++, _layers[l]._qBiases[_back]);
 			_qForwardKernel.setArg(argIndex++, prevLayerState);
 			_qForwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+			_qForwardKernel.setArg(argIndex++, _layers[l]._qActivations[_front]);
 			_qForwardKernel.setArg(argIndex++, prevLayerSize);
 			_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getVisibleLayer(0)._hiddenToVisible);
 			_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
@@ -545,11 +557,13 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 
 		cs.getQueue().enqueueReadImage(_layers.back()._qStates[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qStates.data());
 
+		cs.getQueue().enqueueReadImage(_layers.back()._qActivations[_front], CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qActivations.data());
+
 		for (int i = 0; i < _qErrors.size(); i++)
-			_qErrors[i] = _scStates[i] * elud(_qStates[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
+			_qErrors[i] = _scStates[i] * elud(_qActivations[i], _layerDescs.back()._qEluAlpha) * _qConnections[i]._weight;
 
 		//for (int i = 0; i < _qErrors.size(); i++)
-		//	_qErrors[i] = _qStates[i] * (1.0f - _qStates[i]) * _qConnections[i]._weight;
+		//	_qErrors[i] = _scStates[i] * _qActivations[i] * (1.0f - _qActivations[i]) * _qConnections[i]._weight;
 
 		cs.getQueue().enqueueWriteImage(_layers.back()._qErrorTemp, CL_TRUE, zeroOrigin, layerRegion, 0, 0, _qErrors.data());
 	}
@@ -563,6 +577,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		_qBackwardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 		_qBackwardKernel.setArg(argIndex++, _layers[l + 1]._qWeights[_back]);
 		_qBackwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
+		_qBackwardKernel.setArg(argIndex++, _layers[l]._qActivations[_front]);
 		_qBackwardKernel.setArg(argIndex++, _layers[l + 1]._qErrorTemp);
 		_qBackwardKernel.setArg(argIndex++, _layers[l]._qErrorTemp);
 		_qBackwardKernel.setArg(argIndex++, _layerDescs[l]._size);
@@ -646,6 +661,7 @@ void AgentQRoute::simStep(float reward, sys::ComputeSystem &cs, std::mt19937 &rn
 		cs.getQueue().enqueueCopyImage(_layers[l]._sc.getHiddenStates()[_back], _layers[l]._scHiddenStatesPrev, zeroOrigin, zeroOrigin, layerRegion);
 	
 		std::swap(_layers[l]._qStates[_front], _layers[l]._qStates[_back]);
+		std::swap(_layers[l]._qActivations[_front], _layers[l]._qActivations[_back]);
 
 		if (learn) {
 			std::swap(_layers[l]._qWeights[_front], _layers[l]._qWeights[_back]);
