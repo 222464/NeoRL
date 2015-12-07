@@ -44,6 +44,7 @@ namespace neo {
 		DoubleBuffer3D _qWeights;
 
 		cl::Image2D _hiddenErrors;
+		cl::Image2D _hiddenTD;
 
 		cl_int2 _qSize;
 		cl_int2 _hiddenSize;
@@ -65,6 +66,7 @@ namespace neo {
 		cl::Kernel _qSolveHiddenKernel;
 		cl::Kernel _explorationKernel;
 		cl::Kernel _qPropagateToHiddenErrorKernel;
+		cl::Kernel _qPropagateToHiddenTDKernel;
 		cl::Kernel _hiddenPropagateToVisibleActionKernel;
 		cl::Kernel _startLearnWeightsKernel;
 		cl::Kernel _qLearnVisibleWeightsTracesKernel;
@@ -76,7 +78,10 @@ namespace neo {
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 qSize, cl_int2 hiddenSize, int qRadius, cl_float2 initWeightRange,
 			std::mt19937 &rng);
 
-		void simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &hiddenStatesFeedForward, const cl::Image2D &actionsFeedBack, float expPert, float expBreak, int annealIterations, std::mt19937 &rng);
+		void simStep(sys::ComputeSystem &cs, float reward, 
+			const cl::Image2D &hiddenStatesFeedForward, const cl::Image2D &actionsFeedBack, 
+			float expPert, float expBreak, int annealIterations, float actionAlpha, 
+			float alphaHiddenQ, float alphaQ, float alphaPred, float lambda, std::mt19937 &rng);
 
 		size_t getNumVisibleLayers() const {
 			return _visibleLayers.size();

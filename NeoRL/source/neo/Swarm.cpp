@@ -78,6 +78,7 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
 	
 	_hiddenErrors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_RG, CL_FLOAT), _hiddenSize.x, _hiddenSize.y);
+	_hiddenTD = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_RG, CL_FLOAT), _hiddenSize.x, _hiddenSize.y);
 
 	_hiddenSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
 
@@ -107,15 +108,25 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 	_reverseQRadii = cl_int2{ static_cast<int>(std::ceil(_hiddenToQ.x * _qRadius)), static_cast<int>(std::ceil(_hiddenToQ.y * _qRadius)) };
 
-
 	// Create kernels
-	_activateKernel = cl::Kernel(program.getProgram(), "predActivateSwarm");
-	_solveHiddenThresholdKernel = cl::Kernel(program.getProgram(), "predSolveHiddenThresholdSwarm");
-	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHiddenSwarm");
-	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarm");
+	_predictAction = cl::Kernel(program.getProgram(), "swarmPredictAction");
+	_qActivateToHiddenKernel = cl::Kernel(program.getProgram(), "swarmQActivateToHidden");
+	_qActivateToQKernel = cl::Kernel(program.getProgram(), "swarmQActivateToQ");
+	_qSolveHiddenKernel = cl::Kernel(program.getProgram(), "swarmQSolveHidden");
+	_explorationKernel = cl::Kernel(program.getProgram(), "swarmExploration");
+	_qPropagateToHiddenErrorKernel = cl::Kernel(program.getProgram(), "swarmQPropagateToHiddenError");
+	_qPropagateToHiddenTDKernel = cl::Kernel(program.getProgram(), "swarmQPropagateToHiddenTD");
+	_hiddenPropagateToVisibleActionKernel = cl::Kernel(program.getProgram(), "swarmHiddenPropagateToVisibleAction");
+	_startLearnWeightsKernel = cl::Kernel(program.getProgram(), "swarmStartLearnWeights");
+	_qLearnVisibleWeightsTracesKernel = cl::Kernel(program.getProgram(), "swarmQLearnVisibleWeightsTraces");
+	_qLearnHiddenWeightsTracesKernel = cl::Kernel(program.getProgram(), "swarmQLearnHiddenWeightsTraces");
 }
 
-void Swarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &hiddenStatesFeedForward, const cl::Image2D &actionsFeedBack, float expPert, float expBreak, int annealIterations, std::mt19937 &rng) {
+void Swarm::simStep(sys::ComputeSystem &cs, float reward,
+	const cl::Image2D &hiddenStatesFeedForward, const cl::Image2D &actionsFeedBack,
+	float expPert, float expBreak, int annealIterations, float actionAlpha,
+	float alphaHiddenQ, float alphaQ, float alphaPred, float lambda, std::mt19937 &rng)
+{
 	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
@@ -146,6 +157,7 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &hid
 
 		int argIndex = 0;
 
+		_predictAction.setArg(argIndex++, hiddenStatesFeedForward);
 		_predictAction.setArg(argIndex++, actionsFeedBack);
 		_predictAction.setArg(argIndex++, vl._startWeights[_back]);
 		_predictAction.setArg(argIndex++, vl._predictedAction);
@@ -193,6 +205,7 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &hid
 
 			_qSolveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
 			_qSolveHiddenKernel.setArg(argIndex++, hiddenStatesFeedForward);
+			_qSolveHiddenKernel.setArg(argIndex++, actionsFeedBack);
 			_qSolveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
 
 			cs.getQueue().enqueueNDRangeKernel(_qSolveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
@@ -215,6 +228,7 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &hid
 			_hiddenPropagateToVisibleActionKernel.setArg(argIndex++, vl._visibleToHidden);
 			_hiddenPropagateToVisibleActionKernel.setArg(argIndex++, vld._qRadius);
 			_hiddenPropagateToVisibleActionKernel.setArg(argIndex++, vl._reverseQRadii);
+			_hiddenPropagateToVisibleActionKernel.setArg(argIndex++, actionAlpha);
 
 			cs.getQueue().enqueueNDRangeKernel(_hiddenPropagateToVisibleActionKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 		
@@ -286,12 +300,31 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &hid
 	{
 		int argIndex = 0;
 
-		_qActivateToHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
-		_qActivateToHiddenKernel.setArg(argIndex++, _qWeights[_back]);
-		_qActivateToHiddenKernel.setArg(argIndex++, _qStates[_front]);
-		_qActivateToHiddenKernel.setArg(argIndex++, _hiddenSize);
-		_qActivateToHiddenKernel.setArg(argIndex++, _qToHidden);
-		_qActivateToHiddenKernel.setArg(argIndex++, _qRadius);
+		_qActivateToQKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_qActivateToQKernel.setArg(argIndex++, _qWeights[_back]);
+		_qActivateToQKernel.setArg(argIndex++, _qStates[_front]);
+		_qActivateToQKernel.setArg(argIndex++, _hiddenSize);
+		_qActivateToQKernel.setArg(argIndex++, _qToHidden);
+		_qActivateToQKernel.setArg(argIndex++, _qRadius);
+
+		cs.getQueue().enqueueNDRangeKernel(_qActivateToQKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+	}
+
+	// Find TD errors
+	{
+		int argIndex = 0;
+
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, _qStates[_front]);
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, _qStates[_back]);
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, _hiddenTD);
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, _qSize);
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, _hiddenSize);
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, _qToHidden);
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, _hiddenToQ);
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, _qRadius);
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, _reverseQRadii);
+
+		cs.getQueue().enqueueNDRangeKernel(_qPropagateToHiddenTDKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 
 	// Weight updates
@@ -304,12 +337,15 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &hid
 
 			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, vl._actionsExploratory);
 			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, _hiddenErrors);
+			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, _hiddenTD);
 			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_front]);
 			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, vl._qWeights[_back]);
 			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, vl._qWeights[_front]);
 			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, vld._size);
 			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, vl._hiddenToVisible);
 			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, vld._qRadius);
+			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, alphaHiddenQ);
+			_qLearnVisibleWeightsTracesKernel.setArg(argIndex++, lambda);
 
 			cs.getQueue().enqueueNDRangeKernel(_qLearnVisibleWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 		}
@@ -317,7 +353,6 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &hid
 		{
 			int argIndex = 0;
 
-			_startLearnWeightsKernel.setArg(argIndex++, vl._actionsExploratory);
 			_startLearnWeightsKernel.setArg(argIndex++, vl._actions);
 			_startLearnWeightsKernel.setArg(argIndex++, vl._predictedAction);
 			_startLearnWeightsKernel.setArg(argIndex++, hiddenStatesFeedForward);
@@ -327,9 +362,29 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &hid
 			_startLearnWeightsKernel.setArg(argIndex++, _hiddenSize);
 			_startLearnWeightsKernel.setArg(argIndex++, vl._visibleToHidden);
 			_startLearnWeightsKernel.setArg(argIndex++, vld._startRadius);
+			_startLearnWeightsKernel.setArg(argIndex++, alphaPred);
 
 			cs.getQueue().enqueueNDRangeKernel(_qLearnVisibleWeightsTracesKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 		}
+	}
+
+	// Learn Q weights
+	{
+		int argIndex = 0;
+
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qStates[_back]);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qStates[_front]);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qWeights[_back]);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qWeights[_front]);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _hiddenSize);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qToHidden);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qRadius);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, alphaQ);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, lambda);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, reward);
+
+		cs.getQueue().enqueueNDRangeKernel(_qLearnHiddenWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 
 	// Swap buffers
