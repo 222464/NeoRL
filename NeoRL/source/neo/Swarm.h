@@ -78,10 +78,10 @@ namespace neo {
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 qSize, cl_int2 hiddenSize, int qRadius, cl_float2 initWeightRange,
 			std::mt19937 &rng);
 
-		void simStep(sys::ComputeSystem &cs, float reward, 
-			const cl::Image2D &hiddenStatesFeedForward, const cl::Image2D &actionsFeedBack, 
-			float expPert, float expBreak, int annealIterations, float actionAlpha, 
-			float alphaHiddenQ, float alphaQ, float alphaPred, float lambda, std::mt19937 &rng);
+		void simStep(sys::ComputeSystem &cs, float reward,
+			const cl::Image2D &hiddenStatesFeedForward, const cl::Image2D &actionsFeedBack,
+			float expPert, float expBreak, int annealIterations, float actionAlpha,
+			float alphaHiddenQ, float alphaQ, float alphaPred, float lambda, float gamma, std::mt19937 &rng);
 
 		size_t getNumVisibleLayers() const {
 			return _visibleLayers.size();

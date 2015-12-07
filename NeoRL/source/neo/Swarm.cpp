@@ -125,7 +125,7 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 	const cl::Image2D &hiddenStatesFeedForward, const cl::Image2D &actionsFeedBack,
 	float expPert, float expBreak, int annealIterations, float actionAlpha,
-	float alphaHiddenQ, float alphaQ, float alphaPred, float lambda, std::mt19937 &rng)
+	float alphaHiddenQ, float alphaQ, float alphaPred, float lambda, float gamma, std::mt19937 &rng)
 {
 	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
@@ -220,6 +220,7 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 
 			_hiddenPropagateToVisibleActionKernel.setArg(argIndex++, _hiddenErrors);
 			_hiddenPropagateToVisibleActionKernel.setArg(argIndex++, _hiddenStates[_front]);
+			_hiddenPropagateToVisibleActionKernel.setArg(argIndex++, vl._qWeights[_back]);
 			_hiddenPropagateToVisibleActionKernel.setArg(argIndex++, vl._actions);
 			_hiddenPropagateToVisibleActionKernel.setArg(argIndex++, vl._actionsExploratory); // Use exploratory actions buffer temporarily here, not used yet anyways
 			_hiddenPropagateToVisibleActionKernel.setArg(argIndex++, _hiddenSize);
@@ -323,6 +324,8 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 		_qPropagateToHiddenTDKernel.setArg(argIndex++, _hiddenToQ);
 		_qPropagateToHiddenTDKernel.setArg(argIndex++, _qRadius);
 		_qPropagateToHiddenTDKernel.setArg(argIndex++, _reverseQRadii);
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, reward);
+		_qPropagateToHiddenTDKernel.setArg(argIndex++, gamma);
 
 		cs.getQueue().enqueueNDRangeKernel(_qPropagateToHiddenTDKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
@@ -383,6 +386,7 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, alphaQ);
 		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, lambda);
 		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, reward);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, gamma);
 
 		cs.getQueue().enqueueNDRangeKernel(_qLearnHiddenWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
