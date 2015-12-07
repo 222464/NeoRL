@@ -8,9 +8,12 @@ namespace neo {
 	class AgentSwarm {
 	public:
 		struct LayerDesc {
-			cl_int2 _size;
+			cl_int2 _hiddenSize;
+
+			cl_int2 _qSize;
 
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
+			cl_int _qRadiusHiddenAttention, _qRadiusHiddenAction, _qRadius;
 
 			cl_float _scWeightAlpha;
 			cl_float _scWeightLambda;
@@ -22,13 +25,30 @@ namespace neo {
 
 			cl_float _predWeightAlpha;
 
+			cl_int _swarmAnnealingIterations;
+			cl_float _swarmActionDeriveAlpha;
+
+			cl_float _swarmQAlpha;
+			cl_float _swarmQHiddenAlpha;
+			cl_float _swarmPredAlpha;
+			cl_float _swarmLambda;
+			cl_float _swarmGamma;
+
+			cl_float _swarmExpPert;
+			cl_float _swarmExpBreak;
+
 			LayerDesc()
-				: _size({ 8, 8 }),
+				: _hiddenSize({ 8, 8 }), _qSize({ 4, 4 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
+				_qRadiusHiddenAttention(4), _qRadiusHiddenAction(4), _qRadius(4),
 				_scWeightAlpha(0.01f), _scWeightLambda(0.95f),
 				_scActiveRatio(0.05f), _scBoostAlpha(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha(0.1f)
+				_predWeightAlpha(0.1f),
+				_swarmAnnealingIterations(1), _swarmActionDeriveAlpha(0.05f),
+				_swarmQAlpha(0.01f), _swarmQHiddenAlpha(0.05f),
+				_swarmPredAlpha(0.01f), _swarmLambda(0.95f), _swarmGamma(0.99f),
+				_swarmExpPert(0.05f), _swarmExpBreak(0.02f)
 			{}
 		};
 
@@ -36,6 +56,8 @@ namespace neo {
 			ComparisonSparseCoder _sc;
 			Predictor _pred;
 			Swarm _swarm;
+
+			cl::Image2D _modulatedInput;
 
 			DoubleBuffer2D _baseLines;
 
@@ -48,9 +70,13 @@ namespace neo {
 		std::vector<Layer> _layers;
 		std::vector<LayerDesc> _layerDescs;
 
+		cl::Image2D _lastLayerAction;
+
 		Predictor _firstLayerPred;
 
 		cl::Kernel _baseLineUpdateKernel;
+		cl::Kernel _inhibitKernel;
+		cl::Kernel _modulateKernel;
 
 	public:
 		cl_float _predWeightAlpha;
@@ -60,11 +86,11 @@ namespace neo {
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			cl_int2 inputSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
+			cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange, float initThreshold,
 			std::mt19937 &rng);
 
-		void simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn = true);
+		void simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn = true);
 
 		void clearMemory(sys::ComputeSystem &cs);
 
@@ -82,6 +108,10 @@ namespace neo {
 
 		const Predictor &getFirstLayerPred() const {
 			return _firstLayerPred;
+		}
+
+		const cl::Image2D &getExploratoryActions() const {
+			return _layers.front()._swarm.getVisibleLayer(1)._actionsExploratory;
 		}
 	};
 }

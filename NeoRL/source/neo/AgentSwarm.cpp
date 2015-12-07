@@ -3,7 +3,7 @@
 using namespace neo;
 
 void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-	cl_int2 inputSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
+	cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
 	cl_float2 initWeightRange, float initThreshold,
 	std::mt19937 &rng)
 {
@@ -19,43 +19,68 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
 		scDescs[0]._ignoreMiddle = false;
 
-		scDescs[1]._size = _layerDescs[l]._size;
+		scDescs[1]._size = _layerDescs[l]._hiddenSize;
 		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
 		scDescs[1]._ignoreMiddle = true;
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, true, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._hiddenSize, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, true, rng);
+
+		_layers[l]._modulatedInput = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), prevLayerSize.x, prevLayerSize.y);
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
-
+	
 		if (l < _layers.size() - 1) {
 			predDescs.resize(2);
 
-			predDescs[0]._size = _layerDescs[l]._size;
+			predDescs[0]._size = _layerDescs[l]._hiddenSize;
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 
-			predDescs[1]._size = _layerDescs[l + 1]._size;
+			predDescs[1]._size = _layerDescs[l + 1]._hiddenSize;
 			predDescs[1]._radius = _layerDescs[l]._feedBackRadius;
 		}
 		else {
 			predDescs.resize(1);
 
-			predDescs[0]._size = _layerDescs[l]._size;
+			predDescs[0]._size = _layerDescs[l]._hiddenSize;
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 		}
 
-		_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, false, rng);
+		_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._hiddenSize, initWeightRange, false, rng);
 
+		std::vector<Swarm::VisibleLayerDesc> swarmDescs;
+
+		if (l == 0) {
+			swarmDescs.resize(2);
+
+			swarmDescs[0]._size = inputSize;
+			swarmDescs[0]._qRadius = _layerDescs[l]._qRadiusHiddenAttention;
+
+			swarmDescs[1]._size = actionSize;
+			swarmDescs[1]._qRadius = _layerDescs[l]._qRadiusHiddenAction;
+		}
+		else {
+			swarmDescs.resize(2);
+
+			swarmDescs[0]._size = _layerDescs[l - 1]._hiddenSize;
+			swarmDescs[0]._qRadius = _layerDescs[l]._qRadiusHiddenAttention;
+
+			swarmDescs[1]._size = _layerDescs[l - 1]._hiddenSize;
+			swarmDescs[1]._qRadius = _layerDescs[l]._qRadiusHiddenAction;
+		}
+
+		_layers[l]._swarm.createRandom(cs, program, swarmDescs, _layerDescs[l]._qSize, _layerDescs[l]._hiddenSize, _layerDescs[l]._qRadius, initWeightRange, rng);
+		
 		// Create baselines
-		_layers[l]._baseLines = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
+		_layers[l]._baseLines = createDoubleBuffer2D(cs, _layerDescs[l]._hiddenSize, CL_R, CL_FLOAT);
 
-		_layers[l]._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
+		_layers[l]._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y);
 
-		_layers[l]._scHiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
+		_layers[l]._scHiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y);
 
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
+		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y, 1 };
 
 		cs.getQueue().enqueueFillImage(_layers[l]._baseLines[_back], zeroColor, zeroOrigin, layerRegion);
 		cs.getQueue().enqueueFillImage(_layers[l]._scHiddenStatesPrev, zeroColor, zeroOrigin, layerRegion);
@@ -63,23 +88,48 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 	std::vector<Predictor::VisibleLayerDesc> predDescs(1);
 
-	predDescs[0]._size = _layerDescs.front()._size;
+	predDescs[0]._size = _layerDescs.front()._hiddenSize;
 	predDescs[0]._radius = firstLayerPredictorRadius;
 
 	_firstLayerPred.createRandom(cs, program, predDescs, inputSize, initWeightRange, false, rng);
 
+	{
+		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> layerRegion = { _layerDescs.back()._hiddenSize.x, _layerDescs.back()._hiddenSize.y, 1 };
+
+		_lastLayerAction = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs.back()._hiddenSize.x, _layerDescs.back()._hiddenSize.y);
+
+		cs.getQueue().enqueueFillImage(_lastLayerAction, zeroColor, zeroOrigin, layerRegion);
+	}
+
 	_baseLineUpdateKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdate");
+	_inhibitKernel = cl::Kernel(program.getProgram(), "phInhibit");
+	_modulateKernel = cl::Kernel(program.getProgram(), "phModulate");
 }
 
-void AgentSwarm::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn) {
+void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn) {
 	// Feed forward
+	cl_int2 prevLayerSize = _layers.front()._sc.getVisibleLayerDesc(0)._size;
 	cl::Image2D prevLayerState = input;
 
 	for (int l = 0; l < _layers.size(); l++) {
 		{
 			std::vector<cl::Image2D> visibleStates(2);
 
-			visibleStates[0] = prevLayerState;
+			// Modulate
+			{
+				int argIndex = 0;
+
+				_modulateKernel.setArg(argIndex++, prevLayerState);
+				_modulateKernel.setArg(argIndex++, _layers[l]._swarm.getVisibleLayer(0)._actionsExploratory);
+				_modulateKernel.setArg(argIndex++, _layers[l]._modulatedInput);
+
+				cs.getQueue().enqueueNDRangeKernel(_modulateKernel, cl::NullRange, cl::NDRange(prevLayerSize.x, prevLayerSize.y));
+			}
+
+			visibleStates[0] = _layers[l]._modulatedInput;
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
@@ -101,7 +151,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool 
 			_baseLineUpdateKernel.setArg(argIndex++, _layerDescs[l]._baseLineDecay);
 			_baseLineUpdateKernel.setArg(argIndex++, _layerDescs[l]._baseLineSensitivity);
 
-			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y));
 		}
 		else {
 			int argIndex = 0;
@@ -115,10 +165,11 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool 
 			_baseLineUpdateKernel.setArg(argIndex++, _layerDescs[l]._baseLineDecay);
 			_baseLineUpdateKernel.setArg(argIndex++, _layerDescs[l]._baseLineSensitivity);
 
-			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y));
 		}
 
 		prevLayerState = _layers[l]._sc.getHiddenStates()[_back];
+		prevLayerSize = _layerDescs[l]._hiddenSize;
 	}
 
 	for (int l = _layers.size() - 1; l >= 0; l--) {
@@ -179,10 +230,32 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool 
 			_firstLayerPred.learn(cs, input, visibleStatesPrev, _predWeightAlpha);
 	}
 
+	// Swarm
+	for (int l = _layers.size() - 1; l >= 0; l--) {
+		std::vector<cl::Image2D> visibleStatesPrev;
+
+		if (l < _layers.size() - 1) {
+			if (learn)
+				_layers[l]._swarm.simStep(cs, reward, _layers[l]._sc.getHiddenStates()[_back], _layers[l + 1]._swarm.getVisibleLayer(1)._actionsExploratory,
+					_layerDescs[l]._swarmExpPert, _layerDescs[l]._swarmExpBreak,
+					_layerDescs[l]._swarmAnnealingIterations, _layerDescs[l]._swarmActionDeriveAlpha,
+					_layerDescs[l]._swarmQHiddenAlpha, _layerDescs[l]._swarmQAlpha, _layerDescs[l]._swarmPredAlpha,
+					_layerDescs[l]._swarmLambda, _layerDescs[l]._swarmGamma, rng);
+		}
+		else {
+			if (learn)
+				_layers[l]._swarm.simStep(cs, reward, _layers[l]._sc.getHiddenStates()[_back], _lastLayerAction,
+					_layerDescs[l]._swarmExpPert, _layerDescs[l]._swarmExpBreak,
+					_layerDescs[l]._swarmAnnealingIterations, _layerDescs[l]._swarmActionDeriveAlpha,
+					_layerDescs[l]._swarmQHiddenAlpha, _layerDescs[l]._swarmQAlpha, _layerDescs[l]._swarmPredAlpha,
+					_layerDescs[l]._swarmLambda, _layerDescs[l]._swarmGamma, rng);
+		}
+	}
+
 	// Buffer updates
 	for (int l = 0; l < _layers.size(); l++) {
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
+		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y, 1 };
 
 		cs.getQueue().enqueueCopyImage(_layers[l]._sc.getHiddenStates()[_back], _layers[l]._scHiddenStatesPrev, zeroOrigin, zeroOrigin, layerRegion);
 
@@ -195,7 +268,7 @@ void AgentSwarm::clearMemory(sys::ComputeSystem &cs) {
 	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 
 	for (int l = 0; l < _layers.size(); l++) {
-		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
+		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y, 1 };
 
 		cs.getQueue().enqueueFillImage(_layers[l]._scHiddenStatesPrev, zeroColor, zeroOrigin, layerRegion);
 	}

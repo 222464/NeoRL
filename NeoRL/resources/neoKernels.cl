@@ -1154,26 +1154,50 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_
 	write_imagef(rewards, position, (float4)(reward));
 }
 
-void kernel phBaseLineUpdateFirstLayerSwarm(read_only image2d_t errorsLowerInput, read_only image2d_t errorsLowerAction, read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
-	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
-	float decay, float sensitivity)
+void kernel phInhibit(read_only image2d_t activations,
+	write_only image2d_t states,
+	int2 size, int radius, float activeRatio)
 {
 	int2 position = (int2)(get_global_id(0), get_global_id(1));
 	
-	float state = read_imagef(hiddenStates, position).x;
+	float activation = read_imagef(activations, position).x;
 
-	float error = read_imagef(errorsLowerInput, position).x + read_imagef(errorsLowerAction, position).x + read_imagef(errorsCurrent, position).x;
+	int2 fieldLowerBound = position - (int2)(radius);
 
-	float error2 = error * error;
+	float inhibition = 0.0f;
 
-	float baseLinePrev = read_imagef(baseLinesBack, position).x;
+	float counter = 0.0f;
 
-	float reward = (error2 - baseLinePrev) > 0.0f ? 1.0f : 0.0f;
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			if (dx == 0 && dy == 0)
+				continue;
+			
+			int2 otherPosition = position + (int2)(dx, dy);
 
-	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
+			if (inBounds0(otherPosition, size)) {
+				float otherActivation = read_imagef(activations, otherPosition).x;
 
-	write_imagef(baseLinesFront, position, (float4)(baseLine));
-	write_imagef(rewards, position, (float4)(reward));
+				inhibition += otherActivation >= activation ? 1.0f : 0.0f;
+
+				counter++;
+			}
+		}
+
+	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
+
+	write_imagef(states, position, (float4)(state));
+}
+
+void kernel phModulate(read_only image2d_t inputsLeft, read_only image2d_t inputsRight,
+	write_only image2d_t states)
+{
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float left = read_imagef(inputsLeft, position).x;
+	float right = read_imagef(inputsRight, position).x;
+
+	write_imagef(states, position, (float4)(left * right));
 }
 
 // ----------------------------------------- Q Route -----------------------------------------
