@@ -77,6 +77,9 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 		_layers[l]._scHiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y);
 
+		if (l != 0)
+			_layers[l]._inhibitedAction = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), swarmDescs[1]._size.x, swarmDescs[1]._size.y);
+
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
@@ -236,7 +239,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 		if (l < _layers.size() - 1) {
 			if (learn)
-				_layers[l]._swarm.simStep(cs, reward, _layers[l]._sc.getHiddenStates()[_back], _layers[l + 1]._swarm.getVisibleLayer(1)._actionsExploratory,
+				_layers[l]._swarm.simStep(cs, reward, _layers[l]._sc.getHiddenStates()[_back], _layers[l + 1]._inhibitedAction,
 					_layerDescs[l]._swarmExpPert, _layerDescs[l]._swarmExpBreak,
 					_layerDescs[l]._swarmAnnealingIterations, _layerDescs[l]._swarmActionDeriveAlpha,
 					_layerDescs[l]._swarmQHiddenAlpha, _layerDescs[l]._swarmQAlpha, _layerDescs[l]._swarmPredAlpha,
@@ -249,6 +252,19 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 					_layerDescs[l]._swarmAnnealingIterations, _layerDescs[l]._swarmActionDeriveAlpha,
 					_layerDescs[l]._swarmQHiddenAlpha, _layerDescs[l]._swarmQAlpha, _layerDescs[l]._swarmPredAlpha,
 					_layerDescs[l]._swarmLambda, _layerDescs[l]._swarmGamma, rng);
+		}
+
+		// If not first layer, inhibit the action
+		if (l != 0) {
+			int argIndex = 0;
+
+			_inhibitKernel.setArg(argIndex++, _layers[l]._swarm.getVisibleLayer(1));
+			_inhibitKernel.setArg(argIndex++, _layers[l]._inhibitedAction);
+			_inhibitKernel.setArg(argIndex++, _layerDescs[l - 1]._hiddenSize);
+			_inhibitKernel.setArg(argIndex++, _layerDescs[l - 1]._lateralRadius);
+			_inhibitKernel.setArg(argIndex++, _layerDescs[l - 1]._scActiveRatio);
+
+			cs.getQueue().enqueueNDRangeKernel(_inhibitKernel, cl::NullRange, cl::NDRange(_layerDescs[l - 1]._hiddenSize.x, _layerDescs[l - 1]._hiddenSize.y));
 		}
 	}
 

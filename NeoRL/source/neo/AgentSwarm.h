@@ -41,13 +41,13 @@ namespace neo {
 				: _hiddenSize({ 8, 8 }), _qSize({ 4, 4 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
 				_qRadiusHiddenAttention(4), _qRadiusHiddenAction(4), _qRadius(4),
-				_scWeightAlpha(0.01f), _scWeightLambda(0.95f),
+				_scWeightAlpha(0.002f), _scWeightLambda(0.95f),
 				_scActiveRatio(0.05f), _scBoostAlpha(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha(0.1f),
+				_predWeightAlpha(0.01f),
 				_swarmAnnealingIterations(1), _swarmActionDeriveAlpha(0.05f),
-				_swarmQAlpha(0.01f), _swarmQHiddenAlpha(0.05f),
-				_swarmPredAlpha(0.01f), _swarmLambda(0.95f), _swarmGamma(0.99f),
+				_swarmQAlpha(0.002f), _swarmQHiddenAlpha(0.005f),
+				_swarmPredAlpha(0.005f), _swarmLambda(0.95f), _swarmGamma(0.99f),
 				_swarmExpPert(0.05f), _swarmExpBreak(0.02f)
 			{}
 		};
@@ -58,6 +58,7 @@ namespace neo {
 			Swarm _swarm;
 
 			cl::Image2D _modulatedInput;
+			cl::Image2D _inhibitedAction;
 
 			DoubleBuffer2D _baseLines;
 
@@ -82,7 +83,7 @@ namespace neo {
 		cl_float _predWeightAlpha;
 
 		AgentSwarm()
-			: _predWeightAlpha(0.01f)
+			: _predWeightAlpha(0.004f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,

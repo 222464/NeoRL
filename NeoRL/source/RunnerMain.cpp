@@ -194,7 +194,7 @@ int main() {
 			for (int i = 0; i < state.size(); i++)
 				inputs[i] = state[i];
 
-			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0, }, { 5, 5, 1 }, 0, 0, inputs.data());
+			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 5, 5, 1 }, 0, 0, inputs.data());
 
 			agent.simStep(cs, reward, inputImage, generator);
 
