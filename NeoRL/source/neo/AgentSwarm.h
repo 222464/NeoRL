@@ -45,9 +45,9 @@ namespace neo {
 				_scActiveRatio(0.05f), _scBoostAlpha(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
 				_predWeightAlpha(0.01f),
-				_swarmAnnealingIterations(1), _swarmActionDeriveAlpha(0.05f),
-				_swarmQAlpha(0.002f), _swarmQHiddenAlpha(0.005f),
-				_swarmPredAlpha(0.005f), _swarmLambda(0.95f), _swarmGamma(0.99f),
+				_swarmAnnealingIterations(8), _swarmActionDeriveAlpha(0.05f),
+				_swarmQAlpha(0.001f), _swarmQHiddenAlpha(0.005f),
+				_swarmPredAlpha(0.05f), _swarmLambda(0.95f), _swarmGamma(0.99f),
 				_swarmExpPert(0.05f), _swarmExpBreak(0.02f)
 			{}
 		};
@@ -83,7 +83,7 @@ namespace neo {
 		cl_float _predWeightAlpha;
 
 		AgentSwarm()
-			: _predWeightAlpha(0.004f)
+			: _predWeightAlpha(0.005f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,

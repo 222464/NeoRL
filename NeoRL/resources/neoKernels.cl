@@ -1051,8 +1051,8 @@ void kernel swarmQLearnVisibleWeightsTraces(read_only image2d_t actionsExplorato
 
 				float state = read_imagef(actionsExploratory, visiblePosition).x;
 
-				float4 weight = (float4)(weightPrev.x + tdError * weightPrev.y, lambda * weightPrev.y + error.x * state,
-						weightPrev.z + tdError * weightPrev.w, lambda * weightPrev.w + error.y * state);
+				float4 weight = (float4)(weightPrev.x + tdError * weightPrev.y, lambda * weightPrev.y + alpha * error.x * state,
+						weightPrev.z + tdError * weightPrev.w, lambda * weightPrev.w + alpha * error.y * state);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}
@@ -1122,8 +1122,8 @@ void kernel swarmQLearnHiddenWeightsTraces(read_only image2d_t hiddenStates,
 
 				float2 state = read_imagef(hiddenStates, hiddenPosition).xy;
 
-				float4 weight = (float4)(weightPrev.x + tdError * weightPrev.y, weightPrev.y * lambda + state.x,
-					weightPrev.z + tdError * weightPrev.w, weightPrev.w * lambda + state.y);
+				float4 weight = (float4)(weightPrev.x + tdError * weightPrev.y, weightPrev.y * lambda + alpha * state.x,
+					weightPrev.z + tdError * weightPrev.w, weightPrev.w * lambda + alpha * state.y);
 				
 				write_imagef(weights, (int4)(qPosition.x, qPosition.y, wi, 0), weight);
 			}
