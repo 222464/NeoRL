@@ -111,7 +111,7 @@ int main() {
 	prsdr.createRandom(7, 7, 8, inputTypes, layerDescs, -0.01f, 0.01f, 0.01f, 0.05f, 0.5f, generator);
 	*/
 
-	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(1);
+	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(3);
 
 	//layerDescs[0]._h = { 8, 8 };
 	//layerDescs[1]._size = { 8, 8 };

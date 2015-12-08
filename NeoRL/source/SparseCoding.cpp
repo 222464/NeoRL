@@ -29,8 +29,8 @@ int main() {
 
 	prog.loadFromFile("resources/neoKernels.cl", cs);
 
-	const int sampleWidth = 32;
-	const int sampleHeight = 32;
+	const int sampleWidth = 16;
+	const int sampleHeight = 16;
 	const int codeWidth = 16;
 	const int codeHeight = 16;
 	const int stepsPerFrame = 5;
@@ -46,13 +46,13 @@ int main() {
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 8;
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 5, { -0.01f, 0.01f }, 0.0f, false, generator);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, 0.0f, false, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 
 	sf::Image sampleImage;
 
-	sampleImage.loadFromFile("testImage_whitened.png");
+	sampleImage.loadFromFile("testImage.png");
 
 	sf::Texture sampleTexture;
 
@@ -144,9 +144,9 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.1f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.02f);
 
-			sparseCoder.learn(cs, std::vector<cl::Image2D>(1, inputImage), 0.001f, 0.1f, 0.1f);
+			sparseCoder.learn(cs, std::vector<cl::Image2D>(1, inputImage), 0.001f, 0.1f, 0.02f);
 		}
 
 		/*if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
@@ -256,15 +256,6 @@ int main() {
 					renderWindow.draw(rs);
 				}
 			}
-
-		sf::Sprite sampleSprite;
-		sampleSprite.setTexture(sampleTexture);
-
-		sampleSprite.setPosition(sf::Vector2f(renderWindow.getSize().x - sampleImage.getSize().x, 0.0f));
-
-		sampleSprite.setScale(0.5f, 0.5f);
-
-		renderWindow.draw(sampleSprite);
 
 		sf::Sprite reconstructionSprite;
 		reconstructionSprite.setTexture(reconstructionTexture);

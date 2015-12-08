@@ -92,6 +92,17 @@ void kernel randomUniform3D(write_only image3d_t values, uint2 seed, float2 minM
 	write_imagef(values, (int4)(position, 0), (float4)(value, 0.0f, 0.0f, 0.0f));
 }
 
+// Initialize a random uniform 2D image (XY fields)
+void kernel randomUniform2DXY(write_only image2d_t values, uint2 seed, float2 minMax) {
+	uint2 seedValue = seed + (uint2)(get_global_id(0) * 15 + 66, get_global_id(1) * 61 + 2) * 56;
+
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+
+	float2 v = (float2)(randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x, randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x);
+
+	write_imagef(values, position, (float4)(v.x,  v.y, 0.0f, 0.0f));
+}
+
 // Initialize a random uniform 2D image (XZ fields)
 void kernel randomUniform2DXZ(write_only image2d_t values, uint2 seed, float2 minMax) {
 	uint2 seedValue = seed + (uint2)(get_global_id(0) * 29 + 12, get_global_id(1) * 16 + 23) * 36;
@@ -101,6 +112,17 @@ void kernel randomUniform2DXZ(write_only image2d_t values, uint2 seed, float2 mi
 	float2 v = (float2)(randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x, randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x);
 
 	write_imagef(values, position, (float4)(v.x, 0.0f, v.y, 0.0f));
+}
+
+// Initialize a random uniform 3D image (XY fields)
+void kernel randomUniform3DXY(write_only image3d_t values, uint2 seed, float2 minMax) {
+	uint2 seedValue = seed + (uint2)(get_global_id(0) * 12 + 76 + get_global_id(2) * 3, get_global_id(1) * 21 + 42 + get_global_id(2) * 7) * 12;
+
+	int3 position = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
+
+	float2 v = (float2)(randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x, randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x);
+
+	write_imagef(values, (int4)(position, 0), (float4)(v.x, v.y, 0.0f, 0.0f));
 }
 
 // Initialize a random uniform 3D image (XZ fields)
@@ -787,7 +809,7 @@ void kernel swarmQPropagateToHiddenError(read_only image3d_t weights, write_only
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 qPositionCenter = (int2)(hiddenPosition.x * hiddenToQ.x + 0.5f, hiddenPosition.y * hiddenToQ.y + 0.5f);
 	
-	float error = 0.0f;
+	float2 error = (float2)(0.0f);
 
 	for (int dx = -reverseQRadii.x; dx <= reverseQRadii.x; dx++)
 		for (int dy = -reverseQRadii.y; dy <= reverseQRadii.y; dy++) {
@@ -808,14 +830,14 @@ void kernel swarmQPropagateToHiddenError(read_only image3d_t weights, write_only
 
 					int wi = offset.y + offset.x * (radius * 2 + 1);
 
-					float weight = read_imagef(weights, (int4)(qPosition.x, qPosition.y, wi, 0)).x;
+					float2 weight = read_imagef(weights, (int4)(qPosition.x, qPosition.y, wi, 0)).xz;
 				
 					error += weight;
 				}
 			}
 		}
 
-	write_imagef(hiddenErrors, hiddenPosition, (float4)(error));
+	write_imagef(hiddenErrors, hiddenPosition, (float4)(error.x, error.y, 0.0f, 0.0f));
 }
 
 void kernel swarmQPropagateToHiddenTD(read_only image2d_t qStates, read_only image2d_t qStatesPrev, 
@@ -916,7 +938,7 @@ void kernel swarmQActivateToHidden(read_only image2d_t visibleStates,
 			}
 		}
 
-	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum, 0.0f, 0.0f));
+	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum.x, sum.y, 0.0f, 0.0f));
 }
 
 void kernel swarmQSolveHidden(read_only image2d_t hiddenSummationTemp,
@@ -1034,9 +1056,9 @@ void kernel swarmQLearnVisibleWeightsTraces(read_only image2d_t actionsExplorato
 
 	float2 s = read_imagef(hiddenStates, hiddenPosition).xy;
 
-	float td = read_imagef(hiddenErrors, hiddenPosition).x;
+	float2 hiddenError = read_imagef(hiddenErrors, hiddenPosition).xy;
 
-	float2 error = td * s * (1.0f - s);
+	float2 error = hiddenError * s * (1.0f - s);
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {

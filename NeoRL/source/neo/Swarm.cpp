@@ -21,6 +21,7 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	_visibleLayers.resize(_visibleLayerDescs.size());
 
 	cl::Kernel randomUniform2DKernel = cl::Kernel(program.getProgram(), "randomUniform2D");
+	cl::Kernel randomUniform3DXYKernel = cl::Kernel(program.getProgram(), "randomUniform3DXY");
 	cl::Kernel randomUniform3DXZKernel = cl::Kernel(program.getProgram(), "randomUniform3DXZ");
 
 	// Create layers
@@ -68,7 +69,7 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 			vl._startWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
 
-			randomUniformXZ(vl._startWeights[_back], cs, randomUniform3DXZKernel, weightsSize, initWeightRange, rng);
+			randomUniformXY(vl._startWeights[_back], cs, randomUniform3DXYKernel, weightsSize, initWeightRange, rng);
 		}
 	}
 
