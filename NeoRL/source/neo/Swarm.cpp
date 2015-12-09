@@ -69,11 +69,7 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 			vl._startWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
 
-			//cs.getQueue().enqueueFillImage(vl._startWeights[_back], zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), static_cast<cl::size_type>(numWeights) });
-			//cs.getQueue().enqueueFillImage(vl._startWeights[_front], zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), static_cast<cl::size_type>(numWeights) });
-
 			randomUniformXY(vl._startWeights[_back], cs, randomUniform3DXYKernel, weightsSize, initWeightRange, rng);
-			randomUniformXY(vl._startWeights[_front], cs, randomUniform3DXYKernel, weightsSize, initWeightRange, rng);
 		}
 	}
 

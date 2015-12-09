@@ -49,7 +49,7 @@ namespace neo {
 				_predWeightAlpha(0.05f),
 				_swarmAnnealingIterations(1), _swarmActionDeriveAlpha(0.01f),
 				_swarmQAlpha(0.001f), _swarmQHiddenAlpha(0.01f),
-				_swarmPredAlpha(100000.2f), _swarmLambda(0.95f), _swarmGamma(0.99f),
+				_swarmPredAlpha(0.2f), _swarmLambda(0.95f), _swarmGamma(0.99f),
 				_swarmExpPert(0.05f), _swarmExpBreak(0.01f)
 			{}
 		};
