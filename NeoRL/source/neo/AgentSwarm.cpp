@@ -56,24 +56,30 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 			swarmDescs[0]._size = inputSize;
 			swarmDescs[0]._qRadius = _layerDescs[l]._qRadiusHiddenFeedForwardAttention;
+			swarmDescs[0]._startRadius = _layerDescs[l]._startRadiusHiddenFeedForwardAttention;
 
 			swarmDescs[1]._size = _layerDescs[l]._hiddenSize;
 			swarmDescs[1]._qRadius = _layerDescs[l]._qRadiusHiddenRecurrentAttention;
+			swarmDescs[1]._startRadius = _layerDescs[l]._startRadiusHiddenRecurrentAttention;
 
 			swarmDescs[2]._size = actionSize;
 			swarmDescs[2]._qRadius = _layerDescs[l]._qRadiusHiddenAction;
+			swarmDescs[2]._startRadius = _layerDescs[l]._startRadiusHiddenAction;
 		}
 		else {
 			swarmDescs.resize(3);
 
 			swarmDescs[0]._size = _layerDescs[l - 1]._hiddenSize;
 			swarmDescs[0]._qRadius = _layerDescs[l]._qRadiusHiddenFeedForwardAttention;
+			swarmDescs[0]._startRadius = _layerDescs[l]._startRadiusHiddenFeedForwardAttention;
 
 			swarmDescs[1]._size = _layerDescs[l]._hiddenSize;
 			swarmDescs[1]._qRadius = _layerDescs[l]._qRadiusHiddenRecurrentAttention;
+			swarmDescs[1]._startRadius = _layerDescs[l]._startRadiusHiddenRecurrentAttention;
 
 			swarmDescs[2]._size = _layerDescs[l - 1]._hiddenSize;
 			swarmDescs[2]._qRadius = _layerDescs[l]._qRadiusHiddenAction;
+			swarmDescs[2]._startRadius = _layerDescs[l]._startRadiusHiddenAction;
 		}
 
 		_layers[l]._swarm.createRandom(cs, program, swarmDescs, _layerDescs[l]._qSize, _layerDescs[l]._hiddenSize, _layerDescs[l]._qRadius, initWeightRange, rng);
