@@ -38,19 +38,22 @@ namespace neo {
 			cl_float _swarmExpPert;
 			cl_float _swarmExpBreak;
 
+			cl_float _minAttention;
+
 			LayerDesc()
 				: _hiddenSize({ 8, 8 }), _qSize({ 4, 4 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
 				_qRadiusHiddenFeedForwardAttention(4), _qRadiusHiddenRecurrentAttention(4), _qRadiusHiddenAction(4), _qRadius(4),
 				_startRadiusHiddenFeedForwardAttention(4), _startRadiusHiddenRecurrentAttention(4), _startRadiusHiddenAction(4),
 				_scWeightAlpha(0.001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.02f), _scBoostAlpha(0.01f),
+				_scActiveRatio(0.04f), _scBoostAlpha(0.01f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
 				_predWeightAlpha(0.01f),
-				_swarmAnnealingIterations(1), _swarmActionDeriveAlpha(0.08f),
+				_swarmAnnealingIterations(1), _swarmActionDeriveAlpha(0.1f),
 				_swarmQAlpha(0.001f), _swarmQHiddenAlpha(0.01f),
-				_swarmPredAlpha(0.05f), _swarmLambda(0.95f), _swarmGamma(0.99f),
-				_swarmExpPert(0.2f), _swarmExpBreak(0.04f)
+				_swarmPredAlpha(0.5f), _swarmLambda(0.95f), _swarmGamma(0.99f),
+				_swarmExpPert(0.1f), _swarmExpBreak(0.03f),
+				_minAttention(0.01f)
 			{}
 		};
 

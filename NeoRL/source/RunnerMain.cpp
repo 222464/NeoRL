@@ -202,6 +202,9 @@ int main() {
 
 			cs.getQueue().finish();
 
+			for (int i = 0; i < actions.size(); i++)
+				actions[i] = actions[i] * 0.5f + 0.5f;
+
 			//std::cout << std::endl;
 
 			runner0.motorUpdate(actions, 12.0f);

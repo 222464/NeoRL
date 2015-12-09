@@ -149,6 +149,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 				_modulateKernel.setArg(argIndex++, prevLayerState);
 				_modulateKernel.setArg(argIndex++, _layers[l]._swarm.getVisibleLayer(0)._actionsExploratory);
 				_modulateKernel.setArg(argIndex++, _layers[l]._modulatedFeedForwardInput);
+				_modulateKernel.setArg(argIndex++, _layerDescs[l]._minAttention);
 
 				cs.getQueue().enqueueNDRangeKernel(_modulateKernel, cl::NullRange, cl::NDRange(prevLayerSize.x, prevLayerSize.y));
 			}
@@ -160,8 +161,9 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 				_modulateKernel.setArg(argIndex++, _layers[l]._scHiddenStatesPrev);
 				_modulateKernel.setArg(argIndex++, _layers[l]._swarm.getVisibleLayer(1)._actionsExploratory);
 				_modulateKernel.setArg(argIndex++, _layers[l]._modulatedRecurrentInput);
+				_modulateKernel.setArg(argIndex++, _layerDescs[l]._minAttention);
 
-				cs.getQueue().enqueueNDRangeKernel(_modulateKernel, cl::NullRange, cl::NDRange(prevLayerSize.x, prevLayerSize.y));
+				cs.getQueue().enqueueNDRangeKernel(_modulateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y));
 			}
 
 			visibleStates[0] = _layers[l]._modulatedFeedForwardInput;
