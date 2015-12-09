@@ -384,9 +384,9 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				//float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * weightPrev.y, weightPrev.y * weightLambda + visibleError * state);
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * visibleError * state);
 
-				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
+				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
 			}
 		}
 }
@@ -994,7 +994,7 @@ void kernel swarmHiddenPropagateToVisibleAction(read_only image2d_t hiddenErrors
 
 	float prevAction = read_imagef(actionsBack, visiblePosition).x;
 
-	float nextAction = fmin(1.0f, fmax(0.0f, prevAction + actionAlpha * (error > 0.0f ? 1.0f : -1.0f)));
+	float nextAction = fmin(1.0f, fmax(0.0f, prevAction + actionAlpha * error));
 
 	write_imagef(actionsFront, visiblePosition, (float4)(nextAction));
 }
@@ -1168,7 +1168,7 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = (baseLinePrev - error2) > 0.0f ? 1.0f : 0.0f;
+	float reward = (error2 - baseLinePrev) > 0.0f ? 1.0f : 0.0f;
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
 

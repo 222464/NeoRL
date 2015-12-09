@@ -34,7 +34,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_gpu);
+	cs.create(sys::ComputeSystem::_cpu);
 
 	sys::ComputeProgram prog;
 
@@ -199,6 +199,8 @@ int main() {
 			agent.simStep(cs, reward, inputImage, generator);
 
 			cs.getQueue().enqueueReadImage(agent.getExploratoryActions(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
+
+			cs.getQueue().finish();
 
 			//std::cout << std::endl;
 
