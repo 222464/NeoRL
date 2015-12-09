@@ -372,7 +372,7 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 			_startLearnWeightsKernel.setArg(argIndex++, vld._startRadius);
 			_startLearnWeightsKernel.setArg(argIndex++, alphaPred);
 
-			cs.getQueue().enqueueNDRangeKernel(_qLearnVisibleWeightsTracesKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
+			cs.getQueue().enqueueNDRangeKernel(_startLearnWeightsKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 		}
 	}
 
