@@ -102,5 +102,13 @@ namespace neo {
 		const DoubleBuffer2D &getHiddenStates() const {
 			return _hiddenStates;
 		}
+
+		const cl::Image2D &getHiddenErrors() const {
+			return _hiddenErrors;
+		}
+
+		const cl::Image2D &getHiddenTD() const {
+			return _hiddenTD;
+		}
 	};
 }

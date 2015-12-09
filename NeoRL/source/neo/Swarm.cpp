@@ -69,7 +69,11 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 			vl._startWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
 
+			//cs.getQueue().enqueueFillImage(vl._startWeights[_back], zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), static_cast<cl::size_type>(numWeights) });
+			//cs.getQueue().enqueueFillImage(vl._startWeights[_front], zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), static_cast<cl::size_type>(numWeights) });
+
 			randomUniformXY(vl._startWeights[_back], cs, randomUniform3DXYKernel, weightsSize, initWeightRange, rng);
+			randomUniformXY(vl._startWeights[_front], cs, randomUniform3DXYKernel, weightsSize, initWeightRange, rng);
 		}
 	}
 
@@ -377,8 +381,8 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 		int argIndex = 0;
 
 		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_front]);
-		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qStates[_back]);
 		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qStates[_front]);
+		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qStates[_back]);
 		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qWeights[_back]);
 		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _qWeights[_front]);
 		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, _hiddenSize);

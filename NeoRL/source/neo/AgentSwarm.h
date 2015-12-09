@@ -47,8 +47,8 @@ namespace neo {
 				_scActiveRatio(0.05f), _scBoostAlpha(0.01f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
 				_predWeightAlpha(0.05f),
-				_swarmAnnealingIterations(1), _swarmActionDeriveAlpha(0.05f),
-				_swarmQAlpha(0.001f), _swarmQHiddenAlpha(0.01f),
+				_swarmAnnealingIterations(1), _swarmActionDeriveAlpha(0.01f),
+				_swarmQAlpha(0.0001f), _swarmQHiddenAlpha(0.001f),
 				_swarmPredAlpha(0.01f), _swarmLambda(0.95f), _swarmGamma(0.99f),
 				_swarmExpPert(0.05f), _swarmExpBreak(0.01f)
 			{}
@@ -94,7 +94,7 @@ namespace neo {
 			cl_float2 initWeightRange, float initThreshold,
 			std::mt19937 &rng);
 
-		void simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn = true);
+		void simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng);
 
 		void clearMemory(sys::ComputeSystem &cs);
 

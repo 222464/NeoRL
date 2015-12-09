@@ -100,7 +100,7 @@ void kernel randomUniform2DXY(write_only image2d_t values, uint2 seed, float2 mi
 
 	float2 v = (float2)(randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x, randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x);
 
-	write_imagef(values, position, (float4)(v.x,  v.y, 0.0f, 0.0f));
+	write_imagef(values, position, (float4)(v.x, v.y, 0.0f, 0.0f));
 }
 
 // Initialize a random uniform 2D image (XZ fields)
@@ -347,7 +347,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 				//float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * (visibleError * state);
+				float weight = weightPrev + weightAlpha * visibleError * state;
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
@@ -381,10 +381,10 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 
 				float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
 
-				//float visibleState = read_imagef(visibleStates, visiblePosition).x;
+				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * visibleError * state);
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * state * visibleError);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
 			}

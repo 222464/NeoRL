@@ -91,12 +91,18 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 		_layers[l]._scHiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y);
 
-		if (l != 0)
-			_layers[l]._inhibitedAction = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), swarmDescs[1]._size.x, swarmDescs[1]._size.y);
-
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+
+		if (l != 0) {
+			cl::array<cl::size_type, 3> actionRegion = { _layers[l]._swarm.getVisibleLayerDesc(2)._size.x, _layers[l]._swarm.getVisibleLayerDesc(2)._size.y, 1 };
+
+			_layers[l]._inhibitedAction = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), swarmDescs[1]._size.x, swarmDescs[1]._size.y);
+
+			cs.getQueue().enqueueFillImage(_layers[l]._inhibitedAction, zeroColor, zeroOrigin, actionRegion);
+		}
+
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y, 1 };
 
 		cs.getQueue().enqueueFillImage(_layers[l]._baseLines[_back], zeroColor, zeroOrigin, layerRegion);
@@ -127,7 +133,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	_modulateKernel = cl::Kernel(program.getProgram(), "phModulate");
 }
 
-void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn) {
+void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng) {
 	// Feed forward
 	cl_int2 prevLayerSize = _layers.front()._sc.getVisibleLayerDesc(0)._size;
 	cl::Image2D prevLayerState = input;
@@ -163,8 +169,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
-			if (learn)
-				_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
 
 		// Get reward
@@ -246,8 +251,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 			visibleStatesPrev[0] = _layers[l]._scHiddenStatesPrev;
 		}
 
-		if (learn)
-			_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+		_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 	}
 
 	{
@@ -255,8 +259,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
 
-		if (learn)
-			_firstLayerPred.learn(cs, input, visibleStatesPrev, _predWeightAlpha);
+		_firstLayerPred.learn(cs, input, visibleStatesPrev, _predWeightAlpha);
 	}
 
 	// Swarm
@@ -264,20 +267,18 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 		std::vector<cl::Image2D> visibleStatesPrev;
 
 		if (l < _layers.size() - 1) {
-			if (learn)
-				_layers[l]._swarm.simStep(cs, reward, _layers[l]._sc.getHiddenStates()[_back], _layers[l + 1]._inhibitedAction,
-					_layerDescs[l]._swarmExpPert, _layerDescs[l]._swarmExpBreak,
-					_layerDescs[l]._swarmAnnealingIterations, _layerDescs[l]._swarmActionDeriveAlpha,
-					_layerDescs[l]._swarmQHiddenAlpha, _layerDescs[l]._swarmQAlpha, _layerDescs[l]._swarmPredAlpha,
-					_layerDescs[l]._swarmLambda, _layerDescs[l]._swarmGamma, rng);
+			_layers[l]._swarm.simStep(cs, reward, _layers[l]._sc.getHiddenStates()[_back], _layers[l + 1]._inhibitedAction,
+				_layerDescs[l]._swarmExpPert, _layerDescs[l]._swarmExpBreak,
+				_layerDescs[l]._swarmAnnealingIterations, _layerDescs[l]._swarmActionDeriveAlpha,
+				_layerDescs[l]._swarmQHiddenAlpha, _layerDescs[l]._swarmQAlpha, _layerDescs[l]._swarmPredAlpha,
+				_layerDescs[l]._swarmLambda, _layerDescs[l]._swarmGamma, rng);
 		}
 		else {
-			if (learn)
-				_layers[l]._swarm.simStep(cs, reward, _layers[l]._sc.getHiddenStates()[_back], _lastLayerAction,
-					_layerDescs[l]._swarmExpPert, _layerDescs[l]._swarmExpBreak,
-					_layerDescs[l]._swarmAnnealingIterations, _layerDescs[l]._swarmActionDeriveAlpha,
-					_layerDescs[l]._swarmQHiddenAlpha, _layerDescs[l]._swarmQAlpha, _layerDescs[l]._swarmPredAlpha,
-					_layerDescs[l]._swarmLambda, _layerDescs[l]._swarmGamma, rng);
+			_layers[l]._swarm.simStep(cs, reward, _layers[l]._sc.getHiddenStates()[_back], _lastLayerAction,
+				_layerDescs[l]._swarmExpPert, _layerDescs[l]._swarmExpBreak,
+				_layerDescs[l]._swarmAnnealingIterations, _layerDescs[l]._swarmActionDeriveAlpha,
+				_layerDescs[l]._swarmQHiddenAlpha, _layerDescs[l]._swarmQAlpha, _layerDescs[l]._swarmPredAlpha,
+				_layerDescs[l]._swarmLambda, _layerDescs[l]._swarmGamma, rng);
 		}
 
 		// If not first layer, inhibit the action
