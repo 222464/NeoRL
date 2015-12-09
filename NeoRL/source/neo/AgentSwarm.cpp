@@ -25,7 +25,9 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._hiddenSize, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, true, rng);
 
-		_layers[l]._modulatedInput = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), prevLayerSize.x, prevLayerSize.y);
+		_layers[l]._modulatedFeedForwardInput = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), prevLayerSize.x, prevLayerSize.y);
+
+		_layers[l]._modulatedRecurrentInput = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y);
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 	
@@ -50,22 +52,28 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		std::vector<Swarm::VisibleLayerDesc> swarmDescs;
 
 		if (l == 0) {
-			swarmDescs.resize(2);
+			swarmDescs.resize(3);
 
 			swarmDescs[0]._size = inputSize;
-			swarmDescs[0]._qRadius = _layerDescs[l]._qRadiusHiddenAttention;
+			swarmDescs[0]._qRadius = _layerDescs[l]._qRadiusHiddenFeedForwardAttention;
 
-			swarmDescs[1]._size = actionSize;
-			swarmDescs[1]._qRadius = _layerDescs[l]._qRadiusHiddenAction;
+			swarmDescs[1]._size = _layerDescs[l]._hiddenSize;
+			swarmDescs[1]._qRadius = _layerDescs[l]._qRadiusHiddenRecurrentAttention;
+
+			swarmDescs[2]._size = actionSize;
+			swarmDescs[2]._qRadius = _layerDescs[l]._qRadiusHiddenAction;
 		}
 		else {
-			swarmDescs.resize(2);
+			swarmDescs.resize(3);
 
 			swarmDescs[0]._size = _layerDescs[l - 1]._hiddenSize;
-			swarmDescs[0]._qRadius = _layerDescs[l]._qRadiusHiddenAttention;
+			swarmDescs[0]._qRadius = _layerDescs[l]._qRadiusHiddenFeedForwardAttention;
 
-			swarmDescs[1]._size = _layerDescs[l - 1]._hiddenSize;
-			swarmDescs[1]._qRadius = _layerDescs[l]._qRadiusHiddenAction;
+			swarmDescs[1]._size = _layerDescs[l]._hiddenSize;
+			swarmDescs[1]._qRadius = _layerDescs[l]._qRadiusHiddenRecurrentAttention;
+
+			swarmDescs[2]._size = _layerDescs[l - 1]._hiddenSize;
+			swarmDescs[2]._qRadius = _layerDescs[l]._qRadiusHiddenAction;
 		}
 
 		_layers[l]._swarm.createRandom(cs, program, swarmDescs, _layerDescs[l]._qSize, _layerDescs[l]._hiddenSize, _layerDescs[l]._qRadius, initWeightRange, rng);
@@ -127,13 +135,24 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 				_modulateKernel.setArg(argIndex++, prevLayerState);
 				_modulateKernel.setArg(argIndex++, _layers[l]._swarm.getVisibleLayer(0)._actionsExploratory);
-				_modulateKernel.setArg(argIndex++, _layers[l]._modulatedInput);
+				_modulateKernel.setArg(argIndex++, _layers[l]._modulatedFeedForwardInput);
 
 				cs.getQueue().enqueueNDRangeKernel(_modulateKernel, cl::NullRange, cl::NDRange(prevLayerSize.x, prevLayerSize.y));
 			}
 
-			visibleStates[0] = _layers[l]._modulatedInput;
-			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
+			// Modulate
+			{
+				int argIndex = 0;
+
+				_modulateKernel.setArg(argIndex++, _layers[l]._scHiddenStatesPrev);
+				_modulateKernel.setArg(argIndex++, _layers[l]._swarm.getVisibleLayer(1)._actionsExploratory);
+				_modulateKernel.setArg(argIndex++, _layers[l]._modulatedRecurrentInput);
+
+				cs.getQueue().enqueueNDRangeKernel(_modulateKernel, cl::NullRange, cl::NDRange(prevLayerSize.x, prevLayerSize.y));
+			}
+
+			visibleStates[0] = _layers[l]._modulatedFeedForwardInput;
+			visibleStates[1] = _layers[l]._modulatedRecurrentInput;
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
@@ -258,7 +277,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 		if (l != 0) {
 			int argIndex = 0;
 
-			_inhibitKernel.setArg(argIndex++, _layers[l]._swarm.getVisibleLayer(1));
+			_inhibitKernel.setArg(argIndex++, _layers[l]._swarm.getVisibleLayer(2)._actionsExploratory);
 			_inhibitKernel.setArg(argIndex++, _layers[l]._inhibitedAction);
 			_inhibitKernel.setArg(argIndex++, _layerDescs[l - 1]._hiddenSize);
 			_inhibitKernel.setArg(argIndex++, _layerDescs[l - 1]._lateralRadius);

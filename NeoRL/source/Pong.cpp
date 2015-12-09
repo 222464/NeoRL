@@ -97,14 +97,21 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(1);
 
-	layerDescs[0]._size = { 16, 16 };
-	layerDescs[1]._size = { 8, 8 };
+	layerDescs[0]._hiddenSize = { 16, 16 };
+	layerDescs[0]._qSize = { 8, 8 };
+
+	//layerDescs[1]._hiddenSize = { 16, 16 };
+	//layerDescs[1]._qSize = { 8, 8 };
 
 	neo::AgentSwarm agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, 16, 4, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+
+	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
+	std::vector<float> input(inWidth * inHeight, 0.0f);
+	std::vector<float> action(aWidth * aHeight, 0.0f);
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -173,7 +180,7 @@ int main() {
 				if (c.g > 0)
 					val = 1.0f;
 
-				agent.setState(x, y, val);
+				input[x + y * inWidth] = val;
 			}
 
 		float reward = 0.0f;
@@ -212,15 +219,19 @@ int main() {
 
 		averageReward = (1.0f - averageRewardDecay) * averageReward + averageRewardDecay * reward;
 
-		agent.simStep(reward, cs, generator);
+		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
+
+		agent.simStep(cs, reward, inputImage, generator);
+
+		cs.getQueue().enqueueReadImage(agent.getExploratoryActions(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
 		float act = 0.0f;
 
 		for (int i = 0; i < 4; i++) {
-			act += agent.getAction(i);
+			act += action[i] * 2.0f - 1.0f;
 		}
 
-		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.1f * std::min(1.0f, std::max(-1.0f, act))));
+		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.1f * std::min(1.0f, std::max(-1.0f, act * 0.5f))));
 
 		//std::cout << averageReward << std::endl;
 
@@ -237,7 +248,7 @@ int main() {
 
 			window.draw(vis);
 
-			sf::Image predImg;
+			/*sf::Image predImg;
 
 			predImg.create(inWidth, inHeight);
 
@@ -261,19 +272,19 @@ int main() {
 
 			s.setPosition(4.0f * 16.0f, 0.0f);
 
-			window.draw(s);
+			window.draw(s);*/
 
 			float xOffset = 0.0f;
 			float scale = 4.0f;
 
 			for (int l = 0; l < layerDescs.size(); l++) {
-				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
+				std::vector<float> data(layerDescs[l]._hiddenSize.x * layerDescs[l]._hiddenSize.y);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l)._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l)._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._hiddenSize.x), static_cast<cl::size_type>(layerDescs[l]._hiddenSize.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 
-				img.create(layerDescs[l]._size.x, layerDescs[l]._size.y);
+				img.create(layerDescs[l]._hiddenSize.x, layerDescs[l]._hiddenSize.y);
 
 				for (int x = 0; x < img.getSize().x; x++)
 					for (int y = 0; y < img.getSize().y; y++) {

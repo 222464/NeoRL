@@ -13,7 +13,7 @@ namespace neo {
 			cl_int2 _qSize;
 
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
-			cl_int _qRadiusHiddenAttention, _qRadiusHiddenAction, _qRadius;
+			cl_int _qRadiusHiddenFeedForwardAttention, _qRadiusHiddenRecurrentAttention, _qRadiusHiddenAction, _qRadius;
 
 			cl_float _scWeightAlpha;
 			cl_float _scWeightLambda;
@@ -40,12 +40,12 @@ namespace neo {
 			LayerDesc()
 				: _hiddenSize({ 8, 8 }), _qSize({ 4, 4 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
-				_qRadiusHiddenAttention(4), _qRadiusHiddenAction(4), _qRadius(4),
-				_scWeightAlpha(0.002f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.02f), _scBoostAlpha(0.01f),
+				_qRadiusHiddenFeedForwardAttention(4), _qRadiusHiddenRecurrentAttention(4), _qRadiusHiddenAction(4), _qRadius(4),
+				_scWeightAlpha(0.005f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.1f), _scBoostAlpha(0.01f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
 				_predWeightAlpha(0.05f),
-				_swarmAnnealingIterations(1), _swarmActionDeriveAlpha(0.08f),
+				_swarmAnnealingIterations(5), _swarmActionDeriveAlpha(0.08f),
 				_swarmQAlpha(0.01f), _swarmQHiddenAlpha(0.05f),
 				_swarmPredAlpha(0.2f), _swarmLambda(0.95f), _swarmGamma(0.99f),
 				_swarmExpPert(0.2f), _swarmExpBreak(0.05f)
@@ -57,7 +57,8 @@ namespace neo {
 			Predictor _pred;
 			Swarm _swarm;
 
-			cl::Image2D _modulatedInput;
+			cl::Image2D _modulatedFeedForwardInput;
+			cl::Image2D _modulatedRecurrentInput;
 			cl::Image2D _inhibitedAction;
 
 			DoubleBuffer2D _baseLines;
