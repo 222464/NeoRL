@@ -994,7 +994,7 @@ void kernel swarmHiddenPropagateToVisibleAction(read_only image2d_t hiddenErrors
 
 	float prevAction = read_imagef(actionsBack, visiblePosition).x;
 
-	float nextAction = fmin(1.0f, fmax(0.0f, prevAction + actionAlpha * error));
+	float nextAction = fmin(1.0f, fmax(0.0f, prevAction + actionAlpha * (error > 0.0f ? 1.0f : -1.0f)));
 
 	write_imagef(actionsFront, visiblePosition, (float4)(nextAction));
 }

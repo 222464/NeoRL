@@ -294,7 +294,7 @@ int main() {
 			for (int l = 0; l < layerDescs.size(); l++) {
 				std::vector<float> data(layerDescs[l]._hiddenSize.x * layerDescs[l]._hiddenSize.y * 2);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l)._swarm.getHiddenErrors(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._hiddenSize.x), static_cast<cl::size_type>(layerDescs[l]._hiddenSize.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l)._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._hiddenSize.x), static_cast<cl::size_type>(layerDescs[l]._hiddenSize.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 
@@ -304,7 +304,7 @@ int main() {
 					for (int y = 0; y < img.getSize().y; y++) {
 						sf::Color c = sf::Color::White;
 
-						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * (data[(x + y * img.getSize().x) * 2 + 0]));
+						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * (data[(x + y * img.getSize().x) * 1 + 0]));
 
 						img.setPixel(x, y, c);
 					}
