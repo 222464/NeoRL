@@ -907,7 +907,7 @@ void kernel swarmPredictAction(read_only image2d_t hiddenStatesFeedForward, read
 			}
 		}
 
-	write_imagef(predictedAction, visiblePosition, (float4)(tanh(sum)));
+	write_imagef(predictedAction, visiblePosition, (float4)(sigmoid(sum)));
 }
 
 void kernel swarmQActivateToHidden(read_only image2d_t visibleStates,
@@ -952,7 +952,7 @@ void kernel swarmQSolveHidden(read_only image2d_t hiddenSummationTemp,
 	float hsff = read_imagef(hiddenStatesFeedForward, hiddenPosition).x;
 	float afb = read_imagef(actionsFeedBack, hiddenPosition).x;
 
-	write_imagef(hiddenStates, hiddenPosition, (float4)(tanh(sum.x) * hsff, tanh(sum.y) * afb, 0.0f, 0.0f));
+	write_imagef(hiddenStates, hiddenPosition, (float4)(sigmoid(sum.x) * hsff, sigmoid(sum.y) * afb, 0.0f, 0.0f));
 }
 
 void kernel swarmHiddenPropagateToVisibleAction(read_only image2d_t hiddenErrors, read_only image2d_t hiddenStates,
@@ -987,14 +987,14 @@ void kernel swarmHiddenPropagateToVisibleAction(read_only image2d_t hiddenErrors
 
 					float2 weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xz;
 				
-					error += dot((1.0f - hiddenState * hiddenState) * hiddenError, weight);
+					error += dot((1.0f - hiddenState) * hiddenState * hiddenError, weight);
 				}
 			}
 		}
 
 	float prevAction = read_imagef(actionsBack, visiblePosition).x;
 
-	float nextAction = fmin(1.0f, fmax(-1.0f, prevAction + actionAlpha * (error > 0.0f ? 1.0f : -1.0f)));
+	float nextAction = fmin(1.0f, fmax(0.0f, prevAction + actionAlpha * (error > 0.0f ? 1.0f : -1.0f)));
 
 	write_imagef(actionsFront, visiblePosition, (float4)(nextAction));
 }
@@ -1008,7 +1008,7 @@ void kernel swarmExploration(read_only image2d_t actions,
 	
 	float action = read_imagef(actions, position).x;
 	
-	write_imagef(actionsExploratory, position, (float4)(randFloat(&seedValue) < expBreak ? randFloat(&seedValue) * 2.0f - 1.0f : fmin(1.0f, fmax(-1.0f, action + expPert * randNormal(&seedValue)))));
+	write_imagef(actionsExploratory, position, (float4)(randFloat(&seedValue) < expBreak ? randFloat(&seedValue) * 2.0f - 1.0f : fmin(1.0f, fmax(0.0f, action + expPert * randNormal(&seedValue)))));
 }
 
 void kernel swarmQActivateToQ(read_only image2d_t hiddenStates,
@@ -1058,7 +1058,7 @@ void kernel swarmQLearnVisibleWeightsTraces(read_only image2d_t actionsExplorato
 
 	float2 hiddenError = read_imagef(hiddenErrors, hiddenPosition).xy;
 
-	float2 error = hiddenError * (1.0f - hiddenState * hiddenState);
+	float2 error = hiddenError * (1.0f - hiddenState) * hiddenState;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -1219,7 +1219,7 @@ void kernel phModulate(read_only image2d_t inputsLeft, read_only image2d_t input
 	float left = read_imagef(inputsLeft, position).x;
 	float right = read_imagef(inputsRight, position).x;
 
-	write_imagef(states, position, (float4)(left * (minAttention + (1.0f - minAttention) * (right * 0.5f + 0.5f))));
+	write_imagef(states, position, (float4)(left * (minAttention + (1.0f - minAttention) * right)));
 }
 
 // ----------------------------------------- Q Route -----------------------------------------
