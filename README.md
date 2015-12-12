@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/19602/222464/NeoRL.svg)](https://zenodo.org/badge/latestdoi/19602/222464/NeoRL)
+
 Welcome to NeoRL, an algorithmic GPU neocortex simulation library.
 
 # Installation
