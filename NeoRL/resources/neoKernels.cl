@@ -277,7 +277,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? fmax(0.0f, tanh(activation)) : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -292,7 +292,7 @@ void kernel cscLearnHiddenBiases(read_only image2d_t visibleBiasesBack, write_on
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	
-	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
+	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f - state * state);
 
 	float bias = biasPrev + boostAlpha * (activeRatio - (state == 0.0f ? 0.0f : 1.0f));
 
@@ -312,7 +312,7 @@ void kernel cscLearnHiddenBiasesTraces(read_only image2d_t rewards,
 	
 	float reward = read_imagef(rewards, hiddenPosition).x;
 
-	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
+	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f - state * state);
 
 	float2 bias = (float2)(biasPrev.x + boostAlpha * (activeRatio - (state == 0.0f ? 0.0f : 1.0f)), biasPrev.y * biasLambda + error);
 
@@ -331,7 +331,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	
-	//float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
+	//float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f - state * state);
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -368,7 +368,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	
-	//float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
+	//float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f - state * state);
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -725,7 +725,7 @@ void kernel predSolveHiddenThreshold(read_only image2d_t hiddenSummationTemp,
 	
 	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
-	float state = activation > 0.5f ? 1.0f : 0.0f;//fmax(0.0f, tanh(activation));
+	float state = fmax(0.0f, tanh(activation));
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(activation));
@@ -1168,7 +1168,7 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = error2 - baseLinePrev;
+	float reward = baseLinePrev - error2;
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
 
