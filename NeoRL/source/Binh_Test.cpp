@@ -132,7 +132,7 @@ int main()
 
 			std::vector<float> sdr(64);
 
-			cs.getQueue().enqueueReadImage(ph.getLayer(0)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, sdr.data());
+			cs.getQueue().enqueueReadImage(ph.getLayer(0)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, sdr.data());
 
 			for (int x = 0; x < 8; x++) {
 				for (int y = 0; y < 8; y++)
