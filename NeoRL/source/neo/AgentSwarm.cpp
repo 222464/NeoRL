@@ -171,7 +171,8 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
-			_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+			//_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
 
 		// Get reward

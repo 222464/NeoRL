@@ -18,16 +18,16 @@ namespace neo {
 
 			cl_float _baseLineDecay;
 			cl_float _baseLineSensitivity;
-			
+
 			cl_float _predWeightAlpha;
 
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
-				_scWeightAlpha(0.01f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.05f), _scBoostAlpha(0.5f),
+				_scWeightAlpha(0.001f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.08f), _scBoostAlpha(0.01f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha(0.5f)
+				_predWeightAlpha(0.01f)
 			{}
 		};
 
@@ -46,19 +46,18 @@ namespace neo {
 		std::vector<Layer> _layers;
 		std::vector<LayerDesc> _layerDescs;
 
-		Predictor _firstLayerPred;
-
 		cl::Kernel _baseLineUpdateKernel;
+		cl::Kernel _baseLineUpdateSumErrorKernel;
 
 	public:
 		cl_float _predWeightAlpha;
 
 		PredictiveHierarchy()
-			: _predWeightAlpha(0.05f)
+			: _predWeightAlpha(0.005f)
 		{}
 
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			cl_int2 inputSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
+			cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange, float initThreshold,
 			std::mt19937 &rng);
 
@@ -79,7 +78,7 @@ namespace neo {
 		}
 
 		const Predictor &getFirstLayerPred() const {
-			return _firstLayerPred;
+			return _layers.front()._pred;
 		}
 	};
 }

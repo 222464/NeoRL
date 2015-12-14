@@ -277,7 +277,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? fmax(0.0f, tanh(activation)) : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -292,9 +292,9 @@ void kernel cscLearnHiddenBiases(read_only image2d_t visibleBiasesBack, write_on
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	
-	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f - state * state);
+	float error = read_imagef(hiddenErrors, hiddenPosition).x * state;
 
-	float bias = biasPrev + boostAlpha * (activeRatio - (state == 0.0f ? 0.0f : 1.0f));
+	float bias = biasPrev + boostAlpha * (activeRatio - state);
 
 	write_imagef(visibleBiasesFront, hiddenPosition, (float4)(bias));
 }
@@ -312,9 +312,9 @@ void kernel cscLearnHiddenBiasesTraces(read_only image2d_t rewards,
 	
 	float reward = read_imagef(rewards, hiddenPosition).x;
 
-	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f - state * state);
+	float error = read_imagef(hiddenErrors, hiddenPosition).x * state;
 
-	float2 bias = (float2)(biasPrev.x + boostAlpha * (activeRatio - (state == 0.0f ? 0.0f : 1.0f)), biasPrev.y * biasLambda + error);
+	float2 bias = (float2)(biasPrev.x + boostAlpha * (activeRatio - state), biasPrev.y * biasLambda + error);
 
 	write_imagef(visibleBiasesFront, hiddenPosition, (float4)(bias, 0.0f, 0.0f));
 }
@@ -331,7 +331,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	
-	//float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f - state * state);
+	//float error = read_imagef(hiddenErrors, hiddenPosition).x * state;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -368,7 +368,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	
-	//float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f - state * state);
+	//float error = read_imagef(hiddenErrors, hiddenPosition).x * state;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -1154,7 +1154,29 @@ void kernel swarmQLearnHiddenWeightsTraces(read_only image2d_t hiddenStates,
 
 // ----------------------------------------- Predictive Hierarchy -----------------------------------------
 
-void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
+void kernel phBaseLineUpdate(read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
+	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
+	float decay, float sensitivity)
+{
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float state = read_imagef(hiddenStates, position).x;
+
+	float error = read_imagef(errorsCurrent, position).x;
+
+	float error2 = error * error;
+
+	float baseLinePrev = read_imagef(baseLinesBack, position).x;
+
+	float reward = (error2 - baseLinePrev) > 0.0f ? 1.0f : 0.0f;
+
+	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
+
+	write_imagef(baseLinesFront, position, (float4)(baseLine));
+	write_imagef(rewards, position, (float4)(reward));
+}
+
+void kernel phBaseLineUpdateSumError(read_only image2d_t errorsLower, read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
 	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
 	float decay, float sensitivity)
 {
@@ -1168,7 +1190,7 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = baseLinePrev - error2;
+	float reward = (error2 - baseLinePrev) > 0.0f ? 1.0f : 0.0f;
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
 
