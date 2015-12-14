@@ -18,10 +18,16 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		scDescs[0]._size = prevLayerSize;
 		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
 		scDescs[0]._ignoreMiddle = false;
+		scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
+		scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
+		scDescs[0]._useTraces = false;
 
 		scDescs[1]._size = _layerDescs[l]._hiddenSize;
 		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
 		scDescs[1]._ignoreMiddle = true;
+		scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
+		scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
+		scDescs[1]._useTraces = true;
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._hiddenSize, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, rng);
 
@@ -115,8 +121,6 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	predDescs[0]._size = _layerDescs.front()._hiddenSize;
 	predDescs[0]._radius = firstLayerPredictorRadius;
 
-	_firstLayerPred.createRandom(cs, program, predDescs, inputSize, initWeightRange, false, rng);
-
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
@@ -179,7 +183,6 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 		if (l == 0) {
 			int argIndex = 0;
 
-			_baseLineUpdateKernel.setArg(argIndex++, _firstLayerPred.getVisibleLayer(0)._errors);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
@@ -193,16 +196,16 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 		else {
 			int argIndex = 0;
 
-			_baseLineUpdateKernel.setArg(argIndex++, _layers[l - 1]._pred.getVisibleLayer(1)._errors);
-			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
-			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
-			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
-			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_front]);
-			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._reward);
-			_baseLineUpdateKernel.setArg(argIndex++, _layerDescs[l]._baseLineDecay);
-			_baseLineUpdateKernel.setArg(argIndex++, _layerDescs[l]._baseLineSensitivity);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l - 1]._pred.getVisibleLayer(1)._errors);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._baseLines[_front]);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._reward);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layerDescs[l]._baseLineDecay);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layerDescs[l]._baseLineSensitivity);
 
-			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y));
+			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateSumErrorKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y));
 		}
 
 		prevLayerState = _layers[l]._sc.getHiddenStates()[_back];
@@ -226,17 +229,10 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 		_layers[l]._pred.activate(cs, visibleStates, true);
 
-		_layers[l]._pred.propagateError(cs, _layers[l]._sc.getHiddenStates()[_back]);
-	}
-
-	{
-		std::vector<cl::Image2D> visibleStates(1);
-
-		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
-
-		_firstLayerPred.activate(cs, visibleStates, false);
-
-		_firstLayerPred.propagateError(cs, input);
+		if (l == 0)
+			_layers[l]._pred.propagateError(cs, input);
+		else
+			_layers[l]._pred.propagateError(cs, _layers[l - 1]._sc.getHiddenStates()[_back]);
 	}
 
 	for (int l = _layers.size() - 1; l >= 0; l--) {
@@ -254,15 +250,10 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 			visibleStatesPrev[0] = _layers[l]._scHiddenStatesPrev;
 		}
 
-		_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
-	}
-
-	{
-		std::vector<cl::Image2D> visibleStatesPrev(1);
-
-		visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
-
-		_firstLayerPred.learn(cs, input, visibleStatesPrev, _predWeightAlpha);
+		if (l == 0)
+			_layers[l]._pred.learn(cs, input, visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+		else
+			_layers[l]._pred.learn(cs, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 	}
 
 	// Swarm
