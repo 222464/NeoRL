@@ -23,7 +23,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
 		scDescs[1]._ignoreMiddle = true;
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._hiddenSize, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, true, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._hiddenSize, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, rng);
 
 		_layers[l]._modulatedFeedForwardInput = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), prevLayerSize.x, prevLayerSize.y);
 
@@ -172,7 +172,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
 			//_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
-			_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+			//_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
 
 		// Get reward

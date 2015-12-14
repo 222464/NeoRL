@@ -12,6 +12,7 @@ namespace neo {
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
 
 			cl_float _scWeightAlpha;
+			cl_float _scWeightRecurrentAlpha;
 			cl_float _scWeightLambda;
 			cl_float _scActiveRatio;
 			cl_float _scBoostAlpha;
@@ -24,10 +25,10 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
-				_scWeightAlpha(0.001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.2f), _scBoostAlpha(0.005f),
+				_scWeightAlpha(0.002f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.1f), _scBoostAlpha(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha(0.01f)
+				_predWeightAlpha(0.005f)
 			{}
 		};
 
@@ -50,12 +51,6 @@ namespace neo {
 		cl::Kernel _baseLineUpdateSumErrorKernel;
 
 	public:
-		cl_float _predWeightAlpha;
-
-		PredictiveHierarchy()
-			: _predWeightAlpha(0.005f)
-		{}
-
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange, float initThreshold,

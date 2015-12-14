@@ -18,12 +18,18 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		scDescs[0]._size = prevLayerSize;
 		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
 		scDescs[0]._ignoreMiddle = false;
+		scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
+		scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
+		scDescs[0]._useTraces = false;
 
 		scDescs[1]._size = _layerDescs[l]._size;
 		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
 		scDescs[1]._ignoreMiddle = true;
+		scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
+		scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
+		scDescs[1]._useTraces = true;
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, true, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, rng);
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
@@ -79,7 +85,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
 			if (learn)
-				_layers[l]._sc.learnTrace(cs, visibleStates, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightLambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+				_layers[l]._sc.learn(cs, _layers[l]._reward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
 
 		// Get reward

@@ -15,10 +15,16 @@ namespace neo {
 
 			cl_int _radius;
 
+			cl_float _weightAlpha;
+			cl_float _weightLambda;
+
 			bool _ignoreMiddle;
 
+			bool _useTraces;
+
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _radius(4), _ignoreMiddle(false)
+				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.01f), _weightLambda(0.95f),
+				_ignoreMiddle(false), _useTraces(false)
 			{}
 		};
 
@@ -52,7 +58,6 @@ namespace neo {
 		cl::Kernel _activateIgnoreMiddleKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnHiddenBiasesKernel;
-		cl::Kernel _learnHiddenBiasesTracesKernel;
 		cl::Kernel _learnHiddenWeightsKernel;
 		cl::Kernel _learnHiddenWeightsTracesKernel;
 
@@ -63,13 +68,12 @@ namespace neo {
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs,
 			cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float initThreshold,
-			bool enableTraces,
 			std::mt19937 &rng);
 
 		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio);
 
-		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float weightAlpha, float boostAlpha, float activeRatio);
-		void learnTrace(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const cl::Image2D &rewards, float weightAlpha, float weightLambda, float boostAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float boostAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, const cl::Image2D &rewards, std::vector<cl::Image2D> &visibleStates, float boostAlpha, float activeRatio);
 
 		void clearMemory(sys::ComputeSystem &cs);
 
