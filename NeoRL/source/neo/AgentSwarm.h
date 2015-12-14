@@ -112,7 +112,7 @@ namespace neo {
 		}
 
 		const cl::Image2D &getExploratoryActions() const {
-			return _layers.front()._swarm.getVisibleLayer(1)._actionsExploratory;
+			return _layers.front()._swarm.getVisibleLayer(2)._actionsExploratory;
 		}
 	};
 }
