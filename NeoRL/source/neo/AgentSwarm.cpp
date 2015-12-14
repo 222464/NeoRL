@@ -133,6 +133,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	}
 
 	_baseLineUpdateKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdate");
+	_baseLineUpdateSumErrorKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdateSumError");
 	_inhibitKernel = cl::Kernel(program.getProgram(), "phInhibit");
 	_modulateKernel = cl::Kernel(program.getProgram(), "phModulate");
 }
