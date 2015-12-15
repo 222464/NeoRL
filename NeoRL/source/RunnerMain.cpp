@@ -8,6 +8,7 @@
 #include <runner/Runner.h>
 
 #include <neo/AgentSwarm.h>
+#include <neo/AgentSPG.h>
 
 #include <time.h>
 #include <iostream>

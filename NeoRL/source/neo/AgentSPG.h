@@ -41,7 +41,7 @@ namespace neo {
 				_scWeightAlpha(0.01f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.95f),
 				_scActiveRatio(0.06f), _scBoostAlpha(0.01f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha({ 0.01f, 0.01f, 0.01f }),
+				_predWeightAlpha({ 0.1f, 0.002f, 0.1f }),
 				_predWeightLambda({ 0.95f, 0.95f }),
 				_gamma(0.99f), _noise(0.1f),
 				_minAttention(0.05f)
