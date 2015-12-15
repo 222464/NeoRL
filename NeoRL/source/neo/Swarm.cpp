@@ -21,6 +21,7 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	_visibleLayers.resize(_visibleLayerDescs.size());
 
 	cl::Kernel randomUniform2DKernel = cl::Kernel(program.getProgram(), "randomUniform2D");
+	cl::Kernel randomUniform2DXZKernel = cl::Kernel(program.getProgram(), "randomUniform2DXZ");
 	cl::Kernel randomUniform3DXYKernel = cl::Kernel(program.getProgram(), "randomUniform3DXY");
 	cl::Kernel randomUniform3DXZKernel = cl::Kernel(program.getProgram(), "randomUniform3DXZ");
 
@@ -78,6 +79,10 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
 	
+	_hiddenBiases = createDoubleBuffer2D(cs, _hiddenSize, CL_RGBA, CL_FLOAT);
+
+	randomUniformXZ(_hiddenBiases[_back], cs, randomUniform2DXZKernel, _hiddenSize, initWeightRange, rng);
+
 	_hiddenErrors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_RG, CL_FLOAT), _hiddenSize.x, _hiddenSize.y);
 	_hiddenTD = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _hiddenSize.x, _hiddenSize.y);
 
@@ -111,6 +116,7 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 	// Create kernels
 	_predictAction = cl::Kernel(program.getProgram(), "swarmPredictAction");
+	_qInitSummationKernel = cl::Kernel(program.getProgram(), "swarmInitSummation");
 	_qActivateToHiddenKernel = cl::Kernel(program.getProgram(), "swarmQActivateToHidden");
 	_qActivateToQKernel = cl::Kernel(program.getProgram(), "swarmQActivateToQ");
 	_qSolveHiddenKernel = cl::Kernel(program.getProgram(), "swarmQSolveHidden");
@@ -121,6 +127,7 @@ void Swarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	_startLearnWeightsKernel = cl::Kernel(program.getProgram(), "swarmStartLearnWeights");
 	_qLearnVisibleWeightsTracesKernel = cl::Kernel(program.getProgram(), "swarmQLearnVisibleWeightsTraces");
 	_qLearnHiddenWeightsTracesKernel = cl::Kernel(program.getProgram(), "swarmQLearnHiddenWeightsTraces");
+	_qLearnHiddenBiasesTracesKernel = cl::Kernel(program.getProgram(), "swarmQLearnHiddenBiasesTraces");
 }
 
 void Swarm::simStep(sys::ComputeSystem &cs, float reward,
@@ -174,8 +181,14 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 
 	// Anneal actions
 	for (int iter = 0; iter < annealIterations; iter++) {
-		// Start by clearing summation buffer
-		cs.getQueue().enqueueFillImage(_hiddenSummationTemp[_back], zeroColor, zeroOrigin, hiddenRegion);
+		{
+			int argIndex = 0;
+
+			_qInitSummationKernel.setArg(argIndex++, _hiddenBiases[_back]);
+			_qInitSummationKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+		
+			cs.getQueue().enqueueNDRangeKernel(_qInitSummationKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		}
 
 		for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 			VisibleLayer &vl = _visibleLayers[vli];
@@ -260,8 +273,14 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 
 	// Activate from exploratory action
 	{
-		// Start by clearing summation buffer
-		cs.getQueue().enqueueFillImage(_hiddenSummationTemp[_back], zeroColor, zeroOrigin, hiddenRegion);
+		{
+			int argIndex = 0;
+
+			_qInitSummationKernel.setArg(argIndex++, _hiddenBiases[_back]);
+			_qInitSummationKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+
+			cs.getQueue().enqueueNDRangeKernel(_qInitSummationKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		}
 
 		for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 			VisibleLayer &vl = _visibleLayers[vli];
@@ -390,6 +409,20 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 		_qLearnHiddenWeightsTracesKernel.setArg(argIndex++, gamma);
 
 		cs.getQueue().enqueueNDRangeKernel(_qLearnHiddenWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+	}
+
+	// Learn biases
+	{
+		int argIndex = 0;
+
+		_qLearnHiddenBiasesTracesKernel.setArg(argIndex++, _hiddenTD);
+		_qLearnHiddenBiasesTracesKernel.setArg(argIndex++, _hiddenErrors);
+		_qLearnHiddenBiasesTracesKernel.setArg(argIndex++, _hiddenBiases[_back]);
+		_qLearnHiddenBiasesTracesKernel.setArg(argIndex++, _hiddenBiases[_front]);
+		_qLearnHiddenBiasesTracesKernel.setArg(argIndex++, alphaHiddenQ);
+		_qLearnHiddenBiasesTracesKernel.setArg(argIndex++, lambda);
+
+		cs.getQueue().enqueueNDRangeKernel(_qLearnHiddenBiasesTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 
 	// Swap buffers

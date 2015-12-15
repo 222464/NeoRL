@@ -41,6 +41,8 @@ namespace neo {
 
 		DoubleBuffer2D _hiddenStates;
 
+		DoubleBuffer2D _hiddenBiases;
+
 		DoubleBuffer3D _qWeights;
 
 		cl::Image2D _hiddenErrors;
@@ -61,6 +63,7 @@ namespace neo {
 		std::vector<VisibleLayer> _visibleLayers;
 
 		cl::Kernel _predictAction;
+		cl::Kernel _qInitSummationKernel;
 		cl::Kernel _qActivateToHiddenKernel;
 		cl::Kernel _qActivateToQKernel;
 		cl::Kernel _qSolveHiddenKernel;
@@ -71,6 +74,7 @@ namespace neo {
 		cl::Kernel _startLearnWeightsKernel;
 		cl::Kernel _qLearnVisibleWeightsTracesKernel;
 		cl::Kernel _qLearnHiddenWeightsTracesKernel;
+		cl::Kernel _qLearnHiddenBiasesTracesKernel;
 
 	public:
 		// Create with randomly initialized weights

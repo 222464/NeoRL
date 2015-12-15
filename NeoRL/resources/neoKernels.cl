@@ -697,7 +697,7 @@ void kernel predSolveHiddenThreshold(read_only image2d_t hiddenSummationTemp,
 	
 	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
-	float state = fmax(0.0f, tanh(activation));
+	float state = activation > 0.5f ? 1.0f : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(activation));
@@ -880,6 +880,14 @@ void kernel swarmPredictAction(read_only image2d_t hiddenStatesFeedForward, read
 		}
 
 	write_imagef(predictedAction, visiblePosition, (float4)(sigmoid(sum)));
+}
+
+void kernel swarmInitSummation(read_only image2d_t hiddenBiases, write_only image2d_t hiddenSummationTempFront) {
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+	
+	float2 biases = read_imagef(hiddenBiases, hiddenPosition).xz;
+	
+	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(biases.x, biases.y, 0.0f, 0.0f));
 }
 
 void kernel swarmQActivateToHidden(read_only image2d_t visibleStates,
@@ -1124,6 +1132,24 @@ void kernel swarmQLearnHiddenWeightsTraces(read_only image2d_t hiddenStates,
 		}
 }
 
+void kernel swarmQLearnHiddenBiasesTraces(read_only image2d_t hiddenTD, read_only image2d_t hiddenErrors,
+	read_only image2d_t biasesBack, write_only image2d_t biasesFront,
+	float alpha, float lambda)  
+{
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+
+	float4 biasPrev = read_imagef(biasesBack, hiddenPosition);
+
+	float tdError = read_imagef(hiddenTD, hiddenPosition).x;
+
+	float2 error = read_imagef(hiddenErrors, hiddenPosition).xy;
+
+	float4 bias = (float4)(biasPrev.x + tdError * biasPrev.y, biasPrev.y * lambda + alpha * error.x,
+		biasPrev.z + tdError * biasPrev.w, biasPrev.w * lambda + alpha * error.y);
+				
+	write_imagef(biasesFront, hiddenPosition, bias);
+}
+
 // ----------------------------------------- Predictive Hierarchy -----------------------------------------
 
 void kernel phBaseLineUpdate(read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
@@ -1140,7 +1166,7 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsCurrent, read_only image2
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = (error2 - baseLinePrev) > 0.0f ? 1.0f : 0.0f;
+	float reward = fmax(0.0f, error2 - baseLinePrev);
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
 
@@ -1162,7 +1188,7 @@ void kernel phBaseLineUpdateSumError(read_only image2d_t errorsLower, read_only 
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = (error2 - baseLinePrev) > 0.0f ? 1.0f : 0.0f;
+	float reward = fmax(0.0f, error2 - baseLinePrev);
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
 

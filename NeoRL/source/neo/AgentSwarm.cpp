@@ -27,7 +27,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		scDescs[1]._ignoreMiddle = true;
 		scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
 		scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
-		scDescs[1]._useTraces = true;
+		scDescs[1]._useTraces = false;
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._hiddenSize, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, rng);
 
