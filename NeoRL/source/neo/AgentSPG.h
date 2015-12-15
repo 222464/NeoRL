@@ -9,8 +9,6 @@ namespace neo {
 		struct LayerDesc {
 			cl_int2 _hiddenSize;
 
-			cl_int2 _qSize;
-
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
 			cl_int _qRadiusHiddenFeedForwardAttention, _qRadiusHiddenRecurrentAttention, _qRadiusHiddenAction, _qRadius;
 			cl_int _startRadiusHiddenFeedForwardAttention, _startRadiusHiddenRecurrentAttention, _startRadiusHiddenAction;
@@ -34,14 +32,14 @@ namespace neo {
 			cl_float _minAttention;
 
 			LayerDesc()
-				: _hiddenSize({ 8, 8 }), _qSize({ 4, 4 }),
+				: _hiddenSize({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
 				_qRadiusHiddenFeedForwardAttention(4), _qRadiusHiddenRecurrentAttention(4), _qRadiusHiddenAction(4), _qRadius(4),
 				_startRadiusHiddenFeedForwardAttention(4), _startRadiusHiddenRecurrentAttention(4), _startRadiusHiddenAction(4),
-				_scWeightAlpha(0.01f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.95f),
+				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
 				_scActiveRatio(0.06f), _scBoostAlpha(0.01f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha({ 0.1f, 0.002f, 0.1f }),
+				_predWeightAlpha({ 0.01f, 0.001f, 0.01f }),
 				_predWeightLambda({ 0.95f, 0.95f }),
 				_gamma(0.99f), _noise(0.1f),
 				_minAttention(0.05f)
@@ -70,12 +68,13 @@ namespace neo {
 		std::vector<Layer> _layers;
 		std::vector<LayerDesc> _layerDescs;
 
-		cl::Image2D _lastLayerAction;
+		cl::Image2D _action;
 
 		cl::Kernel _baseLineUpdateKernel;
 		cl::Kernel _baseLineUpdateSumErrorKernel;
 		cl::Kernel _inhibitKernel;
 		cl::Kernel _modulateKernel;
+		cl::Kernel _copyActionKernel;
 
 	public:
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
@@ -99,8 +98,8 @@ namespace neo {
 			return _layerDescs[index];
 		}
 
-		const PredictorSwarm &getFirstLayerActionPred() const {
-			return _layers.front()._predAction;
+		const cl::Image2D &getAction() const {
+			return _action;
 		}
 	};
 }

@@ -1397,6 +1397,14 @@ void kernel phModulate(read_only image2d_t inputsLeft, read_only image2d_t input
 	write_imagef(states, position, (float4)(left * (minAttention + (1.0f - minAttention) * (right * 0.5f + 0.5f))));
 }
 
+void kernel phCopyAction(read_only image2d_t source, write_only image2d_t destination) {
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float s = read_imagef(source, position).x;
+	
+	write_imagef(destination, position, (float4)(s));
+}
+
 // ----------------------------------------- Q Route -----------------------------------------
 
 void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, read_only image2d_t qBiases, read_only image2d_t qStatesPrev, write_only image2d_t qStatesFront, write_only image2d_t qActivationsFront,

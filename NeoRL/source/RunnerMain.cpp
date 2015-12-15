@@ -110,12 +110,12 @@ int main() {
 	prsdr.createRandom(7, 7, 8, inputTypes, layerDescs, -0.01f, 0.01f, 0.01f, 0.05f, 0.5f, generator);
 	*/
 
-	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(3);
+	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
 	//layerDescs[0]._h = { 8, 8 };
 	//layerDescs[1]._size = { 8, 8 };
 
-	neo::AgentSwarm agent;
+	neo::AgentSPG agent;
 
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
@@ -197,12 +197,12 @@ int main() {
 
 			agent.simStep(cs, reward, inputImage, generator);
 
-			cs.getQueue().enqueueReadImage(agent.getExploratoryActions(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
+			cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
 
 			cs.getQueue().finish();
 
-			for (int i = 0; i < actions.size(); i++)
-				actions[i] = actions[i] * 0.5f + 0.5f;
+			//for (int i = 0; i < actions.size(); i++)
+			//	actions[i] = actions[i] * 0.5f + 0.5f;
 
 			//std::cout << std::endl;
 

@@ -55,7 +55,7 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 
 		_layers[l]._predAction.createRandom(cs, program, predDescs, prevLayerSize, initWeightRange, rng);
 		_layers[l]._predAttentionFeedForward.createRandom(cs, program, predDescs, prevLayerSize, initWeightRange, rng);
-		_layers[l]._predAttentionRecurrent.createRandom(cs, program, predDescs, prevLayerSize, initWeightRange, rng);
+		_layers[l]._predAttentionRecurrent.createRandom(cs, program, predDescs, _layerDescs[l]._hiddenSize, initWeightRange, rng);
 
 		// Create baselines
 		_layers[l]._baseLines = createDoubleBuffer2D(cs, _layerDescs[l]._hiddenSize, CL_R, CL_FLOAT);
@@ -87,17 +87,18 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-		cl::array<cl::size_type, 3> layerRegion = { _layerDescs.back()._hiddenSize.x, _layerDescs.back()._hiddenSize.y, 1 };
+		cl::array<cl::size_type, 3> layerRegion = { actionSize.x, actionSize.y, 1 };
 
-		_lastLayerAction = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs.back()._hiddenSize.x, _layerDescs.back()._hiddenSize.y);
+		_action = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), actionSize.x, actionSize.y);
 
-		cs.getQueue().enqueueFillImage(_lastLayerAction, zeroColor, zeroOrigin, layerRegion);
+		cs.getQueue().enqueueFillImage(_action, zeroColor, zeroOrigin, layerRegion);
 	}
 
 	_baseLineUpdateKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdate");
 	_baseLineUpdateSumErrorKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdateSumError");
 	_inhibitKernel = cl::Kernel(program.getProgram(), "phInhibit");
 	_modulateKernel = cl::Kernel(program.getProgram(), "phModulate");
+	_copyActionKernel = cl::Kernel(program.getProgram(), "phCopyAction");
 }
 
 void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng) {
@@ -216,14 +217,24 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 
 		if (l == 0) {
 			_layers[l]._predAction.learnTrace(cs, reward, _layerDescs[l]._gamma, input, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
-			_layers[l]._predAttentionFeedForward.learnTrace(cs, reward, _layerDescs[l]._gamma, input, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
-			_layers[l]._predAttentionRecurrent.learnTrace(cs, reward, _layerDescs[l]._gamma, input, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+			_layers[l]._predAttentionFeedForward.learnTrace(cs, reward, _layerDescs[l]._gamma, _layers[l]._predAttentionFeedForward.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+			_layers[l]._predAttentionRecurrent.learnTrace(cs, reward, _layerDescs[l]._gamma, _layers[l]._predAttentionRecurrent.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 		}
 		else {
 			_layers[l]._predAction.learnTrace(cs, reward, _layerDescs[l]._gamma, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
-			_layers[l]._predAttentionFeedForward.learnTrace(cs, reward, _layerDescs[l]._gamma, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
-			_layers[l]._predAttentionRecurrent.learnTrace(cs, reward, _layerDescs[l]._gamma, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+			_layers[l]._predAttentionFeedForward.learnTrace(cs, reward, _layerDescs[l]._gamma, _layers[l]._predAttentionFeedForward.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+			_layers[l]._predAttentionRecurrent.learnTrace(cs, reward, _layerDescs[l]._gamma, _layers[l]._predAttentionRecurrent.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 		}
+	}
+
+	// Copy action
+	{
+		int argIndex = 0;
+
+		_copyActionKernel.setArg(argIndex++, _layers.front()._predAction.getHiddenStates()[_back]);
+		_copyActionKernel.setArg(argIndex++, _action);
+
+		cs.getQueue().enqueueNDRangeKernel(_copyActionKernel, cl::NullRange, cl::NDRange(_layers.front()._predAction.getHiddenSize().x, _layers.front()._predAction.getHiddenSize().y));
 	}
 
 	// Buffer updates
