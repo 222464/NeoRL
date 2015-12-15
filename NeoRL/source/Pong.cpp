@@ -10,8 +10,6 @@
 
 #include <runner/Runner.h>
 
-#include <neo/AgentCACLA.h>
-#include <neo/AgentQRoute.h>
 #include <neo/AgentSwarm.h>
 
 #include <time.h>

@@ -1,11 +1,10 @@
 #pragma once
 
 #include "ComparisonSparseCoder.h"
-#include "Predictor.h"
-#include "Swarm.h"
+#include "PredictorSwarm.h"
 
 namespace neo {
-	class AgentSwarm {
+	class AgentSPG {
 	public:
 		struct LayerDesc {
 			cl_int2 _hiddenSize;
@@ -25,19 +24,12 @@ namespace neo {
 			cl_float _baseLineDecay;
 			cl_float _baseLineSensitivity;
 
-			cl_float _predWeightAlpha;
+			cl_float3 _predWeightAlpha;
+			cl_float2 _predWeightLambda;
 
-			cl_int _swarmAnnealingIterations;
-			cl_float _swarmActionDeriveAlpha;
+			cl_float _gamma;
 
-			cl_float _swarmQAlpha;
-			cl_float _swarmQHiddenAlpha;
-			cl_float _swarmPredAlpha;
-			cl_float _swarmLambda;
-			cl_float _swarmGamma;
-
-			cl_float _swarmExpPert;
-			cl_float _swarmExpBreak;
+			cl_float _noise;
 
 			cl_float _minAttention;
 
@@ -49,19 +41,19 @@ namespace neo {
 				_scWeightAlpha(0.01f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.95f),
 				_scActiveRatio(0.06f), _scBoostAlpha(0.01f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha(0.01f),
-				_swarmAnnealingIterations(17), _swarmActionDeriveAlpha(0.08f),
-				_swarmQAlpha(0.0005f), _swarmQHiddenAlpha(0.001f),
-				_swarmPredAlpha(0.5f), _swarmLambda(0.95f), _swarmGamma(0.99f),
-				_swarmExpPert(0.1f), _swarmExpBreak(0.03f),
+				_predWeightAlpha({ 0.01f, 0.01f, 0.01f }),
+				_predWeightLambda({ 0.95f, 0.95f }),
+				_gamma(0.99f), _noise(0.1f),
 				_minAttention(0.05f)
 			{}
 		};
 
 		struct Layer {
 			ComparisonSparseCoder _sc;
-			Predictor _pred;
-			Swarm _swarm;
+
+			PredictorSwarm _predAction;
+			PredictorSwarm _predAttentionFeedForward;
+			PredictorSwarm _predAttentionRecurrent;
 
 			cl::Image2D _modulatedFeedForwardInput;
 			cl::Image2D _modulatedRecurrentInput;
@@ -107,12 +99,8 @@ namespace neo {
 			return _layerDescs[index];
 		}
 
-		const Predictor &getFirstLayerPred() const {
-			return _layers.front()._pred;
-		}
-
-		const cl::Image2D &getExploratoryActions() const {
-			return _layers.front()._swarm.getVisibleLayer(2)._actionsExploratory;
+		const PredictorSwarm &getFirstLayerActionPred() const {
+			return _layers.front()._predAction;
 		}
 	};
 }

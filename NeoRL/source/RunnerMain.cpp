@@ -32,7 +32,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_cpu);
+	cs.create(sys::ComputeSystem::_gpu);
 
 	sys::ComputeProgram prog;
 
@@ -200,8 +200,8 @@ int main() {
 
 			cs.getQueue().finish();
 
-			//for (int i = 0; i < actions.size(); i++)
-			//	actions[i] = actions[i] * 0.5f + 0.5f;
+			for (int i = 0; i < actions.size(); i++)
+				actions[i] = actions[i] * 0.5f + 0.5f;
 
 			//std::cout << std::endl;
 
@@ -257,7 +257,7 @@ int main() {
 			world->Step(1.0f / 60.0f / subSteps, 64, 64);
 		}
 
-		if (!sf::Keyboard::isKeyPressed(sf::Keyboard::T) || steps % 200 == 1) {
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::T) || steps % 200 == 1) {
 			// -------------------------------------------------------------------
 
 			//if (!sf::Keyboard::isKeyPressed(sf::Keyboard::B))
