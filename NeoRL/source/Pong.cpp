@@ -10,7 +10,7 @@
 
 #include <runner/Runner.h>
 
-#include <neo/AgentSwarm.h>
+#include <neo/AgentSPG.h>
 
 #include <time.h>
 #include <iostream>
@@ -95,15 +95,14 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentSwarm::LayerDesc> layerDescs(1);
+	std::vector<neo::AgentSPG::LayerDesc> layerDescs(1);
 
 	layerDescs[0]._hiddenSize = { 16, 16 };
-	layerDescs[0]._qSize = { 8, 8 };
 
 	//layerDescs[1]._hiddenSize = { 16, 16 };
 	//layerDescs[1]._qSize = { 8, 8 };
 
-	neo::AgentSwarm agent;
+	neo::AgentSPG agent;
 
 	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
 
@@ -221,7 +220,7 @@ int main() {
 
 		agent.simStep(cs, reward, inputImage, generator);
 
-		cs.getQueue().enqueueReadImage(agent.getExploratoryActions(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
+		cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
 		float act = 0.0f;
 
@@ -229,11 +228,11 @@ int main() {
 			act += action[i] * 2.0f - 1.0f;
 		}
 
-		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.1f * std::min(1.0f, std::max(-1.0f, act * 0.5f))));
+		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.1f * std::min(1.0f, std::max(-1.0f, act * 0.35f))));
 
 		//std::cout << averageReward << std::endl;
 
-		if (!sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
 			window.clear();
 
 			renderScene(window);
