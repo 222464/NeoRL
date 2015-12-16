@@ -23,7 +23,7 @@ namespace neo {
 			bool _useTraces;
 
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.01f), _weightLambda(0.95f),
+				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.001f), _weightLambda(0.95f),
 				_ignoreMiddle(false), _useTraces(false)
 			{}
 		};

@@ -117,10 +117,17 @@ int main() {
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(4);
 
-	layerDescs[0]._size = { 64, 64 };
-	layerDescs[1]._size = { 64, 64 };
+	layerDescs[0]._size = { 48, 48 };
+	layerDescs[0]._feedForwardRadius = 12;
+	layerDescs[0]._predictiveRadius = 12;
+	layerDescs[0]._feedBackRadius = 12;
+	layerDescs[0]._predWeightAlpha = 0.002f;
+	layerDescs[1]._size = { 48, 48 };
+	layerDescs[1]._predWeightAlpha = 0.04f;
 	layerDescs[2]._size = { 64, 64 };
+	layerDescs[2]._predWeightAlpha = 0.04f;
 	layerDescs[3]._size = { 64, 64 };
+	layerDescs[3]._predWeightAlpha = 0.04f;
 
 	neo::PredictiveHierarchy ph;
 
@@ -134,7 +141,7 @@ int main() {
 
 	int featuresCount = static_cast<int>(std::floor(buffer.getSampleCount() / static_cast<float>(trainStride)));
 
-	for (int t = 0; t < 16; t++) {
+	for (int t = 0; t < 6; t++) {
 		for (int s = 0; s < featuresCount; s++) {
 			// Extract features
 			int start = s * trainStride;
