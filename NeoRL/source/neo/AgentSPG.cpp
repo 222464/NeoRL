@@ -216,7 +216,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 		}
 
 		if (l == 0) {
-			_layers[l]._predAction.learnTrace(cs, reward, _layerDescs[l]._gamma, input, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+			_layers[l]._predAction.learnTrace(cs, reward, _layerDescs[l]._gamma, _action, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 			_layers[l]._predAttentionFeedForward.learnTrace(cs, reward, _layerDescs[l]._gamma, _layers[l]._predAttentionFeedForward.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 			_layers[l]._predAttentionRecurrent.learnTrace(cs, reward, _layerDescs[l]._gamma, _layers[l]._predAttentionRecurrent.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 		}

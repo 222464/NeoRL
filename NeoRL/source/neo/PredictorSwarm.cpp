@@ -169,7 +169,7 @@ void PredictorSwarm::learnTrace(sys::ComputeSystem &cs, float reward, float gamm
 		_learnWeightsTracesKernel.setArg(argIndex++, visibleStatesPrev[vli]);
 		_learnWeightsTracesKernel.setArg(argIndex++, targets);
 		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_back]);
-		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenActivations[_back]);
+		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenActivations[_front]);
 		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_front]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_back]);
 		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_front]);
