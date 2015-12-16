@@ -64,14 +64,14 @@ void ifft(CArray& x) {
 	x /= x.size();
 }
 
-const int aeSamplesSize = 1024;
+const int aeSamplesSize = 4096;
 const int aeFeatures = 81;
 const float sampleScalar = 1.0f / std::pow(2.0f, 15.0f);
 const float sampleScalarInv = 1.0f / sampleScalar;
-const int reconStride = 512;
+const int reconStride = 2048;
 const float sampleCurvePower = 1.0f;
 const float sampleCurvePowerInv = 1.0f / sampleCurvePower;
-const int trainStride = 512;
+const int trainStride = 2048;
 
 float compress(float x) {
 	return x * sampleScalar;// (x > 0 ? 1 : -1) * std::pow(std::abs(x) * sampleScalar, sampleCurvePower);
@@ -121,17 +121,17 @@ int main() {
 	layerDescs[0]._feedForwardRadius = 12;
 	layerDescs[0]._predictiveRadius = 12;
 	layerDescs[0]._feedBackRadius = 12;
-	layerDescs[0]._predWeightAlpha = 0.002f;
+	layerDescs[0]._predWeightAlpha = 0.02f;
 	layerDescs[1]._size = { 48, 48 };
-	layerDescs[1]._predWeightAlpha = 0.04f;
-	layerDescs[2]._size = { 64, 64 };
-	layerDescs[2]._predWeightAlpha = 0.04f;
-	layerDescs[3]._size = { 64, 64 };
-	layerDescs[3]._predWeightAlpha = 0.04f;
+	layerDescs[1]._predWeightAlpha = 0.03f;
+	layerDescs[2]._size = { 48, 48 };
+	layerDescs[2]._predWeightAlpha = 0.03f;
+	layerDescs[3]._size = { 48, 48 };
+	layerDescs[3]._predWeightAlpha = 0.03f;
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { dimV, dimV }, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+	ph.createRandom(cs, prog, { dimV, dimV }, layerDescs, { -0.001f, 0.001f }, 0.0f, generator);
 
 	sf::SoundBuffer buffer;
 
@@ -141,7 +141,7 @@ int main() {
 
 	int featuresCount = static_cast<int>(std::floor(buffer.getSampleCount() / static_cast<float>(trainStride)));
 
-	for (int t = 0; t < 6; t++) {
+	for (int t = 0; t < 30; t++) {
 		for (int s = 0; s < featuresCount; s++) {
 			// Extract features
 			int start = s * trainStride;
@@ -170,7 +170,7 @@ int main() {
 	std::cout << "Generating extra..." << std::endl;
 
 	// Extend song
-	int extraFeatures = 3000;
+	int extraFeatures = 700;
 
 	std::vector<float> extraSamplesf((extraFeatures + 1) * trainStride, 0.0f);
 	std::vector<float> extraSamplesSums((extraFeatures + 1) * trainStride, 0.0f);
@@ -194,7 +194,7 @@ int main() {
 		}
 		else {
 			for (int i = 0; i < aeSamplesSize; i++)
-				visibleStates[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, pred[i])) + noiseDist(generator) * 0.1f));
+				visibleStates[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, pred[i])) + noiseDist(generator) * 0.01f));
 
 			cs.getQueue().enqueueWriteImage(input, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(dimV), static_cast<cl::size_type>(dimV), 1 }, 0, 0, visibleStates.data());
 		}

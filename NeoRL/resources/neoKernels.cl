@@ -362,7 +362,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * ((visibleError - weightPrev) * state));
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * ((visibleError - weightPrev.x) * state));
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
 			}
