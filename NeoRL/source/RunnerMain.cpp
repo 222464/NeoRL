@@ -178,7 +178,7 @@ int main() {
 		{
 			float reward;
 			
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::K))
+			if (!sf::Keyboard::isKeyPressed(sf::Keyboard::K))
 				reward = -runner0._pBody->GetLinearVelocity().x;
 			else
 				reward = runner0._pBody->GetLinearVelocity().x;

@@ -33,15 +33,15 @@ namespace neo {
 
 			LayerDesc()
 				: _hiddenSize({ 8, 8 }),
-				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(4), _predictiveRadius(4),
+				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(6), _predictiveRadius(6),
 				_qRadiusHiddenFeedForwardAttention(4), _qRadiusHiddenRecurrentAttention(4), _qRadiusHiddenAction(4), _qRadius(4),
 				_startRadiusHiddenFeedForwardAttention(4), _startRadiusHiddenRecurrentAttention(4), _startRadiusHiddenAction(4),
 				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.1f), _scBoostAlpha(0.05f),
+				_scActiveRatio(0.05f), _scBoostAlpha(0.001f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha({ 0.1f, 0.001f, 0.01f }),
+				_predWeightAlpha({ 0.2f, 0.002f, 0.05f }),
 				_predWeightLambda({ 0.95f, 0.95f }),
-				_gamma(0.99f), _noise(0.05f),
+				_gamma(0.99f), _noise(0.04f),
 				_minAttention(0.05f)
 			{}
 		};

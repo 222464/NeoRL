@@ -43,7 +43,7 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 			predDescs[0]._size = _layerDescs[l]._hiddenSize;
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 
-			predDescs[1]._size = _layerDescs[l + 1]._hiddenSize;
+			predDescs[1]._size = _layerDescs[l]._hiddenSize; // Same size as current layer
 			predDescs[1]._radius = _layerDescs[l]._feedBackRadius;
 		}
 		else {
