@@ -691,8 +691,10 @@ void kernel predSolveHidden(read_only image2d_t hiddenSummationTemp,
 	
 	float sum = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 	
-	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(sum));
-	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(sum));
+	float s = sigmoid(sum);
+
+	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(s));
+	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s));
 }
 
 void kernel predSolveHiddenThreshold(read_only image2d_t hiddenSummationTemp,

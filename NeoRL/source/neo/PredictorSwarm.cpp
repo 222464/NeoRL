@@ -85,9 +85,6 @@ void PredictorSwarm::propagateError(sys::ComputeSystem &cs, const cl::Image2D &t
 		_errorPropagateKernel.setArg(argIndex++, vl._reverseRadii);
 
 		cs.getQueue().enqueueNDRangeKernel(_errorPropagateKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
-
-		// Swap buffers
-		std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 	}
 }
 
