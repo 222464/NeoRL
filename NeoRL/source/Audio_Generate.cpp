@@ -121,13 +121,13 @@ int main() {
 	layerDescs[0]._feedForwardRadius = 12;
 	layerDescs[0]._predictiveRadius = 12;
 	layerDescs[0]._feedBackRadius = 12;
-	layerDescs[0]._predWeightAlpha = 0.02f;
+	layerDescs[0]._predWeightAlpha = 0.004f;
 	layerDescs[1]._size = { 48, 48 };
-	layerDescs[1]._predWeightAlpha = 0.03f;
+	layerDescs[1]._predWeightAlpha = 0.01f;
 	layerDescs[2]._size = { 48, 48 };
-	layerDescs[2]._predWeightAlpha = 0.03f;
+	layerDescs[2]._predWeightAlpha = 0.01f;
 	layerDescs[3]._size = { 48, 48 };
-	layerDescs[3]._predWeightAlpha = 0.03f;
+	layerDescs[3]._predWeightAlpha = 0.01f;
 
 	neo::PredictiveHierarchy ph;
 

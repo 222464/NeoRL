@@ -20,14 +20,14 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 		scDescs[0]._ignoreMiddle = false;
 		scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
 		scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
-		scDescs[0]._useTraces = false;
+		scDescs[0]._useTraces = true;
 
 		scDescs[1]._size = _layerDescs[l]._hiddenSize;
 		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
 		scDescs[1]._ignoreMiddle = true;
 		scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
 		scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
-		scDescs[1]._useTraces = false;
+		scDescs[1]._useTraces = true;
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._hiddenSize, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, rng);
 
