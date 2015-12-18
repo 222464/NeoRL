@@ -1329,7 +1329,7 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsCurrent, read_only image2
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = error2;//(baseLinePrev - error2) > 0.0f ? 1.0f : 0.0f;
+	float reward = baseLinePrev - error2;
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
 
@@ -1351,7 +1351,7 @@ void kernel phBaseLineUpdateSumError(read_only image2d_t errorsLower, read_only 
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = error2;//(baseLinePrev - error2) > 0.0f ? 1.0f : 0.0f;
+	float reward = baseLinePrev - error2;
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
 

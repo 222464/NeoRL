@@ -71,7 +71,7 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 		int numLateralWeights = lateralWeightDiam * lateralWeightDiam;
 
-		cl_int3 lateralWeightsSize = cl_int3{ _hiddenSize.x, _hiddenSize.y, numLateralWeights };
+		cl_int3 lateralWeightsSize = cl_int3 { _hiddenSize.x, _hiddenSize.y, numLateralWeights };
 
 		_lateralWeights = createDoubleBuffer3D(cs, lateralWeightsSize, CL_R, CL_FLOAT);
 	
