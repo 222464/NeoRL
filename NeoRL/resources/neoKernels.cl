@@ -362,7 +362,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x +  reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * ((visibleError - weightPrev.x) * state));
+				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * (weightPrev.y - weightPrev.x), weightPrev.y * weightLambda + (visibleError * state));
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
 			}
@@ -691,7 +691,7 @@ void kernel predSolveHidden(read_only image2d_t hiddenSummationTemp,
 	
 	float sum = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 	
-	float s = sigmoid(sum);
+	float s = sum;//sigmoid(sum);
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(s));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s));
@@ -1329,7 +1329,7 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsCurrent, read_only image2
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = (baseLinePrev - error2) > 0.0f ? 1.0f : 0.0f;
+	float reward = error2;//(baseLinePrev - error2) > 0.0f ? 1.0f : 0.0f;
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
 
@@ -1351,7 +1351,7 @@ void kernel phBaseLineUpdateSumError(read_only image2d_t errorsLower, read_only 
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = (baseLinePrev - error2) > 0.0f ? 1.0f : 0.0f;
+	float reward = error2;//(baseLinePrev - error2) > 0.0f ? 1.0f : 0.0f;
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
 

@@ -117,17 +117,17 @@ int main() {
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(4);
 
-	layerDescs[0]._size = { 48, 48 };
+	layerDescs[0]._size = { 32, 32 };
 	layerDescs[0]._feedForwardRadius = 12;
 	layerDescs[0]._predictiveRadius = 12;
 	layerDescs[0]._feedBackRadius = 12;
-	layerDescs[0]._predWeightAlpha = 0.004f;
-	layerDescs[1]._size = { 48, 48 };
-	layerDescs[1]._predWeightAlpha = 0.01f;
-	layerDescs[2]._size = { 48, 48 };
-	layerDescs[2]._predWeightAlpha = 0.01f;
-	layerDescs[3]._size = { 48, 48 };
-	layerDescs[3]._predWeightAlpha = 0.01f;
+	layerDescs[0]._predWeightAlpha = 0.01f;
+	layerDescs[1]._size = { 32, 32 };
+	layerDescs[1]._predWeightAlpha = 0.05f;
+	layerDescs[2]._size = { 32, 32 };
+	layerDescs[2]._predWeightAlpha = 0.05f;
+	layerDescs[3]._size = { 32, 32 };
+	layerDescs[3]._predWeightAlpha = 0.05f;
 
 	neo::PredictiveHierarchy ph;
 
@@ -135,13 +135,13 @@ int main() {
 
 	sf::SoundBuffer buffer;
 
-	buffer.loadFromFile("testSound.wav");
+	buffer.loadFromFile("testSound3.wav");
 
 	std::cout << "Training on sound..." << std::endl;
 
 	int featuresCount = static_cast<int>(std::floor(buffer.getSampleCount() / static_cast<float>(trainStride)));
 
-	for (int t = 0; t < 30; t++) {
+	for (int t = 0; t < 12; t++) {
 		for (int s = 0; s < featuresCount; s++) {
 			// Extract features
 			int start = s * trainStride;
@@ -170,7 +170,7 @@ int main() {
 	std::cout << "Generating extra..." << std::endl;
 
 	// Extend song
-	int extraFeatures = 700;
+	int extraFeatures = 2000;
 
 	std::vector<float> extraSamplesf((extraFeatures + 1) * trainStride, 0.0f);
 	std::vector<float> extraSamplesSums((extraFeatures + 1) * trainStride, 0.0f);
@@ -194,7 +194,7 @@ int main() {
 		}
 		else {
 			for (int i = 0; i < aeSamplesSize; i++)
-				visibleStates[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, pred[i])) + noiseDist(generator) * 0.01f));
+				visibleStates[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, pred[i])) + noiseDist(generator) * 0.4f));
 
 			cs.getQueue().enqueueWriteImage(input, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(dimV), static_cast<cl::size_type>(dimV), 1 }, 0, 0, visibleStates.data());
 		}
