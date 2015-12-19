@@ -1,5 +1,9 @@
 #pragma once
 
+#include "../Settings.h"
+
+#if EXPERIMENT_SELECTION == EXPERIMENT_RUNNER
+
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 
@@ -80,3 +84,5 @@ public:
 	void getStateVector(std::vector<float> &state);
 	void motorUpdate(const std::vector<float> &action, float interpolateFactor);
 };
+
+#endif

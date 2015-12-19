@@ -1,5 +1,7 @@
 #include "Runner.h"
 
+#if EXPERIMENT_SELECTION == EXPERIMENT_RUNNER
+
 void Runner::Limb::create(b2World* pWorld, const std::vector<LimbSegmentDesc> &descs, b2Body* pAttachBody, const b2Vec2 &localAttachPoint, uint16 categoryBits, uint16 maskBits) {
 	_segments.resize(descs.size());
 
@@ -385,3 +387,5 @@ void Runner::motorUpdate(const std::vector<float> &action, float interpolateFact
 		_rightFrontLimb._segments[i]._pJoint->SetMotorSpeed(speed);
 	}
 }
+
+#endif

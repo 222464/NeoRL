@@ -11,6 +11,10 @@ find_package(OpenCL REQUIRED)
  
 include_directories(${OpenCL_INCLUDE_DIRS})
 
+find_package(SFML 2 COMPONENTS system window graphics audio network REQUIRED)
+ 
+include_directories(${SFML_INCLUDE_DIR})
+
 file(GLOB_RECURSE LINK_SRC
     "source/*.h"
     "source/*.cpp"
@@ -19,3 +23,4 @@ file(GLOB_RECURSE LINK_SRC
 add_executable(NeoRL ${LINK_SRC})
 
 target_link_libraries(NeoRL ${OpenCL_LIBRARIES})
+target_link_libraries(NeoRL ${SFML_LIBRARIES})
