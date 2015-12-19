@@ -46,7 +46,6 @@ namespace neo {
 		cl::Kernel _solveHiddenThresholdKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnWeightsTracesKernel;
-		cl::Kernel _errorPropagateKernel;
 
 	public:
 		// Create with randomly initialized weights
@@ -57,8 +56,6 @@ namespace neo {
 		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold, float noise, std::mt19937 &rng);
 
 		void learnTrace(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float3 weightAlpha, cl_float2 weightLambda);
-
-		void propagateError(sys::ComputeSystem &cs, const cl::Image2D &targets);
 
 		size_t getNumVisibleLayers() const {
 			return _visibleLayers.size();
