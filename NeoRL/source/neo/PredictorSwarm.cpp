@@ -63,6 +63,29 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 	_solveHiddenThresholdKernel = cl::Kernel(program.getProgram(), "predSolveHiddenThresholdSwarm");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHiddenSwarm");
 	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarm");
+	_errorPropagateKernel = cl::Kernel(program.getProgram(), "predErrorPropagateSwarm");
+}
+
+void PredictorSwarm::propagateError(sys::ComputeSystem &cs, const cl::Image2D &targets) {
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		int argIndex = 0;
+
+		_errorPropagateKernel.setArg(argIndex++, targets);
+		_errorPropagateKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_errorPropagateKernel.setArg(argIndex++, vl._errors);
+		_errorPropagateKernel.setArg(argIndex++, vl._weights[_back]);
+		_errorPropagateKernel.setArg(argIndex++, vld._size);
+		_errorPropagateKernel.setArg(argIndex++, _hiddenSize);
+		_errorPropagateKernel.setArg(argIndex++, vl._visibleToHidden);
+		_errorPropagateKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_errorPropagateKernel.setArg(argIndex++, vld._radius);
+		_errorPropagateKernel.setArg(argIndex++, vl._reverseRadii);
+
+		cs.getQueue().enqueueNDRangeKernel(_errorPropagateKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
+	}
 }
 
 void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold, float noise, std::mt19937 &rng) {

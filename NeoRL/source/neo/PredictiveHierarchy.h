@@ -48,6 +48,7 @@ namespace neo {
 		std::vector<LayerDesc> _layerDescs;
 
 		cl::Kernel _baseLineUpdateKernel;
+		cl::Kernel _baseLineUpdateSumErrorKernel;
 
 	public:
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,

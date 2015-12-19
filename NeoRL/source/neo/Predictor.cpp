@@ -38,6 +38,10 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 
 		vl._reverseRadii = cl_int2{ static_cast<int>(std::ceil(vl._visibleToHidden.x * vld._radius)), static_cast<int>(std::ceil(vl._visibleToHidden.y * vld._radius)) };
 
+		vl._errors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
+
+		cs.getQueue().enqueueFillImage(vl._errors, zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), 1 });
+
 		int weightDiam = vld._radius * 2 + 1;
 
 		int numWeights = weightDiam * weightDiam;
@@ -63,6 +67,7 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivate");
 	_solveHiddenThresholdKernel = cl::Kernel(program.getProgram(), "predSolveHiddenThreshold");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHidden");
+	_errorPropagateKernel = cl::Kernel(program.getProgram(), "predErrorPropagate");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "predLearnWeights");
 	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTraces");
 }
@@ -124,6 +129,28 @@ void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> 
 	// Swap hidden state buffers
 	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 	std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
+}
+
+void Predictor::propagateError(sys::ComputeSystem &cs, const cl::Image2D &targets) {
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		int argIndex = 0;
+
+		_errorPropagateKernel.setArg(argIndex++, targets);
+		_errorPropagateKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_errorPropagateKernel.setArg(argIndex++, vl._errors);
+		_errorPropagateKernel.setArg(argIndex++, vl._weights[_back]);
+		_errorPropagateKernel.setArg(argIndex++, vld._size);
+		_errorPropagateKernel.setArg(argIndex++, _hiddenSize);
+		_errorPropagateKernel.setArg(argIndex++, vl._visibleToHidden);
+		_errorPropagateKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_errorPropagateKernel.setArg(argIndex++, vld._radius);
+		_errorPropagateKernel.setArg(argIndex++, vl._reverseRadii);
+
+		cs.getQueue().enqueueNDRangeKernel(_errorPropagateKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
+	}
 }
 
 void Predictor::learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha) {

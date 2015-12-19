@@ -71,6 +71,7 @@ namespace neo {
 		cl::Image2D _action;
 
 		cl::Kernel _baseLineUpdateKernel;
+		cl::Kernel _baseLineUpdateSumErrorKernel;
 		cl::Kernel _inhibitKernel;
 		cl::Kernel _modulateKernel;
 		cl::Kernel _copyActionKernel;

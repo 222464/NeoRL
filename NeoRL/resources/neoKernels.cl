@@ -614,6 +614,44 @@ void kernel scLearnSparseCoderWeightsLateral(read_only image2d_t hiddenStates,
 
 // ----------------------------------------- Predictor -----------------------------------------
 
+void kernel predErrorPropagate(read_only image2d_t targets, read_only image2d_t hiddenStatesPrev,
+	write_only image2d_t errors, read_only image3d_t weights,
+	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
+{
+	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
+	
+	float error = 0.0f;
+
+	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
+		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
+			int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
+		
+			if (inBounds0(hiddenPosition, hiddenSize)) {
+				// Next layer node's receptive field
+				int2 fieldCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
+
+				int2 fieldLowerBound = fieldCenter - (int2)(radius);
+				int2 fieldUpperBound = fieldCenter + (int2)(radius + 1); // So is included in inBounds
+		
+				// Check for containment
+				if (inBounds(visiblePosition, fieldLowerBound, fieldUpperBound)) {	
+					int2 offset = visiblePosition - fieldLowerBound;
+
+					float predError = read_imagef(targets, hiddenPosition).x - read_imagef(hiddenStatesPrev, hiddenPosition).x;
+
+					int wi = offset.y + offset.x * (radius * 2 + 1);
+
+					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+				
+					error += predError * weight;
+				}
+			}
+		}
+
+	write_imagef(errors, visiblePosition, (float4)(error));
+}
+
 void kernel predActivate(read_only image2d_t visibleStates,
 	read_only image2d_t hiddenSummationTempBack, write_only image2d_t hiddenSummationTempFront, read_only image3d_t weights,
 	int2 visibleSize, float2 hiddenToVisible, int radius)
@@ -744,6 +782,44 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 }
 
 // ----------------------------------------- Predictor Swarm -----------------------------------------
+
+void kernel predErrorPropagateSwarm(read_only image2d_t targets, read_only image2d_t hiddenStatesPrev,
+	write_only image2d_t errors, read_only image3d_t weights,
+	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
+{
+	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
+	
+	float error = 0.0f;
+
+	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
+		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
+			int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
+		
+			if (inBounds0(hiddenPosition, hiddenSize)) {
+				// Next layer node's receptive field
+				int2 fieldCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
+
+				int2 fieldLowerBound = fieldCenter - (int2)(radius);
+				int2 fieldUpperBound = fieldCenter + (int2)(radius + 1); // So is included in inBounds
+		
+				// Check for containment
+				if (inBounds(visiblePosition, fieldLowerBound, fieldUpperBound)) {	
+					int2 offset = visiblePosition - fieldLowerBound;
+
+					float predError = read_imagef(targets, hiddenPosition).x - read_imagef(hiddenStatesPrev, hiddenPosition).x;
+
+					int wi = offset.y + offset.x * (radius * 2 + 1);
+
+					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+				
+					error += predError * weight;
+				}
+			}
+		}
+
+	write_imagef(errors, visiblePosition, (float4)(error));
+}
 
 void kernel predActivateSwarm(read_only image2d_t visibleStates,
 	read_only image2d_t hiddenSummationTempBack, write_only image2d_t hiddenSummationTempFront, read_only image3d_t weights,
@@ -1239,7 +1315,7 @@ void kernel swarmQLearnHiddenBiasesTraces(read_only image2d_t hiddenTD, read_onl
 
 // ----------------------------------------- Predictive Hierarchy -----------------------------------------
 
-void kernel phBaseLineUpdate(read_only image2d_t predictionsPrev, read_only image2d_t hiddenStates,
+void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_t errorsUpper,read_only image2d_t hiddenStates,
 	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
 	float decay, float sensitivity)
 {
@@ -1250,6 +1326,50 @@ void kernel phBaseLineUpdate(read_only image2d_t predictionsPrev, read_only imag
 	float predPrev = read_imagef(predictionsPrev, position).x;
 
 	float error = state - predPrev;
+
+	float correctness = 1.0f - fabs(error);
+
+	float baseLinePrev = read_imagef(baseLinesBack, position).x;
+
+	float reward = (baseLinePrev - correctness) > 0.0f ? 1.0f : 0.0f;
+
+	float baseLine = (1.0f - decay) * baseLinePrev + decay * correctness;
+
+	write_imagef(baseLinesFront, position, (float4)(baseLine));
+	write_imagef(rewards, position, (float4)(reward));
+}
+
+void kernel phBaseLineUpdate(read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
+	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
+	float decay, float sensitivity)
+{
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float state = read_imagef(hiddenStates, position).x;
+
+	float error = read_imagef(errorsCurrent, position).x;
+
+	float correctness = 1.0f - fabs(error);
+
+	float baseLinePrev = read_imagef(baseLinesBack, position).x;
+
+	float reward = (baseLinePrev - correctness) > 0.0f ? 1.0f : 0.0f;
+
+	float baseLine = (1.0f - decay) * baseLinePrev + decay * correctness;
+
+	write_imagef(baseLinesFront, position, (float4)(baseLine));
+	write_imagef(rewards, position, (float4)(reward));
+}
+
+void kernel phBaseLineUpdateSumError(read_only image2d_t errorsLower, read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
+	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
+	float decay, float sensitivity)
+{
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float state = read_imagef(hiddenStates, position).x;
+
+	float error = read_imagef(errorsLower, position).x + read_imagef(errorsCurrent, position).x;
 
 	float correctness = 1.0f - fabs(error);
 

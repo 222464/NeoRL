@@ -175,10 +175,10 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 		}
 
 		// Get reward
-		{
+		if (l == 0) {
 			int argIndex = 0;
 
-			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getHiddenStates()[_back]);
+			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_front]);
@@ -187,6 +187,20 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 			_baseLineUpdateKernel.setArg(argIndex++, _layerDescs[l]._baseLineSensitivity);
 
 			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y));
+		}
+		else {
+			int argIndex = 0;
+
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l - 1]._pred.getVisibleLayer(1)._errors);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._baseLines[_front]);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._reward);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layerDescs[l]._baseLineDecay);
+			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layerDescs[l]._baseLineSensitivity);
+
+			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateSumErrorKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y));
 		}
 
 		prevLayerState = _layers[l]._sc.getHiddenStates()[_back];
@@ -209,6 +223,11 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 		}
 
 		_layers[l]._pred.activate(cs, visibleStates, true);
+
+		if (l == 0)
+			_layers[l]._pred.propagateError(cs, input);
+		else
+			_layers[l]._pred.propagateError(cs, _layers[l - 1]._sc.getHiddenStates()[_back]);
 	}
 
 	for (int l = _layers.size() - 1; l >= 0; l--) {
