@@ -362,7 +362,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * (weightPrev.y - weightPrev.x), weightPrev.y * weightLambda + (visibleError * state));
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * ((visibleError - weightPrev.x) * state));
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
 			}
@@ -622,6 +622,7 @@ void kernel predErrorPropagate(read_only image2d_t targets, read_only image2d_t 
 	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
 	
 	float error = 0.0f;
+	float div = 0.0f;
 
 	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
 		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
@@ -644,12 +645,13 @@ void kernel predErrorPropagate(read_only image2d_t targets, read_only image2d_t 
 
 					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 				
-					error += predError * weight;
+					error += predError;// * weight;
+					div++;
 				}
 			}
 		}
 
-	write_imagef(errors, visiblePosition, (float4)(error));
+	write_imagef(errors, visiblePosition, (float4)(error / fmax(1.0f, div)));
 }
 
 void kernel predActivate(read_only image2d_t visibleStates,
@@ -791,6 +793,7 @@ void kernel predErrorPropagateSwarm(read_only image2d_t targets, read_only image
 	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
 	
 	float error = 0.0f;
+	float div = 0.0f;
 
 	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
 		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
@@ -813,12 +816,13 @@ void kernel predErrorPropagateSwarm(read_only image2d_t targets, read_only image
 
 					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 				
-					error += predError * weight;
+					error += predError;
+					div++;
 				}
 			}
 		}
 
-	write_imagef(errors, visiblePosition, (float4)(error));
+	write_imagef(errors, visiblePosition, (float4)(error / fmax(1.0f, div)));
 }
 
 void kernel predActivateSwarm(read_only image2d_t visibleStates,
@@ -1315,7 +1319,7 @@ void kernel swarmQLearnHiddenBiasesTraces(read_only image2d_t hiddenTD, read_onl
 
 // ----------------------------------------- Predictive Hierarchy -----------------------------------------
 
-void kernel phBaseLineUpdate(read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
+void kernel phBaseLineUpdate(read_only image2d_t predictionsPrev, read_only image2d_t hiddenStates,
 	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
 	float decay, float sensitivity)
 {
@@ -1323,37 +1327,17 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsCurrent, read_only image2
 	
 	float state = read_imagef(hiddenStates, position).x;
 
-	float error = read_imagef(errorsCurrent, position).x;
+	float predPrev = read_imagef(predictionsPrev, position).x;
 
-	float error2 = error * error;
+	float error = state - predPrev;
 
-	float baseLinePrev = read_imagef(baseLinesBack, position).x;
-
-	float reward = baseLinePrev - error2;
-
-	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
-
-	write_imagef(baseLinesFront, position, (float4)(baseLine));
-	write_imagef(rewards, position, (float4)(reward));
-}
-
-void kernel phBaseLineUpdateSumError(read_only image2d_t errorsLower, read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
-	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
-	float decay, float sensitivity)
-{
-	int2 position = (int2)(get_global_id(0), get_global_id(1));
-	
-	float state = read_imagef(hiddenStates, position).x;
-
-	float error = read_imagef(errorsLower, position).x + read_imagef(errorsCurrent, position).x;
-
-	float error2 = error * error;
+	float correctness = 1.0f - fabs(error);
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = baseLinePrev - error2;
+	float reward = baseLinePrev - correctness;//) > 0.0f ? 1.0f : 0.0f;
 
-	float baseLine = (1.0f - decay) * baseLinePrev + decay * error2;
+	float baseLine = (1.0f - decay) * baseLinePrev + decay * correctness;
 
 	write_imagef(baseLinesFront, position, (float4)(baseLine));
 	write_imagef(rewards, position, (float4)(reward));

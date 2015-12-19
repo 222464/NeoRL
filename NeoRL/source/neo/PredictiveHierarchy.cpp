@@ -20,7 +20,14 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		scDescs[0]._ignoreMiddle = false;
 		scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
 		scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
-		scDescs[0]._useTraces = false;
+		scDescs[0]._useTraces = true;
+
+		scDescs[1]._size = _layerDescs[l]._size;
+		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
+		scDescs[1]._ignoreMiddle = true;
+		scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
+		scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
+		scDescs[1]._useTraces = true;
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, rng);
 
@@ -61,7 +68,6 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	}
 
 	_baseLineUpdateKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdate");
-	_baseLineUpdateSumErrorKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdateSumError");
 }
 
 void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn) {
@@ -82,10 +88,10 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 		}
 
 		// Get reward
-		if (l == 0) {
+		{
 			int argIndex = 0;
 
-			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
+			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getHiddenStates()[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._baseLines[_front]);
@@ -94,20 +100,6 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			_baseLineUpdateKernel.setArg(argIndex++, _layerDescs[l]._baseLineSensitivity);
 
 			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
-		}
-		else {
-			int argIndex = 0;
-
-			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l - 1]._pred.getVisibleLayer(1)._errors);
-			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
-			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
-			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._baseLines[_back]);
-			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._baseLines[_front]);
-			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layers[l]._reward);
-			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layerDescs[l]._baseLineDecay);
-			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layerDescs[l]._baseLineSensitivity);
-
-			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateSumErrorKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 		}
 
 		prevLayerState = _layers[l]._sc.getHiddenStates()[_back];
@@ -129,11 +121,6 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 		}
 
 		_layers[l]._pred.activate(cs, visibleStates, l != 0);
-
-		if (l == 0)
-			_layers[l]._pred.propagateError(cs, input);
-		else
-			_layers[l]._pred.propagateError(cs, _layers[l - 1]._sc.getHiddenStates()[_back]);
 	}
 
 	for (int l = _layers.size() - 1; l >= 0; l--) {

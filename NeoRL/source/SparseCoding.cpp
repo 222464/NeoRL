@@ -38,6 +38,9 @@ int main() {
 	// --------------------------- Create the Sparse Coder ---------------------------
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), sampleWidth, sampleHeight);
+	cl::Image2D rewardImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), codeWidth, codeHeight);
+
+	cs.getQueue().enqueueFillImage(rewardImage, cl_float4 { 1.0f, 1.0f, 1.0f, 1.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(codeWidth), static_cast<cl::size_type>(codeHeight), 1 });
 
 	neo::ComparisonSparseCoder sparseCoder;
 
@@ -45,6 +48,7 @@ int main() {
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 8;
+	layerDescs[0]._useTraces = true;
 
 	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, 0.0f, generator);
 
@@ -146,7 +150,7 @@ int main() {
 
 			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.02f);
 
-			sparseCoder.learn(cs, std::vector<cl::Image2D>(1, inputImage), 0.1f, 0.1f);
+			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.1f, 0.1f);
 		}
 
 		/*if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
@@ -173,7 +177,7 @@ int main() {
 
 		int wSize = std::pow(2 * sparseCoder.getVisibleLayerDesc(0)._radius + 1, 2);
 
-		std::vector<float> weights(sparseCoder.getHiddenSize().x * sparseCoder.getHiddenSize().y * wSize);
+		std::vector<float> weights(sparseCoder.getHiddenSize().x * sparseCoder.getHiddenSize().y * wSize * 2);
 
 		{
 			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
@@ -188,8 +192,8 @@ int main() {
 		float averageWeight = 0.0f;
 		float count = 0.0f;
 
-		for (int i = 0; i < weights.size(); i++) {
-			float w = weights[i];
+		for (int i = 0; i < weights.size() / 2; i++) {
+			float w = weights[i * 2];
 
 			minWeight = std::min(minWeight, w);
 			maxWeight = std::max(maxWeight, w);
@@ -213,7 +217,7 @@ int main() {
 					for (int y = 0; y < dim; y++) {
 						sf::Color color;
 
-						color.r = color.b = color.g = 255 * (weights[sx + sy * codeWidth + (codeWidth * codeHeight) * (x + y * dim)] - minWeight) / (maxWeight - minWeight);
+						color.r = color.b = color.g = 255 * (weights[2 * (sx + sy * codeWidth + (codeWidth * codeHeight) * (x + y * dim))] - minWeight) / (maxWeight - minWeight);
 						color.a = 255;
 
 						receptiveFieldsImage.setPixel(sx * dim + x, sy * dim + y, color);

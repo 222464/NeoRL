@@ -289,7 +289,7 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const cl::Image2D &rew
 			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vld._weightAlpha);
 			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vld._weightLambda);
 
-			cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 		}
 		else {
 			int argIndex = 0;
