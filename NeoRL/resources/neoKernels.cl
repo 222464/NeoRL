@@ -1315,30 +1315,6 @@ void kernel swarmQLearnHiddenBiasesTraces(read_only image2d_t hiddenTD, read_onl
 
 // ----------------------------------------- Predictive Hierarchy -----------------------------------------
 
-void kernel phBaseLineUpdate(read_only image2d_t errorsLower, read_only image2d_t errorsUpper,read_only image2d_t hiddenStates,
-	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
-	float decay, float sensitivity)
-{
-	int2 position = (int2)(get_global_id(0), get_global_id(1));
-	
-	float state = read_imagef(hiddenStates, position).x;
-
-	float predPrev = read_imagef(predictionsPrev, position).x;
-
-	float error = state - predPrev;
-
-	float correctness = 1.0f - fabs(error);
-
-	float baseLinePrev = read_imagef(baseLinesBack, position).x;
-
-	float reward = (baseLinePrev - correctness) > 0.0f ? 1.0f : 0.0f;
-
-	float baseLine = (1.0f - decay) * baseLinePrev + decay * correctness;
-
-	write_imagef(baseLinesFront, position, (float4)(baseLine));
-	write_imagef(rewards, position, (float4)(reward));
-}
-
 void kernel phBaseLineUpdate(read_only image2d_t errorsCurrent, read_only image2d_t hiddenStates,
 	read_only image2d_t baseLinesBack, write_only image2d_t baseLinesFront, write_only image2d_t rewards,
 	float decay, float sensitivity)
