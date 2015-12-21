@@ -79,6 +79,8 @@ int main()
 	float anomalyAmpl = 1.f;
 	float anomalyPhase = 0.f;
 
+	bool sPrev = false;
+
 	int index = -1;
 	do {
 		sf::Event event;
@@ -100,6 +102,13 @@ int main()
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::C))
 			autoplay = true;
 				
+		if (!sPrev && sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
+			std::ofstream os("binh_save.neo");
+
+			ph.writeToStream(cs, os);
+		}
+
+		sPrev = sf::Keyboard::isKeyPressed(sf::Keyboard::S);
 
 		if (autoplay || sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
 		{

@@ -180,7 +180,7 @@ void Predictor::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 	{
 		std::vector<cl_float> hiddenStates(_hiddenSize.x * _hiddenSize.y);
 
-		cs.getQueue().enqueueReadImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenStates.data());
+		cs.getQueue().enqueueReadImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenStates.data());
 
 		for (int si = 0; si < hiddenStates.size(); si++)
 			os << hiddenStates[si] << " ";
@@ -191,7 +191,7 @@ void Predictor::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 	{
 		std::vector<cl_float> hiddenActivations(_hiddenSize.x * _hiddenSize.y);
 
-		cs.getQueue().enqueueReadImage(_hiddenActivations[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenActivations.data());
+		cs.getQueue().enqueueReadImage(_hiddenActivations[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenActivations.data());
 
 		for (int bi = 0; bi < hiddenActivations.size(); bi++)
 			os << hiddenActivations[bi] << " ";
@@ -221,7 +221,7 @@ void Predictor::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 		{
 			std::vector<cl_float> weights(totalNumWeights);
 
-			cs.getQueue().enqueueReadImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { weightsSize.x, weightsSize.y, weightsSize.z }, 0, 0, weights.data());
+			cs.getQueue().enqueueReadImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(weightsSize.x), static_cast<cl::size_type>(weightsSize.y), static_cast<cl::size_type>(weightsSize.z) }, 0, 0, weights.data());
 
 			for (int wi = 0; wi < weights.size(); wi++)
 				os << weights[wi] << " ";
@@ -247,7 +247,7 @@ void Predictor::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 		for (int si = 0; si < hiddenStates.size(); si++)
 			is >> hiddenStates[si];
 
-		cs.getQueue().enqueueWriteImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenStates.data());
+		cs.getQueue().enqueueWriteImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenStates.data());
 
 	}
 
@@ -257,7 +257,7 @@ void Predictor::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 		for (int bi = 0; bi < hiddenActivations.size(); bi++)
 			is >> hiddenActivations[bi];
 
-		cs.getQueue().enqueueWriteImage(_hiddenActivations[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenActivations.data());
+		cs.getQueue().enqueueWriteImage(_hiddenActivations[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenActivations.data());
 	}
 
 	// Layer information
@@ -294,7 +294,7 @@ void Predictor::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 			for (int wi = 0; wi < weights.size(); wi++)
 				is >> weights[wi];
 
-			cs.getQueue().enqueueWriteImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { weightsSize.x, weightsSize.y, weightsSize.z }, 0, 0, weights.data());
+			cs.getQueue().enqueueWriteImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(weightsSize.x), static_cast<cl::size_type>(weightsSize.y), static_cast<cl::size_type>(weightsSize.z) }, 0, 0, weights.data());
 		}
 
 		is >> vl._hiddenToVisible.x >> vl._hiddenToVisible.y >> vl._visibleToHidden.x >> vl._visibleToHidden.y >> vl._reverseRadii.x >> vl._reverseRadii.y;

@@ -318,7 +318,7 @@ void ComparisonSparseCoder::writeToStream(sys::ComputeSystem &cs, std::ostream &
 	{
 		std::vector<cl_float> hiddenStates(_hiddenSize.x * _hiddenSize.y);
 
-		cs.getQueue().enqueueReadImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenStates.data());
+		cs.getQueue().enqueueReadImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenStates.data());
 
 		for (int si = 0; si < hiddenStates.size(); si++)
 			os << hiddenStates[si] << " ";
@@ -329,7 +329,7 @@ void ComparisonSparseCoder::writeToStream(sys::ComputeSystem &cs, std::ostream &
 	{
 		std::vector<cl_float> hiddenBiases(_hiddenSize.x * _hiddenSize.y);
 
-		cs.getQueue().enqueueReadImage(_hiddenBiases[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenBiases.data());
+		cs.getQueue().enqueueReadImage(_hiddenBiases[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenBiases.data());
 
 		for (int bi = 0; bi < hiddenBiases.size(); bi++)
 			os << hiddenBiases[bi] << " ";
@@ -359,7 +359,7 @@ void ComparisonSparseCoder::writeToStream(sys::ComputeSystem &cs, std::ostream &
 		if (vld._useTraces) {
 			std::vector<cl_float2> weights(totalNumWeights);
 
-			cs.getQueue().enqueueReadImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { weightsSize.x, weightsSize.y, weightsSize.z }, 0, 0, weights.data());
+			cs.getQueue().enqueueReadImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(weightsSize.x), static_cast<cl::size_type>(weightsSize.y), static_cast<cl::size_type>(weightsSize.z) }, 0, 0, weights.data());
 		
 			for (int wi = 0; wi < weights.size(); wi++)
 				os << weights[wi].x << " " << weights[wi].y << " ";
@@ -367,7 +367,7 @@ void ComparisonSparseCoder::writeToStream(sys::ComputeSystem &cs, std::ostream &
 		else {
 			std::vector<cl_float> weights(totalNumWeights);
 
-			cs.getQueue().enqueueReadImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { weightsSize.x, weightsSize.y, weightsSize.z }, 0, 0, weights.data());
+			cs.getQueue().enqueueReadImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(weightsSize.x), static_cast<cl::size_type>(weightsSize.y), static_cast<cl::size_type>(weightsSize.z) }, 0, 0, weights.data());
 
 			for (int wi = 0; wi < weights.size(); wi++)
 				os << weights[wi] << " ";
@@ -394,7 +394,7 @@ void ComparisonSparseCoder::readFromStream(sys::ComputeSystem &cs, sys::ComputeP
 		for (int si = 0; si < hiddenStates.size(); si++)
 			is >> hiddenStates[si];
 
-		cs.getQueue().enqueueWriteImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenStates.data());
+		cs.getQueue().enqueueWriteImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenStates.data());
 
 	}
 
@@ -404,7 +404,7 @@ void ComparisonSparseCoder::readFromStream(sys::ComputeSystem &cs, sys::ComputeP
 		for (int bi = 0; bi < hiddenBiases.size(); bi++)
 			is >> hiddenBiases[bi];
 
-		cs.getQueue().enqueueWriteImage(_hiddenBiases[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenBiases.data());
+		cs.getQueue().enqueueWriteImage(_hiddenBiases[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenBiases.data());
 	}
 
 	// Layer information
@@ -441,7 +441,7 @@ void ComparisonSparseCoder::readFromStream(sys::ComputeSystem &cs, sys::ComputeP
 			for (int wi = 0; wi < weights.size(); wi++)
 				is >> weights[wi].x >> weights[wi].y;
 
-			cs.getQueue().enqueueWriteImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { weightsSize.x, weightsSize.y, weightsSize.z }, 0, 0, weights.data());
+			cs.getQueue().enqueueWriteImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(weightsSize.x), static_cast<cl::size_type>(weightsSize.y), static_cast<cl::size_type>(weightsSize.z) }, 0, 0, weights.data());
 		}
 		else {
 			vl._weights = createDoubleBuffer3D(cs, weightsSize, CL_R, CL_FLOAT);
@@ -451,7 +451,7 @@ void ComparisonSparseCoder::readFromStream(sys::ComputeSystem &cs, sys::ComputeP
 			for (int wi = 0; wi < weights.size(); wi++)
 				is >> weights[wi];
 
-			cs.getQueue().enqueueWriteImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { weightsSize.x, weightsSize.y, weightsSize.z }, 0, 0, weights.data());
+			cs.getQueue().enqueueWriteImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(weightsSize.x), static_cast<cl::size_type>(weightsSize.y), static_cast<cl::size_type>(weightsSize.z) }, 0, 0, weights.data());
 		}
 
 		is >> vl._hiddenToVisible.x >> vl._hiddenToVisible.y >> vl._visibleToHidden.x >> vl._visibleToHidden.y >> vl._reverseRadii.x >> vl._reverseRadii.y;

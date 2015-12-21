@@ -208,7 +208,7 @@ void PredictiveHierarchy::writeToStream(sys::ComputeSystem &cs, std::ostream &os
 		{
 			std::vector<cl_float> baseLines(ld._size.x * ld._size.y);
 
-			cs.getQueue().enqueueReadImage(l._baseLines[_back], CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, baseLines.data());
+			cs.getQueue().enqueueReadImage(l._baseLines[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, baseLines.data());
 
 			for (int bi = 0; bi < baseLines.size(); bi++)
 				os << baseLines[bi] << " ";
@@ -219,7 +219,7 @@ void PredictiveHierarchy::writeToStream(sys::ComputeSystem &cs, std::ostream &os
 		{
 			std::vector<cl_float> rewards(ld._size.x * ld._size.y);
 
-			cs.getQueue().enqueueReadImage(l._reward, CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, rewards.data());
+			cs.getQueue().enqueueReadImage(l._reward, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, rewards.data());
 
 			for (int ri = 0; ri < rewards.size(); ri++)
 				os << rewards[ri] << " ";
@@ -230,7 +230,7 @@ void PredictiveHierarchy::writeToStream(sys::ComputeSystem &cs, std::ostream &os
 		{
 			std::vector<cl_float> hiddenStatesPrev(ld._size.x * ld._size.y);
 
-			cs.getQueue().enqueueReadImage(l._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, hiddenStatesPrev.data());
+			cs.getQueue().enqueueReadImage(l._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, hiddenStatesPrev.data());
 
 			for (int si = 0; si < hiddenStatesPrev.size(); si++)
 				os << hiddenStatesPrev[si] << " ";
@@ -274,7 +274,7 @@ void PredictiveHierarchy::readFromStream(sys::ComputeSystem &cs, sys::ComputePro
 			for (int bi = 0; bi < baseLines.size(); bi++)
 				is >> baseLines[bi];
 
-			cs.getQueue().enqueueWriteImage(l._baseLines[_back], CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, baseLines.data());
+			cs.getQueue().enqueueWriteImage(l._baseLines[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, baseLines.data());
 		}
 
 		{
@@ -283,7 +283,7 @@ void PredictiveHierarchy::readFromStream(sys::ComputeSystem &cs, sys::ComputePro
 			for (int ri = 0; ri < rewards.size(); ri++)
 				is >> rewards[ri];
 
-			cs.getQueue().enqueueWriteImage(l._reward, CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, rewards.data());
+			cs.getQueue().enqueueWriteImage(l._reward, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, rewards.data());
 		}
 
 		{
@@ -292,7 +292,7 @@ void PredictiveHierarchy::readFromStream(sys::ComputeSystem &cs, sys::ComputePro
 			for (int si = 0; si < hiddenStatesPrev.size(); si++)
 				is >> hiddenStatesPrev[si];
 
-			cs.getQueue().enqueueWriteImage(l._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, hiddenStatesPrev.data());
+			cs.getQueue().enqueueWriteImage(l._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, hiddenStatesPrev.data());
 		}
 	}
 

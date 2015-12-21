@@ -53,7 +53,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 		}
 
-		_layers[l]._pred.createRandom(cs, program, predDescs, prevLayerSize, initWeightRange, false, rng);
+		_layers[l]._pred.createRandom(cs, program, predDescs, prevLayerSize, initWeightRange, rng);
 
 		std::vector<Swarm::VisibleLayerDesc> swarmDescs;
 
