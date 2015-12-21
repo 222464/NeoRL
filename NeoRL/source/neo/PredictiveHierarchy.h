@@ -126,6 +126,16 @@ namespace neo {
 		void clearMemory(sys::ComputeSystem &cs);
 
 		/*!
+		\brief Write to stream
+		*/
+		void writeToStream(sys::ComputeSystem &cs, std::ostream &os) const;
+
+		/*!
+		\brief Read from stream
+		*/
+		void readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &program, std::istream &is);
+
+		/*!
 		\brief Get number of layers
 		*/
 		size_t getNumLayers() const {

@@ -105,7 +105,6 @@ namespace neo {
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange, 
-			bool enableTraces,
 			std::mt19937 &rng);
 
 		/*!
@@ -124,8 +123,17 @@ namespace neo {
 		Learn with and without using eligibility traces/reward
 		*/
 		void learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha);
-		void learnTrace(sys::ComputeSystem &cs, float reward, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha, float weightLambda);
 		//!@}
+
+		/*!
+		\brief Write to stream
+		*/
+		void writeToStream(sys::ComputeSystem &cs, std::ostream &os) const;
+
+		/*!
+		\brief Read from stream
+		*/
+		void readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &program, std::istream &is);
 
 		/*!
 		\brief Get number of visible layers

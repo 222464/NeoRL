@@ -312,6 +312,161 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const cl::Image2D &rew
 	}
 }
 
+void ComparisonSparseCoder::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
+	os << _hiddenSize.x << " " << _hiddenSize.y << " " << _lateralRadius << std::endl;
+
+	{
+		std::vector<cl_float> hiddenStates(_hiddenSize.x * _hiddenSize.y);
+
+		cs.getQueue().enqueueReadImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenStates.data());
+
+		for (int si = 0; si < hiddenStates.size(); si++)
+			os << hiddenStates[si] << " ";
+
+		os << std::endl;
+	}
+
+	{
+		std::vector<cl_float> hiddenBiases(_hiddenSize.x * _hiddenSize.y);
+
+		cs.getQueue().enqueueReadImage(_hiddenBiases[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenBiases.data());
+
+		for (int bi = 0; bi < hiddenBiases.size(); bi++)
+			os << hiddenBiases[bi] << " ";
+
+		os << std::endl;
+	}
+
+	// Layer information
+	os << _visibleLayers.size() << std::endl;
+
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		const VisibleLayer &vl = _visibleLayers[vli];
+		const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		// Desc
+		os << vld._size.x << " " << vld._size.y << " " << vld._radius << " " << vld._weightAlpha << " " << vld._weightLambda << " " << vld._ignoreMiddle << " " << vld._useTraces << std::endl;
+
+		// Layer
+		int weightDiam = vld._radius * 2 + 1;
+
+		int numWeights = weightDiam * weightDiam;
+
+		cl_int3 weightsSize = cl_int3 { _hiddenSize.x, _hiddenSize.y, numWeights };
+
+		int totalNumWeights = weightsSize.x * weightsSize.y * weightsSize.z;
+
+		if (vld._useTraces) {
+			std::vector<cl_float2> weights(totalNumWeights);
+
+			cs.getQueue().enqueueReadImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { weightsSize.x, weightsSize.y, weightsSize.z }, 0, 0, weights.data());
+		
+			for (int wi = 0; wi < weights.size(); wi++)
+				os << weights[wi].x << " " << weights[wi].y << " ";
+		}
+		else {
+			std::vector<cl_float> weights(totalNumWeights);
+
+			cs.getQueue().enqueueReadImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { weightsSize.x, weightsSize.y, weightsSize.z }, 0, 0, weights.data());
+
+			for (int wi = 0; wi < weights.size(); wi++)
+				os << weights[wi] << " ";
+		}
+
+		os << std::endl;
+
+		os << vl._hiddenToVisible.x << " " << vl._hiddenToVisible.y << " " << vl._visibleToHidden.x << " " << vl._visibleToHidden.y << " " << vl._reverseRadii.x << " " << vl._reverseRadii.y << std::endl;
+	}
+}
+void ComparisonSparseCoder::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &program, std::istream &is) {
+	is >> _hiddenSize.x >> _hiddenSize.y >> _lateralRadius;
+
+	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
+
+	_hiddenBiases = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
+
+	_hiddenActivationSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
+	_hiddenErrorSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
+
+	{
+		std::vector<cl_float> hiddenStates(_hiddenSize.x * _hiddenSize.y);
+
+		for (int si = 0; si < hiddenStates.size(); si++)
+			is >> hiddenStates[si];
+
+		cs.getQueue().enqueueWriteImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenStates.data());
+
+	}
+
+	{
+		std::vector<cl_float> hiddenBiases(_hiddenSize.x * _hiddenSize.y);
+
+		for (int bi = 0; bi < hiddenBiases.size(); bi++)
+			is >> hiddenBiases[bi];
+
+		cs.getQueue().enqueueWriteImage(_hiddenBiases[_back], CL_TRUE, { 0, 0, 0 }, { _hiddenSize.x, _hiddenSize.y, 1 }, 0, 0, hiddenBiases.data());
+	}
+
+	// Layer information
+	int numLayers;
+
+	is >> numLayers;
+
+	_visibleLayerDescs.resize(numLayers);
+	_visibleLayers.resize(numLayers);
+
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		// Desc
+		is >> vld._size.x >> vld._size.y >> vld._radius >> vld._weightAlpha >> vld._weightLambda >> vld._ignoreMiddle >> vld._useTraces;
+
+		// Layer
+		vl._reconstructionError = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
+
+		int weightDiam = vld._radius * 2 + 1;
+
+		int numWeights = weightDiam * weightDiam;
+
+		cl_int3 weightsSize = cl_int3 { _hiddenSize.x, _hiddenSize.y, numWeights };
+
+		int totalNumWeights = weightsSize.x * weightsSize.y * weightsSize.z;
+
+		if (vld._useTraces) {
+			vl._weights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
+			
+			std::vector<cl_float2> weights(totalNumWeights);
+	
+			for (int wi = 0; wi < weights.size(); wi++)
+				is >> weights[wi].x >> weights[wi].y;
+
+			cs.getQueue().enqueueWriteImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { weightsSize.x, weightsSize.y, weightsSize.z }, 0, 0, weights.data());
+		}
+		else {
+			vl._weights = createDoubleBuffer3D(cs, weightsSize, CL_R, CL_FLOAT);
+
+			std::vector<cl_float> weights(totalNumWeights);
+
+			for (int wi = 0; wi < weights.size(); wi++)
+				is >> weights[wi];
+
+			cs.getQueue().enqueueWriteImage(vl._weights[_back], CL_TRUE, { 0, 0, 0 }, { weightsSize.x, weightsSize.y, weightsSize.z }, 0, 0, weights.data());
+		}
+
+		is >> vl._hiddenToVisible.x >> vl._hiddenToVisible.y >> vl._visibleToHidden.x >> vl._visibleToHidden.y >> vl._reverseRadii.x >> vl._reverseRadii.y;
+	}
+
+	// Create kernels
+	_forwardErrorKernel = cl::Kernel(program.getProgram(), "cscForwardError");
+	_activateKernel = cl::Kernel(program.getProgram(), "cscActivate");
+	_activateIgnoreMiddleKernel = cl::Kernel(program.getProgram(), "cscActivateIgnoreMiddle");
+	_solveHiddenKernel = cl::Kernel(program.getProgram(), "cscSolveHidden");
+	_learnHiddenBiasesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenBiases");
+	_learnHiddenWeightsKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeights");
+	_learnHiddenWeightsTracesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsTraces");
+}
+
 void ComparisonSparseCoder::clearMemory(sys::ComputeSystem &cs) {
 	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };

@@ -10,12 +10,12 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	_layerDescs = layerDescs;
 	_layers.resize(_layerDescs.size());
 
-	cl_int2 prevLayerSize = inputSize;
+	cl_int2 prelayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
 		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
 
-		scDescs[0]._size = prevLayerSize;
+		scDescs[0]._size = prelayerSize;
 		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
 		scDescs[0]._ignoreMiddle = false;
 		scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
@@ -49,7 +49,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 		}
 
-		_layers[l]._pred.createRandom(cs, program, predDescs, prevLayerSize, initWeightRange, false, rng);
+		_layers[l]._pred.createRandom(cs, program, predDescs, prelayerSize, initWeightRange, rng);
 
 		// Create baselines
 		_layers[l]._baseLines = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
@@ -73,13 +73,13 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 
 void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn) {
 	// Feed forward
-	cl::Image2D prevLayerState = input;
+	cl::Image2D prelayerState = input;
 
 	for (int l = 0; l < _layers.size(); l++) {
 		{
 			std::vector<cl::Image2D> visibleStates(2);
 
-			visibleStates[0] = prevLayerState;
+			visibleStates[0] = prelayerState;
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
@@ -117,7 +117,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateSumErrorKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 		}
 
-		prevLayerState = _layers[l]._sc.getHiddenStates()[_back];
+		prelayerState = _layers[l]._sc.getHiddenStates()[_back];
 	}
 
 	for (int l = _layers.size() - 1; l >= 0; l--) {
@@ -186,4 +186,116 @@ void PredictiveHierarchy::clearMemory(sys::ComputeSystem &cs) {
 
 		cs.getQueue().enqueueFillImage(_layers[l]._scHiddenStatesPrev, zeroColor, zeroOrigin, layerRegion);
 	}
+}
+
+void PredictiveHierarchy::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
+	// Layer information
+	os << _layers.size() << std::endl;
+
+	for (int li = 0; li < _layers.size(); li++) {
+		const Layer &l = _layers[li];
+		const LayerDesc &ld = _layerDescs[li];
+
+		// Desc
+		os << ld._size.x << " " << ld._size.y << " " << ld._feedForwardRadius << " " << ld._recurrentRadius << " " << ld._lateralRadius << " " << ld._feedBackRadius << " " << ld._predictiveRadius << std::endl;
+		os << ld._scWeightAlpha << " " << ld._scWeightRecurrentAlpha << " " << ld._scWeightLambda << " " << ld._scActiveRatio << " " << ld._scBoostAlpha << std::endl;
+		os << ld._baseLineDecay << " " << ld._baseLineSensitivity << " " << ld._predWeightAlpha << std::endl;
+
+		l._sc.writeToStream(cs, os);
+		l._pred.writeToStream(cs, os);
+
+		// Layer
+		{
+			std::vector<cl_float> baseLines(ld._size.x * ld._size.y);
+
+			cs.getQueue().enqueueReadImage(l._baseLines[_back], CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, baseLines.data());
+
+			for (int bi = 0; bi < baseLines.size(); bi++)
+				os << baseLines[bi] << " ";
+		}
+
+		os << std::endl;
+
+		{
+			std::vector<cl_float> rewards(ld._size.x * ld._size.y);
+
+			cs.getQueue().enqueueReadImage(l._reward, CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, rewards.data());
+
+			for (int ri = 0; ri < rewards.size(); ri++)
+				os << rewards[ri] << " ";
+		}
+
+		os << std::endl;
+
+		{
+			std::vector<cl_float> hiddenStatesPrev(ld._size.x * ld._size.y);
+
+			cs.getQueue().enqueueReadImage(l._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, hiddenStatesPrev.data());
+
+			for (int si = 0; si < hiddenStatesPrev.size(); si++)
+				os << hiddenStatesPrev[si] << " ";
+		}
+
+		os << std::endl;
+	}
+}
+
+void PredictiveHierarchy::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &program, std::istream &is) {
+	// Layer information
+	int numLayers;
+	
+	is >> numLayers;
+	
+	_layers.resize(numLayers);
+	_layerDescs.resize(numLayers);
+
+	for (int li = 0; li < _layers.size(); li++) {
+		Layer &l = _layers[li];
+		LayerDesc &ld = _layerDescs[li];
+
+		// Desc
+		is >> ld._size.x >> ld._size.y >> ld._feedForwardRadius >> ld._recurrentRadius >> ld._lateralRadius >> ld._feedBackRadius >> ld._predictiveRadius;
+		is >> ld._scWeightAlpha >> ld._scWeightRecurrentAlpha >> ld._scWeightLambda >> ld._scActiveRatio >> ld._scBoostAlpha;
+		is >> ld._baseLineDecay >> ld._baseLineSensitivity >> ld._predWeightAlpha;
+
+		l._baseLines = createDoubleBuffer2D(cs, ld._size, CL_R, CL_FLOAT);
+
+		l._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
+
+		l._scHiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
+
+		l._sc.readFromStream(cs, program, is);
+		l._pred.readFromStream(cs, program, is);
+
+		// Layer
+		{
+			std::vector<cl_float> baseLines(ld._size.x * ld._size.y);
+
+			for (int bi = 0; bi < baseLines.size(); bi++)
+				is >> baseLines[bi];
+
+			cs.getQueue().enqueueWriteImage(l._baseLines[_back], CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, baseLines.data());
+		}
+
+		{
+			std::vector<cl_float> rewards(ld._size.x * ld._size.y);
+
+			for (int ri = 0; ri < rewards.size(); ri++)
+				is >> rewards[ri];
+
+			cs.getQueue().enqueueWriteImage(l._reward, CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, rewards.data());
+		}
+
+		{
+			std::vector<cl_float> hiddenStatesPrev(ld._size.x * ld._size.y);
+
+			for (int si = 0; si < hiddenStatesPrev.size(); si++)
+				is >> hiddenStatesPrev[si];
+
+			cs.getQueue().enqueueWriteImage(l._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { ld._size.x, ld._size.y, 1 }, 0, 0, hiddenStatesPrev.data());
+		}
+	}
+
+	_baseLineUpdateKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdate");
+	_baseLineUpdateSumErrorKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdateSumError");
 }
