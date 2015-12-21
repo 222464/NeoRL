@@ -4,7 +4,7 @@ using namespace neo;
 
 void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
-	cl_float2 initWeightRange, float initThreshold,
+	cl_float2 initWeightRange, cl_float2 initInhibitionRange, float initThreshold,
 	std::mt19937 &rng)
 {
 	_layerDescs = layerDescs;
@@ -13,23 +13,17 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	cl_int2 prevLayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
+		std::vector<SparseCoder::VisibleLayerDesc> scDescs(2);
 
 		scDescs[0]._size = prevLayerSize;
 		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
 		scDescs[0]._ignoreMiddle = false;
-		scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
-		scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
-		scDescs[0]._useTraces = true;
 
 		scDescs[1]._size = _layerDescs[l]._size;
 		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
 		scDescs[1]._ignoreMiddle = true;
-		scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
-		scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
-		scDescs[1]._useTraces = true;
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initInhibitionRange, initThreshold, true, rng);
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
@@ -82,10 +76,10 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStates[0] = prevLayerState;
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
 
 			if (learn)
-				_layers[l]._sc.learn(cs, _layers[l]._reward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+				_layers[l]._sc.learnTrace(cs, _layers[l]._reward, _layerDescs[l]._scWeightAlpha, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scWeightLambda, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 		}
 
 		// Get reward
