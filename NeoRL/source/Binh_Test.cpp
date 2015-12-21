@@ -38,7 +38,10 @@ int main()
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 2, 2 }, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+	//ph.createRandom(cs, prog, { 2, 2 }, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+	std::ifstream is("binh_save.neo");
+
+	ph.readFromStream(cs, prog, is);
 
 #ifdef _USE_ECG_DATA
 	std::ifstream input("e:/ecgsyn.dat");
