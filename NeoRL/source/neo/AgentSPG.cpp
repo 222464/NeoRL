@@ -3,7 +3,7 @@
 using namespace neo;
 
 void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-	cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
+	cl_int2 inputSize, cl_int2 actionSize, const std::vector<LayerDesc> &layerDescs,
 	cl_float2 initWeightRange, float initThreshold,
 	std::mt19937 &rng)
 {
