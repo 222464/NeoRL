@@ -1,7 +1,9 @@
 #pragma once
 
-// Inherit from this class to make the class uncopyable
 namespace sys {
+	/*!
+	\brief Inherit from this class to make it Uncopyable
+	*/
 	class Uncopyable {
 	protected:
 		Uncopyable() {}

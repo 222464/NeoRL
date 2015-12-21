@@ -50,6 +50,7 @@ namespace neo {
 			*/
 			cl_float2 _hiddenToVisible;
 			cl_float2 _visibleToHidden;
+			//!@}
 
 			/*!
 			\brief Radius onto hidden (reverse from visible layer desc)
@@ -58,11 +59,13 @@ namespace neo {
 		};
 
 	private:
+		//!@{
 		/*!
 		\brief Hidden states and activations
 		*/
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenActivations;
+		//!@}
 
 		/*!
 		\brief Hidden size
@@ -74,12 +77,15 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenSummationTemp;
 
+		//!@{
 		/*!
 		\brief Visible layers and descs
 		*/
 		std::vector<VisibleLayerDesc> _visibleLayerDescs;
 		std::vector<VisibleLayer> _visibleLayers;
+		//!@}
 
+		//!@{
 		/*!
 		\brief Kernels
 		*/
@@ -88,6 +94,7 @@ namespace neo {
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnWeightsTracesKernel;
 		cl::Kernel _errorPropagateKernel;
+		//!@}
 
 	public:
 		/*!

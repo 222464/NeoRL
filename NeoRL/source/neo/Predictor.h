@@ -45,11 +45,13 @@ namespace neo {
 			*/
 			DoubleBuffer3D _weights;
 
+			//!@{
 			/*!
 			\brief Transformations
 			*/
 			cl_float2 _hiddenToVisible;
 			cl_float2 _visibleToHidden;
+			//!@}
 
 			/*!
 			\brief Radius onto hidden (reverse from visible layer desc)
@@ -58,11 +60,13 @@ namespace neo {
 		};
 
 	private:
+		//!@{
 		/*!
 		\brief Hidden states and activations
 		*/
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenActivations;
+		//!@}
 
 		/*!
 		\brief Hidden size
@@ -74,12 +78,15 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenSummationTemp;
 
+		//!@{
 		/*!
 		\brief Layers and descs
 		*/
 		std::vector<VisibleLayerDesc> _visibleLayerDescs;
 		std::vector<VisibleLayer> _visibleLayers;
+		//!@}
 
+		//!@{
 		/*!
 		\brief Kernels
 		*/
@@ -89,6 +96,7 @@ namespace neo {
 		cl::Kernel _errorPropagateKernel;
 		cl::Kernel _learnWeightsKernel;
 		cl::Kernel _learnWeightsTracesKernel;
+		//!@}
 
 	public:
 		/*!
@@ -110,12 +118,14 @@ namespace neo {
 		*/
 		void propagateError(sys::ComputeSystem &cs, const cl::Image2D &targets);
 
+		//!@{
 		/*!
 		\brief Learning functions
 		Learn with and without using eligibility traces/reward
 		*/
 		void learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha);
 		void learnTrace(sys::ComputeSystem &cs, float reward, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha, float weightLambda);
+		//!@}
 
 		/*!
 		\brief Get number of visible layers

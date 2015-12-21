@@ -23,11 +23,13 @@ namespace neo {
 			*/
 			cl_int _radius;
 
+			//!@{
 			/*!
 			\brief Learning parameters
 			*/
 			cl_float _weightAlpha;
 			cl_float _weightLambda;
+			//!@}
 
 			/*!
 			\brief Whether or not the center neuron (self in recurrent schemes) should be ignored
@@ -62,11 +64,13 @@ namespace neo {
 			*/
 			DoubleBuffer3D _weights;
 
+			//!@{
 			/*!
 			\brief Transformations
 			*/
 			cl_float2 _hiddenToVisible;
 			cl_float2 _visibleToHidden;
+			//!@}
 
 			/*!
 			\brief Radius onto hidden (reverse from visible layer desc)
@@ -75,11 +79,13 @@ namespace neo {
 		};
 
 	private:
+		//!@{
 		/*!
 		\brief Hidden states and biases
 		*/
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenBiases;
+		//!@}
 
 		/*!
 		\brief Lateral (inhibition) radius
@@ -91,18 +97,23 @@ namespace neo {
 		*/
 		cl_int2 _hiddenSize;
 
+		//!@{
 		/*!
 		\brief Temporary summation buffers
 		*/
 		DoubleBuffer2D _hiddenActivationSummationTemp;
 		DoubleBuffer2D _hiddenErrorSummationTemp;
+		//!@}
 
+		//!@{
 		/*!
 		\brief Descs and layers
 		*/
 		std::vector<VisibleLayerDesc> _visibleLayerDescs;
 		std::vector<VisibleLayer> _visibleLayers;
+		//!@}
 
+		//!@{
 		/*!
 		\brief Kernels
 		*/
@@ -113,6 +124,7 @@ namespace neo {
 		cl::Kernel _learnHiddenBiasesKernel;
 		cl::Kernel _learnHiddenWeightsKernel;
 		cl::Kernel _learnHiddenWeightsTracesKernel;
+		//!@}
 
 		/*!
 		\brief Reconstruct and find error with input for all visible layers
@@ -134,11 +146,13 @@ namespace neo {
 		*/
 		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio);
 
+		//!@{
 		/*!
 		\brief Learn, with and without use of rewards + eligibility traces
 		*/
 		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float boostAlpha, float activeRatio);
 		void learn(sys::ComputeSystem &cs, const cl::Image2D &rewards, std::vector<cl::Image2D> &visibleStates, float boostAlpha, float activeRatio);
+		//!@}
 
 		/*!
 		\brief Clear working memory

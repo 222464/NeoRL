@@ -18,11 +18,13 @@ namespace neo {
 			*/
 			cl_int2 _size;
 
+			//!@{
 			/*!
 			\brief Radii
 			*/
 			cl_int _qRadius;
 			cl_int _startRadius;
+			//!@}
 
 			/*!
 			\brief Initialize defaults
@@ -41,23 +43,29 @@ namespace neo {
 			*/
 			cl::Image2D _predictedAction;
 
+			//!@{
 			/*!
 			\brief Actions, exporatory and non-exploratory
 			*/
 			cl::Image2D _actions;
 			cl::Image2D _actionsExploratory;
+			//!@}
 
+			//!@{
 			/*!
 			\brief Weights for Q values and starting action prediction
 			*/
 			DoubleBuffer3D _qWeights;
 			DoubleBuffer3D _startWeights;
+			//!@}
 
+			//!@{
 			/*!
 			\brief Transformations
 			*/
 			cl_float2 _hiddenToVisible;
 			cl_float2 _visibleToHidden;
+			//!@}
 
 			/*!
 			\brief Radius onto hidden (reverse from visible layer desc)
@@ -66,40 +74,48 @@ namespace neo {
 		};
 
 	private:
+		//!@{
 		/*!
 		\brief Q states, hidden states, and biases
 		*/
 		DoubleBuffer2D _qStates;
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenBiases;
+		//!@}
 
 		/*!
 		\brief Q Weights
 		*/
 		DoubleBuffer3D _qWeights;
 
+		//!@{
 		/*!
 		\brief Hidden errors and hidden temporal differences
 		*/
 		cl::Image2D _hiddenErrors;
 		cl::Image2D _hiddenTD;
+		//!@}
 
+		//!@{
 		/*!
 		\brief Q and hidden sizes
 		*/
 		cl_int2 _qSize;
 		cl_int2 _hiddenSize;
+		//!@}
 
 		/*!
 		\brief Q radius
 		*/
 		int _qRadius;
 
+		//!@{
 		/*!
 		\brief Q transformations
 		*/
 		cl_float2 _qToHidden;
 		cl_float2 _hiddenToQ;
+		//!@}
 
 		/*!
 		\brief Q radius onto Q layer (reverse from hidden layer)
@@ -111,12 +127,15 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenSummationTemp;
 
+		//!@{
 		/*!
 		\brief Visible layers and descs
 		*/
 		std::vector<VisibleLayerDesc> _visibleLayerDescs;
 		std::vector<VisibleLayer> _visibleLayers;
+		//!@}
 
+		//!@{
 		/*!
 		\brief Kernels
 		*/
@@ -133,6 +152,7 @@ namespace neo {
 		cl::Kernel _qLearnVisibleWeightsTracesKernel;
 		cl::Kernel _qLearnHiddenWeightsTracesKernel;
 		cl::Kernel _qLearnHiddenBiasesTracesKernel;
+		//!@}
 
 	public:
 		/*!

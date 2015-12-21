@@ -21,13 +21,16 @@ namespace neo {
 			*/
 			cl_int2 _qSize;
 
+			//!@{
 			/*!
 			\brief Radii
 			*/
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
 			cl_int _qRadiusHiddenFeedForwardAttention, _qRadiusHiddenRecurrentAttention, _qRadiusHiddenAction, _qRadius;
 			cl_int _startRadiusHiddenFeedForwardAttention, _startRadiusHiddenRecurrentAttention, _startRadiusHiddenAction;
+			//!@}
 
+			//!@{
 			/*!
 			\brief Sparse coder parameters
 			*/
@@ -36,18 +39,22 @@ namespace neo {
 			cl_float _scWeightLambda;
 			cl_float _scActiveRatio;
 			cl_float _scBoostAlpha;
+			//!@}
 
+			//!@{
 			/*!
 			\brief Baseline parameters
 			*/
 			cl_float _baseLineDecay;
 			cl_float _baseLineSensitivity;
+			//!@}
 
 			/*!
 			\brief Predictor parameters
 			*/
 			cl_float _predWeightAlpha;
 
+			//!@{
 			/*!
 			\brief Swarm parameters
 			*/
@@ -60,6 +67,7 @@ namespace neo {
 			cl_float _swarmGamma;
 			cl_float _swarmExpPert;
 			cl_float _swarmExpBreak;
+			//!@}
 
 			/*!
 			\brief Attention parameters
@@ -105,12 +113,14 @@ namespace neo {
 			*/
 			Swarm _swarm;
 
+			//!@{
 			/*!
 			\brief Temporary buffers
 			*/
 			cl::Image2D _modulatedFeedForwardInput;
 			cl::Image2D _modulatedRecurrentInput;
 			cl::Image2D _inhibitedAction;
+			//!@}
 
 			/*!
 			\brief Baselines
@@ -129,17 +139,20 @@ namespace neo {
 		};
 
 	private:
+		//!@{
 		/*!
 		\brief Layers and layer descs
 		*/
 		std::vector<Layer> _layers;
 		std::vector<LayerDesc> _layerDescs;
+		//!@}
 
 		/*!
 		\brief Action for last layer (all zeros, dummy buffer)
 		*/
 		cl::Image2D _lastLayerAction;
 
+		//!@{
 		/*!
 		\brief Kernels
 		*/
@@ -147,6 +160,7 @@ namespace neo {
 		cl::Kernel _baseLineUpdateSumErrorKernel;
 		cl::Kernel _inhibitKernel;
 		cl::Kernel _modulateKernel;
+		//!@}
 
 	public:
 		/*!

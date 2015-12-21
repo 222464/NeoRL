@@ -23,6 +23,7 @@ namespace neo {
 			*/
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
 
+			//!@{
 			/*!
 			\brief Sparse coder parameters
 			*/
@@ -31,12 +32,15 @@ namespace neo {
 			cl_float _scWeightLambda;
 			cl_float _scActiveRatio;
 			cl_float _scBoostAlpha;
+			//!@}
 
+			//!@{
 			/*!
 			\brief Baseline parameters
 			*/
 			cl_float _baseLineDecay;
 			cl_float _baseLineSensitivity;
+			//!@}
 
 			/*!
 			\brief Predictor parameters
@@ -60,11 +64,13 @@ namespace neo {
 		\brief Layer
 		*/
 		struct Layer {
+			//!@{
 			/*!
 			\brief Sparse coder and predictor
 			*/
 			ComparisonSparseCoder _sc;
 			Predictor _pred;
+			//!@}
 
 			/*!
 			\brief Baselines
@@ -83,17 +89,21 @@ namespace neo {
 		};
 
 	private:
+		//!@{
 		/*!
 		\brief Layers and descs
 		*/
 		std::vector<Layer> _layers;
 		std::vector<LayerDesc> _layerDescs;
+		//!@}
 
+		//!@{
 		/*!
 		\brief Kernels
 		*/
 		cl::Kernel _baseLineUpdateKernel;
 		cl::Kernel _baseLineUpdateSumErrorKernel;
+		//!@}
 
 	public:
 		/*!

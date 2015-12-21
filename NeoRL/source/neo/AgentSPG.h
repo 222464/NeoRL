@@ -15,13 +15,16 @@ namespace neo {
 			*/
 			cl_int2 _hiddenSize;
 
+			//!@{
 			/*!
 			\brief Radii
 			*/
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
 			cl_int _qRadiusHiddenFeedForwardAttention, _qRadiusHiddenRecurrentAttention, _qRadiusHiddenAction, _qRadius;
 			cl_int _startRadiusHiddenFeedForwardAttention, _startRadiusHiddenRecurrentAttention, _startRadiusHiddenAction;
+			//!@}
 
+			//!@{
 			/*!
 			\brief Sparse coder parameters
 			*/
@@ -30,18 +33,23 @@ namespace neo {
 			cl_float _scWeightLambda;
 			cl_float _scActiveRatio;
 			cl_float _scBoostAlpha;
+			//!@}
 
+			//!@{
 			/*!
 			\brief Baseline parameters
 			*/
 			cl_float _baseLineDecay;
 			cl_float _baseLineSensitivity;
+			//!@}
 
+			//!@{
 			/*!
 			\brief Predictor parameters
 			*/
 			cl_float3 _predWeightAlpha;
 			cl_float2 _predWeightLambda;
+			//!@}
 
 			/*!
 			\brief Bellman equation parameters
@@ -85,19 +93,23 @@ namespace neo {
 			*/
 			ComparisonSparseCoder _sc;
 
+			//!@{
 			/*!
 			\brief Predictor swarms for action and attention
 			*/
 			PredictorSwarm _predAction;
 			PredictorSwarm _predAttentionFeedForward;
 			PredictorSwarm _predAttentionRecurrent;
+			//!@}
 
+			//!@{
 			/*!
 			\brief Temporary buffers
 			*/
 			cl::Image2D _modulatedFeedForwardInput;
 			cl::Image2D _modulatedRecurrentInput;
 			cl::Image2D _inhibitedAction;
+			//!@}
 
 			/*!
 			\brief Baselines
@@ -116,17 +128,20 @@ namespace neo {
 		};
 
 	private:
+		//!@{
 		/*!
 		\brief Layers and layer descs
 		*/
 		std::vector<Layer> _layers;
 		std::vector<LayerDesc> _layerDescs;
+		//!@}
 
 		/*!
 		\brief Output action
 		*/
 		cl::Image2D _action;
 
+		//!@{
 		/*!
 		\brief Kernels
 		*/
@@ -135,6 +150,7 @@ namespace neo {
 		cl::Kernel _inhibitKernel;
 		cl::Kernel _modulateKernel;
 		cl::Kernel _copyActionKernel;
+		//!@}
 
 	public:
 		/*!

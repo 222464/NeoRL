@@ -51,11 +51,13 @@ namespace neo {
 			*/
 			DoubleBuffer3D _weights;
 
+			//!@{
 			/*!
 			\brief Transformations
 			*/
 			cl_float2 _hiddenToVisible;
 			cl_float2 _visibleToHidden;
+			//!@}
 
 			/*!
 			\brief Radius onto hidden (reverse from visible layer desc)
@@ -64,6 +66,7 @@ namespace neo {
 		};
 
 	private:
+		//!@{
 		/*!
 		\brief Spiking, resulting state, activations, and neuron threshold buffers
 		*/
@@ -71,6 +74,7 @@ namespace neo {
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenActivations;
 		DoubleBuffer2D _hiddenThresholds;
+		//!@}
 
 		/*!
 		\brief Lateral (inhibition) weights
@@ -92,12 +96,15 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenSummationTemp;
 
+		//!@{
 		/*!
 		\brief Visible layers and descs
 		*/
 		std::vector<VisibleLayerDesc> _visibleLayerDescs;
 		std::vector<VisibleLayer> _visibleLayers;
+		//!@}
 
+		//!@{
 		/*!
 		\brief Kernels
 		*/
@@ -108,6 +115,7 @@ namespace neo {
 		cl::Kernel _learnWeightsKernel;
 		cl::Kernel _learnWeightsTracesKernel;
 		cl::Kernel _learnWeightsLateralKernel;
+		//!@}
 
 		/*!
 		\brief Reconstruct and find error to inputs
@@ -130,11 +138,13 @@ namespace neo {
 		*/
 		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, cl_int iterations, cl_float leak);
 
+		//!@{
 		/*!
 		\brief Learn functions, with and without eligibility traces/rewards
 		*/
 		void learn(sys::ComputeSystem &cs, float weightAlpha, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
 		void learnTrace(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightAlpha, float weightLateralAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio);
+		//!@}
 
 		/*!
 		\brief Get number of visible layers
