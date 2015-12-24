@@ -48,7 +48,7 @@ int main() {
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 8;
-	layerDescs[0]._useTraces = true;
+	layerDescs[0]._useTraces = false;
 
 	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, 0.0f, generator);
 

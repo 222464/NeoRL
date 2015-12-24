@@ -327,7 +327,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleErrors, read_only i
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * ((error - weightPrev) * visibleState + (visibleError - weightPrev) * state);
+				float weight = weightPrev + weightAlpha * (error * visibleState + visibleError * state);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
@@ -364,7 +364,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * ((error - weightPrev.x) * visibleState + (visibleError - weightPrev.x) * state));
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * (error * visibleState + visibleError * state));
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
 			}
@@ -1331,7 +1331,7 @@ void kernel phBaseLineUpdate(read_only image2d_t errorsCurrent, read_only image2
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = (baseLinePrev - correctness) > 0.0f ? 1.0f : 0.0f;
+	float reward = (correctness - baseLinePrev) > 0.0f ? 1.0f : 0.0f;
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * correctness;
 
@@ -1353,7 +1353,7 @@ void kernel phBaseLineUpdateSumError(read_only image2d_t errorsLower, read_only 
 
 	float baseLinePrev = read_imagef(baseLinesBack, position).x;
 
-	float reward = (baseLinePrev - correctness) > 0.0f ? 1.0f : 0.0f;
+	float reward = (correctness - baseLinePrev) > 0.0f ? 1.0f : 0.0f;
 
 	float baseLine = (1.0f - decay) * baseLinePrev + decay * correctness;
 
