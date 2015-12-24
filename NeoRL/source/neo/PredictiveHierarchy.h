@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ComparisonSparseCoder.h"
+#include "SparseCoder.h"
 #include "Predictor.h"
 
 namespace neo {
@@ -27,11 +27,14 @@ namespace neo {
 			/*!
 			\brief Sparse coder parameters
 			*/
+			cl_int _scIterations;
+			cl_float _scLeak;
 			cl_float _scWeightAlpha;
 			cl_float _scWeightRecurrentAlpha;
 			cl_float _scWeightLambda;
+			cl_float _scLateralAlpha;
+			cl_float _scThresholdAlpha;
 			cl_float _scActiveRatio;
-			cl_float _scBoostAlpha;
 			//!@}
 
 			//!@{
@@ -53,10 +56,11 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scWeightAlpha(0.0002f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.05f), _scBoostAlpha(0.0005f),
+				_scIterations(17), _scLeak(0.04f),
+				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.0005f), _scWeightLambda(0.95f),
+				_scLateralAlpha(0.1f), _scThresholdAlpha(0.01f), _scActiveRatio(0.02f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha(0.005f)
+				_predWeightAlpha(0.1f)
 			{}
 		};
 
@@ -68,7 +72,7 @@ namespace neo {
 			/*!
 			\brief Sparse coder and predictor
 			*/
-			ComparisonSparseCoder _sc;
+			SparseCoder _sc;
 			Predictor _pred;
 			//!@}
 
@@ -112,7 +116,7 @@ namespace neo {
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
-			cl_float2 initWeightRange, float initThreshold,
+			cl_float2 initWeightRange, cl_float2 initInhibitionRange, float initThreshold,
 			std::mt19937 &rng);
 
 		/*!

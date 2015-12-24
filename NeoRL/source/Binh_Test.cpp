@@ -32,16 +32,18 @@ int main()
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 16, 16 };
-	layerDescs[1]._size = { 16, 16 };
-	layerDescs[2]._size = { 16, 16 };
+	layerDescs[0]._size = { 8, 8 };
+	layerDescs[0]._predictiveRadius = 8;
+	layerDescs[0]._feedBackRadius = 8;
+	layerDescs[1]._size = { 8, 8 };
+	layerDescs[2]._size = { 8, 8 };
 
 	neo::PredictiveHierarchy ph;
 
-	//ph.createRandom(cs, prog, { 2, 2 }, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
-	std::ifstream is("binh_save.neo");
+	ph.createRandom(cs, prog, { 2, 2 }, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, generator);
+	//std::ifstream is("binh_save.neo");
 
-	ph.readFromStream(cs, prog, is);
+	//ph.readFromStream(cs, prog, is);
 
 #ifdef _USE_ECG_DATA
 	std::ifstream input("e:/ecgsyn.dat");
