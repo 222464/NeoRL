@@ -23,6 +23,14 @@ namespace neo {
 			*/
 			cl_int _radius;
 
+			//!@{
+			/*!
+			\brief Learning parameters
+			*/
+			cl_float _weightAlpha;
+			cl_float _weightLambda;
+			//!@}
+
 			/*!
 			\brief Whether or not to ignore middle node
 			When recurrent, ignore middle node (self) if desired
@@ -30,10 +38,16 @@ namespace neo {
 			bool _ignoreMiddle;
 
 			/*!
+			\brief Whether or not to use eligibility traces
+			*/
+			bool _useTraces;
+
+			/*!
 			\brief Initialize defaults
 			*/
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _radius(4), _ignoreMiddle(false)
+				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.01f), _weightLambda(0.95f),
+				_ignoreMiddle(false), _useTraces(false)
 			{}
 		};
 
@@ -129,7 +143,6 @@ namespace neo {
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float2 initLateralWeightRange, cl_float initThreshold,
-			bool enableTraces,
 			std::mt19937 &rng);
 
 		/*!
@@ -142,8 +155,8 @@ namespace neo {
 		/*!
 		\brief Learn functions, with and without eligibility traces/rewards
 		*/
-		void learn(sys::ComputeSystem &cs, float weightAlpha, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
-		void learnTrace(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightAlpha, float weightLateralAlpha, float weightTraceLambda, float thresholdAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
 		//!@}
 
 		/*!
