@@ -45,7 +45,7 @@ namespace neo {
 			\brief Initialize defaults
 			*/
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.001f), _weightLambda(0.95f),
+				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.0001f), _weightLambda(0.95f),
 				_ignoreMiddle(false), _useTraces(false)
 			{}
 		};

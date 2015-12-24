@@ -120,7 +120,7 @@ int main() {
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
 
-	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 6, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
 	
 	std::vector<int> actionIndices;
 
