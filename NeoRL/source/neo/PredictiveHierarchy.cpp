@@ -4,18 +4,18 @@ using namespace neo;
 
 void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
-	cl_float2 initWeightRange, cl_float2 initInhibitionRange, float initThreshold,
+	cl_float2 initWeightRange, float initThreshold,
 	std::mt19937 &rng)
 {
 	_layerDescs = layerDescs;
 	_layers.resize(_layerDescs.size());
 
-	cl_int2 prevLayerSize = inputSize;
+	cl_int2 prelayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<SparseCoder::VisibleLayerDesc> scDescs(2);
+		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
 
-		scDescs[0]._size = prevLayerSize;
+		scDescs[0]._size = prelayerSize;
 		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
 		scDescs[0]._ignoreMiddle = false;
 		scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
@@ -29,7 +29,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
 		scDescs[1]._useTraces = true;
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initInhibitionRange, initThreshold, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, rng);
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
@@ -49,7 +49,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 		}
 
-		_layers[l]._pred.createRandom(cs, program, predDescs, prevLayerSize, initWeightRange, rng);
+		_layers[l]._pred.createRandom(cs, program, predDescs, prelayerSize, initWeightRange, rng);
 
 		// Create baselines
 		_layers[l]._baseLines = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
@@ -82,10 +82,10 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStates[0] = prelayerState;
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
 			if (learn)
-				_layers[l]._sc.learn(cs, _layers[l]._reward, _layerDescs[l]._scLateralAlpha, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
+				_layers[l]._sc.learn(cs, _layers[l]._reward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
 
 		// Get reward
@@ -198,11 +198,10 @@ void PredictiveHierarchy::writeToStream(sys::ComputeSystem &cs, std::ostream &os
 
 		// Desc
 		os << ld._size.x << " " << ld._size.y << " " << ld._feedForwardRadius << " " << ld._recurrentRadius << " " << ld._lateralRadius << " " << ld._feedBackRadius << " " << ld._predictiveRadius << std::endl;
-		os << ld._scIterations << " " << ld._scLeak << std::endl; 
-		os << ld._scWeightAlpha << " " << ld._scWeightRecurrentAlpha << " " << ld._scWeightLambda << " " << ld._scLateralAlpha << " " << ld._scThresholdAlpha << " " << ld._scActiveRatio << std::endl;
+		os << ld._scWeightAlpha << " " << ld._scWeightRecurrentAlpha << " " << ld._scWeightLambda << " " << ld._scActiveRatio << " " << ld._scBoostAlpha << std::endl;
 		os << ld._baseLineDecay << " " << ld._baseLineSensitivity << " " << ld._predWeightAlpha << std::endl;
 
-		//l._sc.writeToStream(cs, os);
+		l._sc.writeToStream(cs, os);
 		l._pred.writeToStream(cs, os);
 
 		// Layer
@@ -256,7 +255,7 @@ void PredictiveHierarchy::readFromStream(sys::ComputeSystem &cs, sys::ComputePro
 
 		// Desc
 		is >> ld._size.x >> ld._size.y >> ld._feedForwardRadius >> ld._recurrentRadius >> ld._lateralRadius >> ld._feedBackRadius >> ld._predictiveRadius;
-		//is >> ld._scWeightAlpha >> ld._scWeightRecurrentAlpha >> ld._scWeightLambda >> ld._scActiveRatio >> ld._scBoostAlpha;
+		is >> ld._scWeightAlpha >> ld._scWeightRecurrentAlpha >> ld._scWeightLambda >> ld._scActiveRatio >> ld._scBoostAlpha;
 		is >> ld._baseLineDecay >> ld._baseLineSensitivity >> ld._predWeightAlpha;
 
 		l._baseLines = createDoubleBuffer2D(cs, ld._size, CL_R, CL_FLOAT);
@@ -265,7 +264,7 @@ void PredictiveHierarchy::readFromStream(sys::ComputeSystem &cs, sys::ComputePro
 
 		l._scHiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
 
-		//l._sc.readFromStream(cs, program, is);
+		l._sc.readFromStream(cs, program, is);
 		l._pred.readFromStream(cs, program, is);
 
 		// Layer

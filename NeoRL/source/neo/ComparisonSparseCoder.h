@@ -138,7 +138,7 @@ namespace neo {
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs,
-			cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float initBias,
+			cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float initThreshold,
 			std::mt19937 &rng);
 
 		/*!
@@ -150,8 +150,8 @@ namespace neo {
 		/*!
 		\brief Learn, with and without use of rewards + eligibility traces
 		*/
-		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float boostAlpha, float boostDecay, float boostRatio);
-		void learn(sys::ComputeSystem &cs, const cl::Image2D &rewards, std::vector<cl::Image2D> &visibleStates, float boostAlpha, float boostDecay, float boostRatio);
+		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float boostAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, const cl::Image2D &rewards, std::vector<cl::Image2D> &visibleStates, float boostAlpha, float activeRatio);
 		//!@}
 
 		/*!
