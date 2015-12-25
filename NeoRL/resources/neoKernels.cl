@@ -253,13 +253,11 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only im
 	
 	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
-	float offsetActivation = activation + read_imagef(hiddenBiases, hiddenPosition).x;
-
 	float statePrev = read_imagef(hiddenStatesBack, hiddenPosition).x;
 
 	int2 fieldLowerBound = hiddenPosition - (int2)(radius);
 
-	float inhibition = read_imagef(hiddenBiases, hiddenPosition).x;
+	float inhibition = 0.0f;
 
 	float counter = 0.0f;
 
@@ -273,7 +271,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only im
 			if (inBounds0(otherPosition, hiddenSize)) {
 				float otherActivation = read_imagef(hiddenSummationTemp, otherPosition).x;
 
-				inhibition += otherActivation >= offsetActivation ? 1.0f : 0.0f;
+				inhibition += otherActivation >= activation ? 1.0f : 0.0f;
 
 				counter++;
 			}
