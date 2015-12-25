@@ -106,8 +106,8 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
-		cs.getQueue().enqueueCopyImage(_hiddenBiases[_back], _hiddenActivationSummationTemp[_back], zeroOrigin, zeroOrigin, hiddenRegion);
-		//cs.getQueue().enqueueFillImage(_hiddenActivationSummationTemp[_back], cl_float4 { 0.0f, 0.0f, 0.0f, 0.0f }, zeroOrigin, hiddenRegion);
+		//cs.getQueue().enqueueCopyImage(_hiddenBiases[_back], _hiddenActivationSummationTemp[_back], zeroOrigin, zeroOrigin, hiddenRegion);
+		cs.getQueue().enqueueFillImage(_hiddenActivationSummationTemp[_back], cl_float4 { 0.0f, 0.0f, 0.0f, 0.0f }, zeroOrigin, hiddenRegion);
 	}
 
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -150,6 +150,7 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 		int argIndex = 0;
 
 		_solveHiddenKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
+		_solveHiddenKernel.setArg(argIndex++, _hiddenBiases[_back]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_back]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenSize);

@@ -245,7 +245,7 @@ void kernel cscActivateIgnoreMiddle(read_only image2d_t visibleStates,
 	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum));
 }
 
-void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp,
+void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only image2d_t hiddenBiases,
 	read_only image2d_t hiddenStatesBack, write_only image2d_t hiddenStatesFront,
 	int2 hiddenSize, int radius, float activeRatio)
 {
@@ -257,7 +257,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp,
 
 	int2 fieldLowerBound = hiddenPosition - (int2)(radius);
 
-	float inhibition = 0.0f;
+	float inhibition = read_imagef(hiddenBiases, hiddenPosition).x;
 
 	float counter = 0.0f;
 
@@ -277,28 +277,26 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float r = counter * activeRatio;
-
-	float state = inhibition < r ? 1.0f : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
 
-void kernel cscLearnHiddenBiases(read_only image2d_t visibleBiasesBack, write_only image2d_t visibleBiasesFront,
+void kernel cscLearnHiddenBiases(read_only image2d_t biasesBack, write_only image2d_t biasesFront,
 	read_only image2d_t hiddenErrors, read_only image2d_t hiddenStates,
 	float boostAlpha, float activeRatio)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	
-	float biasPrev = read_imagef(visibleBiasesBack, hiddenPosition).x;
+	float biasPrev = read_imagef(biasesBack, hiddenPosition).x;
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 
 	//float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
 
-	float bias = biasPrev + boostAlpha * (activeRatio - (state == 0.0f ? 0.0f : 1.0f));
+	float bias = biasPrev + boostAlpha * (state - activeRatio);
 
-	write_imagef(visibleBiasesFront, hiddenPosition, (float4)(bias));
+	write_imagef(biasesFront, hiddenPosition, (float4)(bias));
 }
 
 void kernel cscLearnHiddenWeights(read_only image2d_t visibleErrors, read_only image2d_t visibleStates,
@@ -313,7 +311,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleErrors, read_only i
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	
-	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
+	float error = read_imagef(hiddenErrors, hiddenPosition).x * state;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -329,7 +327,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleErrors, read_only i
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * state * (visibleError - weightPrev * state);
+				float weight = weightPrev + weightAlpha * (visibleError * state);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
@@ -350,7 +348,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
+	float error = read_imagef(hiddenErrors, hiddenPosition).x * state;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -366,7 +364,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * state * (visibleError - weightPrev.x * state));
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * (visibleError * state));
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
 			}
