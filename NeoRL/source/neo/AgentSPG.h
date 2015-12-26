@@ -74,12 +74,12 @@ namespace neo {
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(6), _predictiveRadius(6),
 				_qRadiusHiddenFeedForwardAttention(4), _qRadiusHiddenRecurrentAttention(4), _qRadiusHiddenAction(4), _qRadius(4),
 				_startRadiusHiddenFeedForwardAttention(4), _startRadiusHiddenRecurrentAttention(4), _startRadiusHiddenAction(4),
-				_scWeightAlpha(0.0002f), _scWeightRecurrentAlpha(0.00001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.05f), _scBoostAlpha(0.001f),
+				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.00005f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.04f), _scBoostAlpha(0.005f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha({ 0.005f, 0.002f, 0.01f }),
+				_predWeightAlpha({ 0.02f, 0.01f, 0.05f }),
 				_predWeightLambda({ 0.95f, 0.95f }),
-				_gamma(0.99f), _noise(0.04f),
+				_gamma(0.99f), _noise(0.05f),
 				_minAttention(0.05f)
 			{}
 		};

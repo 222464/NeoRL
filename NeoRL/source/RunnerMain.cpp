@@ -294,19 +294,19 @@ int main() {
 			float scale = 4.0f;
 
 			for (int l = 0; l < layerDescs.size(); l++) {
-				std::vector<float> data(layerDescs[l]._hiddenSize.x * layerDescs[l]._hiddenSize.y * 2);
+				std::vector<float> data(agent.getLayer(l)._predAction.getHiddenSize().x * agent.getLayer(l)._predAction.getHiddenSize().y * 2);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l)._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._hiddenSize.x), static_cast<cl::size_type>(layerDescs[l]._hiddenSize.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l)._predAction.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(agent.getLayer(l)._predAction.getHiddenSize().x), static_cast<cl::size_type>(agent.getLayer(l)._predAction.getHiddenSize().y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 
-				img.create(layerDescs[l]._hiddenSize.x, layerDescs[l]._hiddenSize.y);
+				img.create(agent.getLayer(l)._predAction.getHiddenSize().x, agent.getLayer(l)._predAction.getHiddenSize().y);
 
 				for (int x = 0; x < img.getSize().x; x++)
 					for (int y = 0; y < img.getSize().y; y++) {
 						sf::Color c = sf::Color::White;
 
-						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * (data[(x + y * img.getSize().x) * 1 + 0]));
+						c.r = c.b = c.g = 255.0f * sigmoid(2.0f * (data[(x + y * img.getSize().x) * 2 + 1]));
 
 						img.setPixel(x, y, c);
 					}
@@ -324,6 +324,8 @@ int main() {
 				window.draw(s);
 
 				xOffset += img.getSize().x * scale;
+
+				std::cout << "Q: " << data[1] << std::endl;
 			}
 
 			window.setView(view);
