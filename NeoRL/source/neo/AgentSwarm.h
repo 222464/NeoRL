@@ -86,9 +86,9 @@ namespace neo {
 				_scActiveRatio(0.06f), _scBoostAlpha(0.01f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
 				_predWeightAlpha(0.01f),
-				_swarmAnnealingIterations(17), _swarmActionDeriveAlpha(0.08f),
-				_swarmQAlpha(0.0005f), _swarmQHiddenAlpha(0.001f),
-				_swarmPredAlpha(0.5f), _swarmLambda(0.95f), _swarmGamma(0.99f),
+				_swarmAnnealingIterations(1), _swarmActionDeriveAlpha(0.08f),
+				_swarmQAlpha(0.01f), _swarmQHiddenAlpha(0.1f),
+				_swarmPredAlpha(0.01f), _swarmLambda(0.95f), _swarmGamma(0.99f),
 				_swarmExpPert(0.1f), _swarmExpBreak(0.03f),
 				_minAttention(0.05f)
 			{}

@@ -20,8 +20,6 @@ namespace neo {
 			\brief Radii
 			*/
 			cl_int _feedForwardRadius, _recurrentRadius, _lateralRadius, _feedBackRadius, _predictiveRadius;
-			cl_int _qRadiusHiddenFeedForwardAttention, _qRadiusHiddenRecurrentAttention, _qRadiusHiddenAction, _qRadius;
-			cl_int _startRadiusHiddenFeedForwardAttention, _startRadiusHiddenRecurrentAttention, _startRadiusHiddenAction;
 			//!@}
 
 			//!@{
@@ -71,13 +69,11 @@ namespace neo {
 			*/
 			LayerDesc()
 				: _hiddenSize({ 8, 8 }),
-				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(6), _predictiveRadius(6),
-				_qRadiusHiddenFeedForwardAttention(4), _qRadiusHiddenRecurrentAttention(4), _qRadiusHiddenAction(4), _qRadius(4),
-				_startRadiusHiddenFeedForwardAttention(4), _startRadiusHiddenRecurrentAttention(4), _startRadiusHiddenAction(4),
+				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(5), _predictiveRadius(5),
 				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.00005f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.04f), _scBoostAlpha(0.005f),
+				_scActiveRatio(0.05f), _scBoostAlpha(0.005f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha({ 0.02f, 0.01f, 0.05f }),
+				_predWeightAlpha({ 0.01f, 0.001f, 0.0f }),
 				_predWeightLambda({ 0.95f, 0.95f }),
 				_gamma(0.99f), _noise(0.05f),
 				_minAttention(0.05f)
