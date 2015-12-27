@@ -112,10 +112,10 @@ int main() {
 
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._hiddenSize = { 16, 16 };
+	layerDescs[0]._hiddenSize = { 8, 8 };
 	//layerDescs[0]._predWeightAlpha = { 0.5f, 0.01f, 0.01f };
-	layerDescs[1]._hiddenSize = { 16, 16 };
-	layerDescs[2]._hiddenSize = { 16, 16 };
+	layerDescs[1]._hiddenSize = { 8, 8 };
+	layerDescs[2]._hiddenSize = { 8, 8 };
 
 	neo::AgentSPG agent;
 

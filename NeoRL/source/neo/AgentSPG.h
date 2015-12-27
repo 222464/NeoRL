@@ -70,10 +70,10 @@ namespace neo {
 			LayerDesc()
 				: _hiddenSize({ 8, 8 }),
 				_feedForwardRadius(4), _recurrentRadius(4), _lateralRadius(4), _feedBackRadius(5), _predictiveRadius(5),
-				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.00005f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.05f), _scBoostAlpha(0.005f),
+				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.0005f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.05f), _scBoostAlpha(0.002f),
 				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha({ 0.01f, 0.001f, 0.0f }),
+				_predWeightAlpha({ 0.5f, 0.002f, 0.1f }),
 				_predWeightLambda({ 0.95f, 0.95f }),
 				_gamma(0.99f), _noise(0.05f),
 				_minAttention(0.05f)
