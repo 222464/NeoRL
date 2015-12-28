@@ -35,10 +35,6 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 
 		vl._reverseRadii = cl_int2{ static_cast<int>(std::ceil(vl._visibleToHidden.x * vld._radius)), static_cast<int>(std::ceil(vl._visibleToHidden.y * vld._radius)) };
 
-		vl._errors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
-
-		cs.getQueue().enqueueFillImage(vl._errors, zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), 1 });
-
 		int weightDiam = vld._radius * 2 + 1;
 
 		int numWeights = weightDiam * weightDiam;
@@ -53,23 +49,17 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 	// Hidden state data
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
-	_hiddenActivations = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
-
 	_hiddenSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
 	cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
-	cs.getQueue().enqueueFillImage(_hiddenActivations[_back], zeroColor, zeroOrigin, hiddenRegion);
 
 	// Create kernels
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivate");
-	_solveHiddenThresholdKernel = cl::Kernel(program.getProgram(), "predSolveHiddenThreshold");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHidden");
-	_errorPropagateKernel = cl::Kernel(program.getProgram(), "predErrorPropagate");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "predLearnWeights");
-	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTraces");
 }
 
-void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold) {
+void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates) {
 	// Start by clearing summation buffer
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -100,54 +90,18 @@ void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> 
 		std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 	}
 
-	if (threshold) {
-		int argIndex = 0;
-
-		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
-		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenStates[_back]);
-		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenStates[_front]);
-		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenActivations[_back]);
-		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenActivations[_front]);
-
-		cs.getQueue().enqueueNDRangeKernel(_solveHiddenThresholdKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
-	}
-	else {
+	{
 		int argIndex = 0;
 
 		_solveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_back]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
-		_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_back]);
-		_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_front]);
-
+	
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 
 	// Swap hidden state buffers
 	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
-	std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
-}
-
-void Predictor::propagateError(sys::ComputeSystem &cs, const cl::Image2D &targets) {
-	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
-		VisibleLayer &vl = _visibleLayers[vli];
-		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
-
-		int argIndex = 0;
-
-		_errorPropagateKernel.setArg(argIndex++, targets);
-		_errorPropagateKernel.setArg(argIndex++, _hiddenStates[_front]);
-		_errorPropagateKernel.setArg(argIndex++, vl._errors);
-		_errorPropagateKernel.setArg(argIndex++, vl._weights[_back]);
-		_errorPropagateKernel.setArg(argIndex++, vld._size);
-		_errorPropagateKernel.setArg(argIndex++, _hiddenSize);
-		_errorPropagateKernel.setArg(argIndex++, vl._visibleToHidden);
-		_errorPropagateKernel.setArg(argIndex++, vl._hiddenToVisible);
-		_errorPropagateKernel.setArg(argIndex++, vld._radius);
-		_errorPropagateKernel.setArg(argIndex++, vl._reverseRadii);
-
-		cs.getQueue().enqueueNDRangeKernel(_errorPropagateKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
-	}
 }
 
 void Predictor::learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha) {
@@ -184,17 +138,6 @@ void Predictor::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 
 		for (int si = 0; si < hiddenStates.size(); si++)
 			os << hiddenStates[si] << " ";
-
-		os << std::endl;
-	}
-
-	{
-		std::vector<cl_float> hiddenActivations(_hiddenSize.x * _hiddenSize.y);
-
-		cs.getQueue().enqueueReadImage(_hiddenActivations[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenActivations.data());
-
-		for (int bi = 0; bi < hiddenActivations.size(); bi++)
-			os << hiddenActivations[bi] << " ";
 
 		os << std::endl;
 	}
@@ -237,8 +180,6 @@ void Predictor::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
-	_hiddenActivations = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
-
 	_hiddenSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
 	{
@@ -249,15 +190,6 @@ void Predictor::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 		cs.getQueue().enqueueWriteImage(_hiddenStates[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenStates.data());
 
-	}
-
-	{
-		std::vector<cl_float> hiddenActivations(_hiddenSize.x * _hiddenSize.y);
-
-		for (int bi = 0; bi < hiddenActivations.size(); bi++)
-			is >> hiddenActivations[bi];
-
-		cs.getQueue().enqueueWriteImage(_hiddenActivations[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 }, 0, 0, hiddenActivations.data());
 	}
 
 	// Layer information
@@ -276,8 +208,6 @@ void Predictor::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 		is >> vld._size.x >> vld._size.y >> vld._radius;
 
 		// Layer
-		vl._errors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
-
 		int weightDiam = vld._radius * 2 + 1;
 
 		int numWeights = weightDiam * weightDiam;
@@ -302,9 +232,6 @@ void Predictor::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	// Create kernels
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivate");
-	_solveHiddenThresholdKernel = cl::Kernel(program.getProgram(), "predSolveHiddenThreshold");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHidden");
-	_errorPropagateKernel = cl::Kernel(program.getProgram(), "predErrorPropagate");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "predLearnWeights");
-	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTraces");
 }

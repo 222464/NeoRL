@@ -36,11 +36,6 @@ namespace neo {
 		*/
 		struct VisibleLayer {
 			/*!
-			\brief Propagated prediction errors
-			*/
-			cl::Image2D _errors;
-
-			/*!
 			\brief Weights
 			*/
 			DoubleBuffer3D _weights;
@@ -65,7 +60,6 @@ namespace neo {
 		\brief Hidden states and activations
 		*/
 		DoubleBuffer2D _hiddenStates;
-		DoubleBuffer2D _hiddenActivations;
 		//!@}
 
 		/*!
@@ -91,11 +85,8 @@ namespace neo {
 		\brief Kernels
 		*/
 		cl::Kernel _activateKernel;
-		cl::Kernel _solveHiddenThresholdKernel;
 		cl::Kernel _solveHiddenKernel;
-		cl::Kernel _errorPropagateKernel;
 		cl::Kernel _learnWeightsKernel;
-		cl::Kernel _learnWeightsTracesKernel;
 		//!@}
 
 	public:
@@ -110,17 +101,11 @@ namespace neo {
 		/*!
 		\brief Activate predictor
 		*/
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold);
-
-		/*!
-		\brief Propagate prediction errors back to inputs based on targets
-		*/
-		void propagateError(sys::ComputeSystem &cs, const cl::Image2D &targets);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
 
 		//!@{
 		/*!
-		\brief Learning functions
-		Learn with and without using eligibility traces/reward
+		\brief Learning function
 		*/
 		void learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha);
 		//!@}

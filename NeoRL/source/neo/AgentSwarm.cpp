@@ -4,7 +4,7 @@ using namespace neo;
 
 void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerPredictorRadius, const std::vector<LayerDesc> &layerDescs,
-	cl_float2 initWeightRange, float initThreshold,
+	cl_float2 initWeightRange,
 	std::mt19937 &rng)
 {
 	_layerDescs = layerDescs;
@@ -29,7 +29,7 @@ void AgentSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
 		scDescs[1]._useTraces = false;
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._hiddenSize, _layerDescs[l]._lateralRadius, initWeightRange, initThreshold, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._hiddenSize, _layerDescs[l]._lateralRadius, initWeightRange, rng);
 
 		_layers[l]._modulatedFeedForwardInput = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), prevLayerSize.x, prevLayerSize.y);
 
@@ -177,7 +177,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 		}
 
 		// Get reward
-		if (l == 0) {
+		/*if (l == 0) {
 			int argIndex = 0;
 
 			_baseLineUpdateKernel.setArg(argIndex++, _layers[l]._pred.getVisibleLayer(0)._errors);
@@ -203,7 +203,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 			_baseLineUpdateSumErrorKernel.setArg(argIndex++, _layerDescs[l]._baseLineSensitivity);
 
 			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateSumErrorKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._hiddenSize.x, _layerDescs[l]._hiddenSize.y));
-		}
+		}*/
 
 		prevLayerState = _layers[l]._sc.getHiddenStates()[_back];
 		prevLayerSize = _layerDescs[l]._hiddenSize;
@@ -224,12 +224,12 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates, true);
+		_layers[l]._pred.activate(cs, visibleStates);
 
-		if (l == 0)
-			_layers[l]._pred.propagateError(cs, input);
-		else
-			_layers[l]._pred.propagateError(cs, _layers[l - 1]._sc.getHiddenStates()[_back]);
+		//if (l == 0)
+		//	_layers[l]._pred.propagateError(cs, input);
+		//else
+		//	_layers[l]._pred.propagateError(cs, _layers[l - 1]._sc.getHiddenStates()[_back]);
 	}
 
 	for (int l = _layers.size() - 1; l >= 0; l--) {

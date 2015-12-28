@@ -34,14 +34,6 @@ namespace neo {
 			cl_float _scBoostAlpha;
 			//!@}
 
-			//!@{
-			/*!
-			\brief Baseline parameters
-			*/
-			cl_float _baseLineDecay;
-			cl_float _baseLineSensitivity;
-			//!@}
-
 			/*!
 			\brief Predictor parameters
 			*/
@@ -53,10 +45,9 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scWeightAlpha(0.0005f), _scWeightRecurrentAlpha(0.0002f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.1f), _scBoostAlpha(0.004f),
-				_baseLineDecay(0.01f), _baseLineSensitivity(0.01f),
-				_predWeightAlpha(0.1f)
+				_scWeightAlpha(0.0002f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.01f), _scBoostAlpha(0.05f),
+				_predWeightAlpha(0.01f)
 			{}
 		};
 
@@ -73,11 +64,6 @@ namespace neo {
 			//!@}
 
 			/*!
-			\brief Baselines
-			*/
-			DoubleBuffer2D _baseLines;
-
-			/*!
 			\brief Rewards for sparse coder
 			*/
 			cl::Image2D _reward;
@@ -89,6 +75,11 @@ namespace neo {
 		};
 
 	private:
+		/*!
+		\brief Store input size
+		*/
+		cl_int2 _inputSize;
+
 		//!@{
 		/*!
 		\brief Layers and descs
@@ -97,22 +88,46 @@ namespace neo {
 		std::vector<LayerDesc> _layerDescs;
 		//!@}
 
-		//!@{
 		/*!
-		\brief Kernels
+		\brief Kernels for reward
 		*/
-		cl::Kernel _baseLineUpdateKernel;
-		cl::Kernel _baseLineUpdateSumErrorKernel;
-		//!@}
+		cl::Kernel _predictionRewardKernel;
+
+		/*!
+		\brief Predictor (first layer)
+		*/
+		Predictor _firstLayerPred;
+
+		/*!
+		\brief Rewards for sparse coder (first layer)
+		*/
+		cl::Image2D _firstLayerReward;
+
+		/*!
+		\brief Previous hidden states (first layer)
+		*/
+		cl::Image2D _firstLayerHiddenStatesPrev;
 
 	public:
+		/*!
+		\brief Learning rate for first layer predictor
+		*/
+		cl_float _firstLayerPredWeightAlpha;
+
+		/*!
+		\brief Initialize defaults
+		*/
+		PredictiveHierarchy()
+			: _firstLayerPredWeightAlpha(0.01f)
+		{}
+
 		/*!
 		\brief Create a comparison sparse coder with random initialization
 		Requires the compute system, program with the NeoRL kernels, and initialization information
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
-			cl_float2 initWeightRange, float initThreshold,
+			cl_int2 inputSize, cl_int firstLayerFeedBackRadius, cl_int firstLayerPredictiveRadius, const std::vector<LayerDesc> &layerDescs,
+			cl_float2 initWeightRange,
 			std::mt19937 &rng);
 
 		/*!
@@ -160,7 +175,7 @@ namespace neo {
 		\brief Get first layer predictor (contains predictions for input)
 		*/
 		const Predictor &getFirstLayerPred() const {
-			return _layers.front()._pred;
+			return _firstLayerPred;
 		}
 	};
 }

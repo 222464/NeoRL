@@ -6,7 +6,7 @@ using namespace neo;
 
 void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	const std::vector<VisibleLayerDesc> &visibleLayerDescs,
-	cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange, cl_float initThreshold,
+	cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange,
 	std::mt19937 &rng)
 {
 	_visibleLayerDescs = visibleLayerDescs;
@@ -76,6 +76,7 @@ void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputePro
 	_learnHiddenBiasesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenBiases");
 	_learnHiddenWeightsKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeights");
 	_learnHiddenWeightsTracesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsTraces");
+	_forwardKernel = cl::Kernel(program.getProgram(), "cscForward");
 }
 
 void ComparisonSparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates) {
@@ -311,6 +312,29 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const cl::Image2D &rew
 		}
 
 		std::swap(vl._weights[_front], vl._weights[_back]);
+	}
+}
+
+void ComparisonSparseCoder::reconstruct(sys::ComputeSystem &cs, const cl::Image2D &hiddenStates, std::vector<cl::Image2D> &reconstruction) {
+	assert(reconstruction.size() == _visibleLayers.size());
+
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		int argIndex = 0;
+
+		_forwardKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_forwardKernel.setArg(argIndex++, reconstruction[vli]);
+		_forwardKernel.setArg(argIndex++, vl._weights[_back]);
+		_forwardKernel.setArg(argIndex++, vld._size);
+		_forwardKernel.setArg(argIndex++, _hiddenSize);
+		_forwardKernel.setArg(argIndex++, vl._visibleToHidden);
+		_forwardKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_forwardKernel.setArg(argIndex++, vld._radius);
+		_forwardKernel.setArg(argIndex++, vl._reverseRadii);
+
+		cs.getQueue().enqueueNDRangeKernel(_forwardKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 	}
 }
 
