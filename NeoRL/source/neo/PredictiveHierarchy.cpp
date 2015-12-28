@@ -10,12 +10,12 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	_layerDescs = layerDescs;
 	_layers.resize(_layerDescs.size());
 
-	cl_int2 prelayerSize = inputSize;
+	cl_int2 prevLayerState = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
 		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
 
-		scDescs[0]._size = prelayerSize;
+		scDescs[0]._size = prevLayerState;
 		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
 		scDescs[0]._ignoreMiddle = false;
 		scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
@@ -49,7 +49,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 		}
 
-		_layers[l]._pred.createRandom(cs, program, predDescs, prelayerSize, initWeightRange, rng);
+		_layers[l]._pred.createRandom(cs, program, predDescs, prevLayerState, initWeightRange, rng);
 
 		// Create baselines
 		_layers[l]._baseLines = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
@@ -66,7 +66,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		cs.getQueue().enqueueFillImage(_layers[l]._baseLines[_back], zeroColor, zeroOrigin, layerRegion);
 		cs.getQueue().enqueueFillImage(_layers[l]._scHiddenStatesPrev, zeroColor, zeroOrigin, layerRegion);
 
-		prelayerSize = _layerDescs[l]._size;
+		prevLayerState = _layerDescs[l]._size;
 	}
 
 	_baseLineUpdateKernel = cl::Kernel(program.getProgram(), "phBaseLineUpdate");
@@ -75,13 +75,13 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 
 void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn) {
 	// Feed forward
-	cl::Image2D prelayerState = input;
+	cl::Image2D prevLayerState = input;
 
 	for (int l = 0; l < _layers.size(); l++) {
 		{
 			std::vector<cl::Image2D> visibleStates(2);
 
-			visibleStates[0] = prelayerState;
+			visibleStates[0] = prevLayerState;
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
@@ -119,7 +119,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			cs.getQueue().enqueueNDRangeKernel(_baseLineUpdateSumErrorKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 		}
 
-		prelayerState = _layers[l]._sc.getHiddenStates()[_back];
+		prevLayerState = _layers[l]._sc.getHiddenStates()[_back];
 	}
 
 	for (int l = _layers.size() - 1; l >= 0; l--) {
