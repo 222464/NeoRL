@@ -51,7 +51,7 @@ int main() {
 	layerDescs[0]._useTraces = false;
 	layerDescs[0]._weightAlpha = 0.001f;
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, 0.0f, generator);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 

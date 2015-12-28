@@ -55,11 +55,6 @@ namespace neo {
 		*/
 		struct VisibleLayer {
 			/*!
-			\brief Reconstruction error
-			*/
-			cl::Image2D _reconstructionError;
-
-			/*!
 			\brief Weights
 			*/
 			DoubleBuffer3D _weights;
@@ -102,7 +97,6 @@ namespace neo {
 		\brief Temporary summation buffers
 		*/
 		DoubleBuffer2D _hiddenActivationSummationTemp;
-		DoubleBuffer2D _hiddenErrorSummationTemp;
 		//!@}
 
 		//!@{
@@ -117,20 +111,13 @@ namespace neo {
 		/*!
 		\brief Kernels
 		*/
-		cl::Kernel _forwardErrorKernel;
 		cl::Kernel _activateKernel;
 		cl::Kernel _activateIgnoreMiddleKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnHiddenBiasesKernel;
 		cl::Kernel _learnHiddenWeightsKernel;
 		cl::Kernel _learnHiddenWeightsTracesKernel;
-		cl::Kernel _forwardKernel;
 		//!@}
-
-		/*!
-		\brief Reconstruct and find error with input for all visible layers
-		*/
-		void reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
 
 	public:
 		/*!
@@ -154,11 +141,6 @@ namespace neo {
 		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float boostAlpha, float activeRatio);
 		void learn(sys::ComputeSystem &cs, const cl::Image2D &rewards, std::vector<cl::Image2D> &visibleStates, float boostAlpha, float activeRatio);
 		//!@}
-
-		/*!
-		\brief Reconstruct input from hidden states
-		*/
-		void reconstruct(sys::ComputeSystem &cs, const cl::Image2D &hiddenStates, std::vector<cl::Image2D> &reconstruction);
 
 		/*!
 		\brief Clear working memory

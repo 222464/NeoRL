@@ -28,17 +28,19 @@ int main()
 
 	// --------------------------- Create the Sparse Coder ---------------------------
 
-	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 2, 2);
+	std::vector<float> inputBuffer(8 * 8, 0.0f);
 
-	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(1);
+	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 8, 8);
 
-	layerDescs[0]._size = { 16, 16 };
-	//layerDescs[1]._size = { 16, 16 };
-	//layerDescs[2]._size = { 16, 16 };
+	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
+
+	layerDescs[0]._size = { 32, 32 };
+	layerDescs[1]._size = { 32, 32 };
+	layerDescs[2]._size = { 32, 32 };
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 2, 2 }, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+	ph.createRandom(cs, prog, { 8, 8 }, 12, layerDescs, { -0.01f, 0.01f }, generator);
 	//std::ifstream is("binh_save.neo");
 
 	//ph.readFromStream(cs, prog, is);
@@ -124,25 +126,31 @@ int main()
 			// z - index of PQRSTU: P=1, Q=2, R= 3, S=4, T=5, U=6
 			float value = y*4;	// without amplifying the amplitude, it is very difficult to make a sequence pattern QRST
 #else
-			float value = anomalyOffset + anomalyAmpl*std::sin(0.125f * 3.141596f * index * anomalyFreq + anomalyPhase) + 0.5f * std::sin(0.3f * 3.141596f * index * anomalyFreq + anomalyPhase);
+			float value = anomalyOffset + anomalyAmpl*std::sin(0.25f * 3.141596f * index * anomalyFreq + anomalyPhase) + 0.5f * std::sin(0.164f * 3.141596f * index * anomalyFreq + anomalyPhase);
 #endif
 
-			std::vector<float> vals(4);
+			inputBuffer.clear();
+			inputBuffer.assign(8 * 8, 0.0f);
 
-			vals[0] = value;
-			vals[1] = value - 1.0f;
-			vals[2] = value + 1.0f;
-			vals[3] = value * 2.0f;
+			inputBuffer[static_cast<int>(64.0f * (0.5f * value * 0.5f + 0.5f))] = 1.0f;
 
-			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 2, 2, 1 }, 0, 0, vals.data());
+			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, inputBuffer.data());
 
 			ph.simStep(cs, inputImage);
 
-			std::vector<float> res(4);
+			std::vector<float> res(64);
 
-			cs.getQueue().enqueueReadImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 2, 2, 1 }, 0, 0, res.data());
+			cs.getQueue().enqueueReadImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, res.data());
 
-			std::vector<float> sdr(64);
+			int maxIndex = 0;
+
+			for (int i = 1; i < 64; i++)
+				if (res[i] > res[maxIndex])
+					maxIndex = i;
+
+			float v = (maxIndex / 64.0f - 0.5f) / 0.5f / 0.5f;
+
+			/*std::vector<float> sdr(64);
 
 			cs.getQueue().enqueueReadImage(ph.getLayer(0)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, sdr.data());
 
@@ -151,7 +159,7 @@ int main()
 					std::cout << sdr[x + y * 8] << " ";
 
 				std::cout << std::endl;
-			}
+			}*/
 
 			// plot target data
 			vis::Point p;
@@ -163,7 +171,7 @@ int main()
 			// plot predicted data
 			vis::Point p1;
 			p1._position.x = index;
-			p1._position.y = res[0];
+			p1._position.y = v;
 			p1._color = sf::Color::Blue;
 			plot._curves[1]._points.push_back(p1);
 

@@ -59,7 +59,7 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "predLearnWeights");
 }
 
-void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates) {
+void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold) {
 	// Start by clearing summation buffer
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -90,7 +90,7 @@ void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> 
 		std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 	}
 
-	{
+	if (threshold) {
 		int argIndex = 0;
 
 		_solveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
@@ -99,6 +99,8 @@ void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> 
 	
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
+	else
+		cs.getQueue().enqueueCopyImage(_hiddenSummationTemp[_back], _hiddenStates[_front], { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 });
 
 	// Swap hidden state buffers
 	std::swap(_hiddenStates[_front], _hiddenStates[_back]);

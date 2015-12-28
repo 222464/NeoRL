@@ -132,7 +132,7 @@ int main() {
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { dimV, dimV }, layerDescs, { -0.001f, 0.001f }, 0.0f, generator);
+	ph.createRandom(cs, prog, { dimV, dimV }, 12, layerDescs, { -0.001f, 0.001f }, generator);
 
 	sf::SoundBuffer buffer;
 

@@ -67,7 +67,7 @@ int main() {
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 64, 64 }, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+	ph.createRandom(cs, prog, { 64, 64 }, 12, layerDescs, { -0.01f, 0.01f }, generator);
 
 	float avgError = 1.0f;
 
