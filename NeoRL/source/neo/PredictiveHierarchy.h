@@ -9,13 +9,6 @@ namespace neo {
 	*/
 	class PredictiveHierarchy {
 	public:
-		//!@{
-		/*!
-		\brief Constants for parameter descriptions
-		*/
-		static const cl_int NO_PREDICTIVE_RADIUS = -1;
-		//!@}
-
 		/*!
 		\brief Layer desc
 		*/
@@ -53,7 +46,7 @@ namespace neo {
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.02f), _scBoostAlpha(0.0001f),
+				_scActiveRatio(0.1f), _scBoostAlpha(0.005f),
 				_predWeightAlpha(0.01f)
 			{}
 		};
@@ -121,7 +114,6 @@ namespace neo {
 		/*!
 		\brief Create a comparison sparse coder with random initialization
 		Requires the compute system, program with the NeoRL kernels, and initialization information.
-		If firstLayerPredictiveRadius is NO_PREDICTIVE_RADIUS, it is unused.
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			cl_int2 inputSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,

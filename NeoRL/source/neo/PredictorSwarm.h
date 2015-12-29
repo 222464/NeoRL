@@ -36,11 +36,6 @@ namespace neo {
 		*/
 		struct VisibleLayer {
 			/*!
-			\brief Propagated prediction errors
-			*/
-			cl::Image2D _errors;
-
-			/*!
 			\brief Weights
 			*/
 			DoubleBuffer3D _weights;
@@ -93,7 +88,6 @@ namespace neo {
 		cl::Kernel _solveHiddenThresholdKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnWeightsTracesKernel;
-		cl::Kernel _errorPropagateKernel;
 		//!@}
 
 	public:
@@ -113,12 +107,7 @@ namespace neo {
 		/*!
 		\brief Learn with RL + prediction error
 		*/
-		void learnTrace(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float3 weightAlpha, cl_float2 weightLambda);
-
-		/*!
-		\brief Propagate prediction errors back to inputs based on targets
-		*/
-		void propagateError(sys::ComputeSystem &cs, const cl::Image2D &targets);
+		void learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float3 weightAlpha, cl_float2 weightLambda);
 
 		/*!
 		\brief Get number of visible layers

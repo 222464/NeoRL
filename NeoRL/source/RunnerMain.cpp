@@ -112,17 +112,17 @@ int main() {
 
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._hiddenSize = { 8, 8 };
+	layerDescs[0]._size = { 8, 8 };
 	//layerDescs[0]._predWeightAlpha = { 0.5f, 0.01f, 0.01f };
-	layerDescs[1]._hiddenSize = { 8, 8 };
-	layerDescs[2]._hiddenSize = { 8, 8 };
+	layerDescs[1]._size = { 8, 8 };
+	layerDescs[2]._size = { 8, 8 };
 
 	neo::AgentSPG agent;
 
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
 
-	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 8, layerDescs, { -0.01f, 0.01f }, generator);
 	
 	std::vector<int> actionIndices;
 
@@ -132,7 +132,7 @@ int main() {
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 5, 5);
 	std::vector<float> inputs(25, 0.0f);
 
-	std::vector<float> actions(16, 0.0f);
+	std::vector<float> actions(32, 0.0f);
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -146,8 +146,6 @@ int main() {
 
 	int steps = 0;
 	
-	std::vector<float> action(3 + 3 + 2 + 2);
-
 	std::vector<sf::Texture> layerTextures(layerDescs.size());
 
 	do {
@@ -199,16 +197,18 @@ int main() {
 
 			agent.simStep(cs, reward, inputImage, generator);
 
-			cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
+			cs.getQueue().enqueueReadImage(agent.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
 
 			cs.getQueue().finish();
 
-			//for (int i = 0; i < actions.size(); i++)
-			//	actions[i] = actions[i] * 0.5f + 0.5f;
+			std::vector<float> finalActions(16);
+
+			for (int i = 0; i < finalActions.size(); i++)
+				finalActions[i] = actions[i * 2 + 0];
 
 			//std::cout << std::endl;
 
-			runner0.motorUpdate(actions, 12.0f);
+			runner0.motorUpdate(finalActions, 12.0f);
 
 			// Keep upright
 			if (std::abs(runner0._pBody->GetAngle()) > maxRunnerBodyAngle)
@@ -292,7 +292,7 @@ int main() {
 
 			window.setView(window.getDefaultView());
 
-			float xOffset = 0.0f;
+			/*float xOffset = 0.0f;
 			float scale = 4.0f;
 
 			for (int l = 0; l < layerDescs.size(); l++) {
@@ -328,7 +328,7 @@ int main() {
 				xOffset += img.getSize().x * scale;
 
 				std::cout << "Q: " << data[1] << std::endl;
-			}
+			}*/
 
 			window.setView(view);
 

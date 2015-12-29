@@ -30,8 +30,6 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 
 		vl._reverseRadii = cl_int2{ static_cast<int>(std::ceil(vl._visibleToHidden.x * vld._radius)), static_cast<int>(std::ceil(vl._visibleToHidden.y * vld._radius)) };
 
-		vl._errors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
-
 		int weightDiam = vld._radius * 2 + 1;
 
 		int numWeights = weightDiam * weightDiam;
@@ -63,29 +61,6 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 	_solveHiddenThresholdKernel = cl::Kernel(program.getProgram(), "predSolveHiddenThresholdSwarm");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHiddenSwarm");
 	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarm");
-	_errorPropagateKernel = cl::Kernel(program.getProgram(), "predErrorPropagateSwarm");
-}
-
-void PredictorSwarm::propagateError(sys::ComputeSystem &cs, const cl::Image2D &targets) {
-	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
-		VisibleLayer &vl = _visibleLayers[vli];
-		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
-
-		int argIndex = 0;
-
-		_errorPropagateKernel.setArg(argIndex++, targets);
-		_errorPropagateKernel.setArg(argIndex++, _hiddenStates[_front]);
-		_errorPropagateKernel.setArg(argIndex++, vl._errors);
-		_errorPropagateKernel.setArg(argIndex++, vl._weights[_back]);
-		_errorPropagateKernel.setArg(argIndex++, vld._size);
-		_errorPropagateKernel.setArg(argIndex++, _hiddenSize);
-		_errorPropagateKernel.setArg(argIndex++, vl._visibleToHidden);
-		_errorPropagateKernel.setArg(argIndex++, vl._hiddenToVisible);
-		_errorPropagateKernel.setArg(argIndex++, vld._radius);
-		_errorPropagateKernel.setArg(argIndex++, vl._reverseRadii);
-
-		cs.getQueue().enqueueNDRangeKernel(_errorPropagateKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
-	}
 }
 
 void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold, float noise, std::mt19937 &rng) {
@@ -155,7 +130,7 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 	std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
 }
 
-void PredictorSwarm::learnTrace(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float3 weightAlpha, cl_float2 weightLambda) {
+void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float3 weightAlpha, cl_float2 weightLambda) {
 	// Learn weights
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 		VisibleLayer &vl = _visibleLayers[vli];
