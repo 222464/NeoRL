@@ -97,18 +97,19 @@ int main() {
 
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(1);
 
-	layerDescs[0]._hiddenSize = { 16, 16 };
+	layerDescs[0]._size = { 16, 16 };
 
 	//layerDescs[1]._hiddenSize = { 16, 16 };
 	//layerDescs[1]._qSize = { 8, 8 };
 
 	neo::AgentSPG agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.01f, 0.01f }, 0.0f, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.01f, 0.01f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	std::vector<float> input(inWidth * inHeight, 0.0f);
 	std::vector<float> action(aWidth * aHeight, 0.0f);
+	std::vector<float> actionTemp(2 * aWidth * aHeight, 0.0f);
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -220,7 +221,10 @@ int main() {
 
 		agent.simStep(cs, reward, inputImage, generator);
 
-		cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
+		cs.getQueue().enqueueReadImage(agent.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
+
+		for (int i = 0; i < action.size(); i++)
+			action[i] = actionTemp[i * 2 + 0];
 
 		float act = 0.0f;
 
@@ -275,13 +279,13 @@ int main() {
 			float scale = 4.0f;
 
 			for (int l = 0; l < layerDescs.size(); l++) {
-				std::vector<float> data(layerDescs[l]._hiddenSize.x * layerDescs[l]._hiddenSize.y);
+				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l)._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._hiddenSize.x), static_cast<cl::size_type>(layerDescs[l]._hiddenSize.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 
-				img.create(layerDescs[l]._hiddenSize.x, layerDescs[l]._hiddenSize.y);
+				img.create(layerDescs[l]._size.x, layerDescs[l]._size.y);
 
 				for (int x = 0; x < img.getSize().x; x++)
 					for (int y = 0; y < img.getSize().y; y++) {

@@ -91,6 +91,7 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
 
 		cs.getQueue().enqueueFillImage(_layers[l]._scHiddenStatesPrev, zeroColor, zeroOrigin, layerRegion);
+		cs.getQueue().enqueueFillImage(_layers[l]._reward, zeroColor, zeroOrigin, layerRegion);
 	}
 
 	// First layer stuff
@@ -163,7 +164,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates, true, _layerDescs[l]._noise, rng);
+		_layers[l]._pred.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, _layerDescs[l]._noise, rng);
 	}
 
 	// First layer
@@ -174,7 +175,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 
 		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
 
-		_firstLayerPred.activate(cs, visibleStates, false, _firstLayerNoise, rng);
+		_firstLayerPred.activate(cs, visibleStates, 1.0f, -1, _firstLayerNoise, rng);
 	}
 
 	if (learn) {

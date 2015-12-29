@@ -52,18 +52,20 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 	_hiddenActivations = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
 
 	_hiddenSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
+	
+	_inhibitionTemp = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_RG, CL_FLOAT), _hiddenSize.x, _hiddenSize.y);
 
 	cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
 	cs.getQueue().enqueueFillImage(_hiddenActivations[_back], zeroColor, zeroOrigin, hiddenRegion);
 
 	// Create kernels
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivateSwarm");
-	_solveHiddenThresholdKernel = cl::Kernel(program.getProgram(), "predSolveHiddenThresholdSwarm");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHiddenSwarm");
 	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarm");
+	_inhibitKernel = cl::Kernel(program.getProgram(), "predInhibitSwarm");
 }
 
-void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold, float noise, std::mt19937 &rng) {
+void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio, int inhibitionRadius, float noise, std::mt19937 &rng) {
 	// Start by clearing summation buffer
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -98,20 +100,7 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 
 	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 
-	if (threshold) {
-		int argIndex = 0;
-
-		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
-		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenStates[_back]);
-		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenStates[_front]);
-		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenActivations[_back]);
-		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenActivations[_front]);
-		_solveHiddenThresholdKernel.setArg(argIndex++, noise);
-		_solveHiddenThresholdKernel.setArg(argIndex++, seed);
-
-		cs.getQueue().enqueueNDRangeKernel(_solveHiddenThresholdKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
-	}
-	else {
+	{
 		int argIndex = 0;
 
 		_solveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
@@ -123,6 +112,22 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 		_solveHiddenKernel.setArg(argIndex++, seed);
 
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+	}
+
+	// If non-one active ratio, then inhibit
+	if (activeRatio != 1.0f && inhibitionRadius != -1) {
+		int argIndex = 0;
+
+		_inhibitKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_inhibitKernel.setArg(argIndex++, _inhibitionTemp);
+		_inhibitKernel.setArg(argIndex++, _hiddenSize);
+		_inhibitKernel.setArg(argIndex++, inhibitionRadius);
+		_inhibitKernel.setArg(argIndex++, activeRatio);
+
+		cs.getQueue().enqueueNDRangeKernel(_inhibitKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+		// Copy to front
+		cs.getQueue().enqueueCopyImage(_inhibitionTemp, _hiddenStates[_front], { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 });
 	}
 
 	// Swap hidden state buffers

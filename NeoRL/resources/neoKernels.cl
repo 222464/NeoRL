@@ -822,7 +822,7 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 	
 	float2 sum = read_imagef(hiddenSummationTemp, hiddenPosition).xy;
 	
-	float s = sum.x > 0.5f ? 1.0f : 0.0f;
+	float s = sigmoid(sum.x);
 
 	float2 state = (float2)(randFloat(&seedValue) < noise ? randFloat(&seedValue) : s, sum.y);
 	
@@ -874,6 +874,41 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}
 		}
+}
+
+void kernel predInhibitSwarm(read_only image2d_t activations,
+	write_only image2d_t states,
+	int2 size, int radius, float activeRatio)
+{
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float activation = read_imagef(activations, position).x;
+
+	int2 fieldLowerBound = position - (int2)(radius);
+
+	float inhibition = 0.0f;
+
+	float counter = 0.0f;
+
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			if (dx == 0 && dy == 0)
+				continue;
+			
+			int2 otherPosition = position + (int2)(dx, dy);
+
+			if (inBounds0(otherPosition, size)) {
+				float otherActivation = read_imagef(activations, otherPosition).x;
+
+				inhibition += otherActivation >= activation ? 1.0f : 0.0f;
+
+				counter++;
+			}
+		}
+
+	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
+
+	write_imagef(states, position, (float4)(state));
 }
 
 // ----------------------------------------- Predictor Swarm -----------------------------------------
@@ -1267,41 +1302,6 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 	float reward = 1.0f - pred * state;
 
 	write_imagef(rewards, position, (float4)(reward));
-}
-
-void kernel phInhibit(read_only image2d_t activations,
-	write_only image2d_t states,
-	int2 size, int radius, float activeRatio)
-{
-	int2 position = (int2)(get_global_id(0), get_global_id(1));
-	
-	float activation = read_imagef(activations, position).x;
-
-	int2 fieldLowerBound = position - (int2)(radius);
-
-	float inhibition = 0.0f;
-
-	float counter = 0.0f;
-
-	for (int dx = -radius; dx <= radius; dx++)
-		for (int dy = -radius; dy <= radius; dy++) {
-			if (dx == 0 && dy == 0)
-				continue;
-			
-			int2 otherPosition = position + (int2)(dx, dy);
-
-			if (inBounds0(otherPosition, size)) {
-				float otherActivation = read_imagef(activations, otherPosition).x;
-
-				inhibition += otherActivation >= activation ? 1.0f : 0.0f;
-
-				counter++;
-			}
-		}
-
-	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
-
-	write_imagef(states, position, (float4)(state));
 }
 
 void kernel phModulate(read_only image2d_t inputsLeft, read_only image2d_t inputsRight,

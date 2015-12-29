@@ -72,6 +72,11 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenSummationTemp;
 
+		/*!
+		\brief Inhibition temporary buffer
+		*/
+		cl::Image2D _inhibitionTemp;
+
 		//!@{
 		/*!
 		\brief Visible layers and descs
@@ -85,9 +90,9 @@ namespace neo {
 		\brief Kernels
 		*/
 		cl::Kernel _activateKernel;
-		cl::Kernel _solveHiddenThresholdKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnWeightsTracesKernel;
+		cl::Kernel _inhibitKernel;
 		//!@}
 
 	public:
@@ -101,8 +106,9 @@ namespace neo {
 
 		/*!
 		\brief Activate predictor
+		Specify a non-one active ratio and non-negative-one inhibition radius to inhibit the result
 		*/
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold, float noise, std::mt19937 &rng);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio, int inhibitionRadius, float noise, std::mt19937 &rng);
 
 		/*!
 		\brief Learn with RL + prediction error
