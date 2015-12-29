@@ -83,14 +83,11 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 		// Create baselines
 		_layers[l]._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
 
-		_layers[l]._scHiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
-
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
 
-		cs.getQueue().enqueueFillImage(_layers[l]._scHiddenStatesPrev, zeroColor, zeroOrigin, layerRegion);
 		cs.getQueue().enqueueFillImage(_layers[l]._reward, zeroColor, zeroOrigin, layerRegion);
 	}
 
@@ -121,14 +118,14 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 				visibleStates.resize(2);
 
 				visibleStates[0] = _layers[l - 1]._sc.getHiddenStates()[_back];
-				visibleStates[1] = _layers[l]._scHiddenStatesPrev;
+				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 			else {
 				visibleStates.resize(3);
 
 				visibleStates[0] = input;
 				visibleStates[1] = _firstLayerPred.getHiddenStates()[_back];
-				visibleStates[2] = _layers[l]._scHiddenStatesPrev;
+				visibleStates[2] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
@@ -185,13 +182,13 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			if (l < _layers.size() - 1) {
 				visibleStatesPrev.resize(2);
 
-				visibleStatesPrev[0] = _layers[l]._scHiddenStatesPrev;
+				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 				visibleStatesPrev[1] = _layers[l + 1]._pred.getHiddenStates()[_front];
 			}
 			else {
 				visibleStatesPrev.resize(1);
 
-				visibleStatesPrev[0] = _layers[l]._scHiddenStatesPrev;
+				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
 			_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._lambda);
@@ -208,25 +205,11 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			_firstLayerPred.learn(cs, reward, _firstLayerGamma, _firstLayerPred.getHiddenStates()[_back], visibleStatesPrev, _firstLayerPredWeightAlpha, _firstLayerLambda);
 		}
 	}
-
-	// Buffer updates
-	for (int l = 0; l < _layers.size(); l++) {
-		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
-
-		cs.getQueue().enqueueCopyImage(_layers[l]._sc.getHiddenStates()[_back], _layers[l]._scHiddenStatesPrev, zeroOrigin, zeroOrigin, layerRegion);
-	}
 }
 
 void AgentSPG::clearMemory(sys::ComputeSystem &cs) {
-	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-
-	for (int l = 0; l < _layers.size(); l++) {
-		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
-
-		cs.getQueue().enqueueFillImage(_layers[l]._scHiddenStatesPrev, zeroColor, zeroOrigin, layerRegion);
-	}
+	for (int l = 0; l < _layers.size(); l++)
+		_layers[l]._sc.clearMemory(cs);
 }
 
 void AgentSPG::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
@@ -258,17 +241,6 @@ void AgentSPG::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 		}
 
 		os << std::endl;
-
-		{
-			std::vector<cl_float> hiddenStatesPrev(ld._size.x * ld._size.y);
-
-			cs.getQueue().enqueueReadImage(l._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, hiddenStatesPrev.data());
-
-			for (int si = 0; si < hiddenStatesPrev.size(); si++)
-				os << hiddenStatesPrev[si] << " ";
-		}
-
-		os << std::endl;
 	}
 }
 
@@ -294,8 +266,6 @@ void AgentSPG::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 		l._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
 
-		l._scHiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
-
 		l._sc.readFromStream(cs, program, is);
 		//l._pred.readFromStream(cs, program, is);
 
@@ -307,15 +277,6 @@ void AgentSPG::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 				is >> rewards[ri];
 
 			cs.getQueue().enqueueWriteImage(l._reward, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, rewards.data());
-		}
-
-		{
-			std::vector<cl_float> hiddenStatesPrev(ld._size.x * ld._size.y);
-
-			for (int si = 0; si < hiddenStatesPrev.size(); si++)
-				is >> hiddenStatesPrev[si];
-
-			cs.getQueue().enqueueWriteImage(l._scHiddenStatesPrev, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, hiddenStatesPrev.data());
 		}
 	}
 

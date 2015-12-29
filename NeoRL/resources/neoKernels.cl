@@ -868,7 +868,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 				float newYTrace = weightPrev.y * weightLambda.x + randError * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.z * predError * statePrev + weightAlpha.x * tdError * newYTrace, newYTrace,
+				float4 weight = (float4)(weightPrev.x + weightAlpha.z * predError * statePrev + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
 						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
@@ -882,7 +882,7 @@ void kernel predInhibitSwarm(read_only image2d_t activations,
 {
 	int2 position = (int2)(get_global_id(0), get_global_id(1));
 	
-	float activation = read_imagef(activations, position).x;
+	float2 activation = read_imagef(activations, position).xy;
 
 	int2 fieldLowerBound = position - (int2)(radius);
 
@@ -900,7 +900,7 @@ void kernel predInhibitSwarm(read_only image2d_t activations,
 			if (inBounds0(otherPosition, size)) {
 				float otherActivation = read_imagef(activations, otherPosition).x;
 
-				inhibition += otherActivation >= activation ? 1.0f : 0.0f;
+				inhibition += otherActivation >= activation.x ? 1.0f : 0.0f;
 
 				counter++;
 			}
@@ -908,7 +908,7 @@ void kernel predInhibitSwarm(read_only image2d_t activations,
 
 	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
 
-	write_imagef(states, position, (float4)(state));
+	write_imagef(states, position, (float4)(state, activation.y, 0.0f, 0.0f));
 }
 
 // ----------------------------------------- Predictor Swarm -----------------------------------------

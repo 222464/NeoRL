@@ -112,10 +112,10 @@ int main() {
 
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 8, 8 };
+	layerDescs[0]._size = { 16, 16 };
 	//layerDescs[0]._predWeightAlpha = { 0.5f, 0.01f, 0.01f };
-	layerDescs[1]._size = { 8, 8 };
-	layerDescs[2]._size = { 8, 8 };
+	layerDescs[1]._size = { 16, 16 };
+	layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentSPG agent;
 
@@ -148,6 +148,8 @@ int main() {
 	
 	std::vector<sf::Texture> layerTextures(layerDescs.size());
 
+	float avgReward = 0.0f;
+
 	do {
 		clock.restart();
 
@@ -178,7 +180,7 @@ int main() {
 		{
 			float reward;
 			
-			if (!sf::Keyboard::isKeyPressed(sf::Keyboard::K))
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::K))
 				reward = -runner0._pBody->GetLinearVelocity().x;
 			else
 				reward = runner0._pBody->GetLinearVelocity().x;
@@ -194,6 +196,10 @@ int main() {
 				inputs[i] = state[i];
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 5, 5, 1 }, 0, 0, inputs.data());
+			
+			avgReward = (1.0f - 0.001f) * avgReward + 0.001f * reward;
+
+			std::cout << avgReward << std::endl;
 
 			agent.simStep(cs, reward, inputImage, generator);
 
