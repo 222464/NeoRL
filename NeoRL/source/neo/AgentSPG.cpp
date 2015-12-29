@@ -8,28 +8,55 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 	std::mt19937 &rng)
 {
 	_inputSize = inputSize;
+	_actionSize = actionSize;
 
 	_layerDescs = layerDescs;
 	_layers.resize(_layerDescs.size());
 
-	cl_int2 prevLayerSize = inputSize;
-
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
+		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs;
 
-		scDescs[0]._size = prevLayerSize;
-		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
-		scDescs[0]._ignoreMiddle = false;
-		scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
-		scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
-		scDescs[0]._useTraces = true;
+		if (l != 0) {
+			scDescs.resize(2);
 
-		scDescs[1]._size = _layerDescs[l]._size;
-		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
-		scDescs[1]._ignoreMiddle = true;
-		scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
-		scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
-		scDescs[1]._useTraces = true;
+			scDescs[0]._size = _layerDescs[l - 1]._size;
+			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
+			scDescs[0]._ignoreMiddle = false;
+			scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
+			scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
+			scDescs[0]._useTraces = true;
+
+			scDescs[1]._size = _layerDescs[l]._size;
+			scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
+			scDescs[1]._ignoreMiddle = true;
+			scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
+			scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
+			scDescs[1]._useTraces = true;
+		}
+		else {
+			scDescs.resize(3);
+
+			scDescs[0]._size = _inputSize;
+			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
+			scDescs[0]._ignoreMiddle = false;
+			scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
+			scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
+			scDescs[0]._useTraces = true;
+
+			scDescs[1]._size = _actionSize;
+			scDescs[1]._radius = _layerDescs[l]._feedForwardRadius;
+			scDescs[1]._ignoreMiddle = false;
+			scDescs[1]._weightAlpha = _layerDescs[l]._scWeightAlpha;
+			scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
+			scDescs[1]._useTraces = true;
+
+			scDescs[2]._size = _layerDescs[l]._size;
+			scDescs[2]._radius = _layerDescs[l]._recurrentRadius;
+			scDescs[2]._ignoreMiddle = true;
+			scDescs[2]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
+			scDescs[2]._weightLambda = _layerDescs[l]._scWeightLambda;
+			scDescs[2]._useTraces = true;
+		}
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
 
@@ -64,8 +91,6 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
 
 		cs.getQueue().enqueueFillImage(_layers[l]._scHiddenStatesPrev, zeroColor, zeroOrigin, layerRegion);
-
-		prevLayerSize = _layerDescs[l]._size;
 	}
 
 	// First layer stuff
@@ -87,14 +112,23 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 
 void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn) {
 	// Feed forward
-	cl::Image2D prevLayerState = input;
-
 	for (int l = 0; l < _layers.size(); l++) {
 		{
-			std::vector<cl::Image2D> visibleStates(2);
+			std::vector<cl::Image2D> visibleStates;
 
-			visibleStates[0] = prevLayerState;
-			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
+			if (l != 0) {
+				visibleStates.resize(2);
+
+				visibleStates[0] = _layers[l - 1]._sc.getHiddenStates()[_back];
+				visibleStates[1] = _layers[l]._scHiddenStatesPrev;
+			}
+			else {
+				visibleStates.resize(3);
+
+				visibleStates[0] = input;
+				visibleStates[1] = _firstLayerPred.getHiddenStates()[_back];
+				visibleStates[2] = _layers[l]._scHiddenStatesPrev;
+			}
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
@@ -112,8 +146,6 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			if (learn)
 				_layers[l]._sc.learn(cs, _layers[l]._reward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
-
-		prevLayerState = _layers[l]._sc.getHiddenStates()[_back];
 	}
 
 	for (int l = _layers.size() - 1; l >= 0; l--) {
