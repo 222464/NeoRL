@@ -161,7 +161,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates, true, _layerDescs[l]._noise, rng);
+		_layers[l]._pred.activate(cs, visibleStates, true, _layerDescs[l]._noise, rng); //_layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, 
 	}
 
 	// First layer

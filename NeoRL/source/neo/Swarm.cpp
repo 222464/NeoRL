@@ -211,7 +211,7 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 		}
 
 		{
-			std::uniform_int_distribution<int> seedDist;
+			std::uniform_int_distribution<int> seedDist(0, 999);
 
 			cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 
@@ -256,7 +256,7 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-		std::uniform_int_distribution<int> seedDist;
+		std::uniform_int_distribution<int> seedDist(0, 999);
 
 		cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 
@@ -303,7 +303,7 @@ void Swarm::simStep(sys::ComputeSystem &cs, float reward,
 		}
 
 		{
-			std::uniform_int_distribution<int> seedDist;
+			std::uniform_int_distribution<int> seedDist(0, 999);
 
 			cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 

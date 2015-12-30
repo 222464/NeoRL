@@ -112,10 +112,10 @@ int main() {
 
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 16, 16 };
-	//layerDescs[0]._predWeightAlpha = { 0.5f, 0.01f, 0.01f };
-	layerDescs[1]._size = { 16, 16 };
-	layerDescs[2]._size = { 16, 16 };
+	layerDescs[0]._size = { 32, 32 };
+	//layerDescs[0].32 = { 0.5f, 0.01f, 0.01f };
+	layerDescs[1]._size = { 16, 32 };
+	layerDescs[2]._size = { 32, 32 };
 
 	neo::AgentSPG agent;
 
@@ -133,6 +133,7 @@ int main() {
 	std::vector<float> inputs(25, 0.0f);
 
 	std::vector<float> actions(32, 0.0f);
+
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -201,7 +202,7 @@ int main() {
 
 			std::cout << avgReward << std::endl;
 
-			agent.simStep(cs, reward, inputImage, generator);
+			agent.simStep(cs, reward * 100.0f, inputImage, generator);
 
 			cs.getQueue().enqueueReadImage(agent.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
 

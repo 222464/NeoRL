@@ -23,7 +23,7 @@ DoubleBuffer3D neo::createDoubleBuffer3D(sys::ComputeSystem &cs, cl_int3 size, c
 void neo::randomUniform(cl::Image2D &image2D, sys::ComputeSystem &cs, cl::Kernel &randomUniform2DKernel, cl_int2 size, cl_float2 range, std::mt19937 &rng) {
 	int argIndex = 0;
 
-	std::uniform_int_distribution<int> seedDist;
+	std::uniform_int_distribution<int> seedDist(0, 999);
 
 	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 
@@ -37,7 +37,7 @@ void neo::randomUniform(cl::Image2D &image2D, sys::ComputeSystem &cs, cl::Kernel
 void neo::randomUniform(cl::Image3D &image3D, sys::ComputeSystem &cs, cl::Kernel &randomUniform3DKernel, cl_int3 size, cl_float2 range, std::mt19937 &rng) {
 	int argIndex = 0;
 
-	std::uniform_int_distribution<int> seedDist;
+	std::uniform_int_distribution<int> seedDist(0, 999);
 
 	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 
@@ -51,7 +51,7 @@ void neo::randomUniform(cl::Image3D &image3D, sys::ComputeSystem &cs, cl::Kernel
 void neo::randomUniformXY(cl::Image2D &image2D, sys::ComputeSystem &cs, cl::Kernel &randomUniform2DXYKernel, cl_int2 size, cl_float2 range, std::mt19937 &rng) {
 	int argIndex = 0;
 
-	std::uniform_int_distribution<int> seedDist;
+	std::uniform_int_distribution<int> seedDist(0, 999);
 
 	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 
@@ -65,7 +65,7 @@ void neo::randomUniformXY(cl::Image2D &image2D, sys::ComputeSystem &cs, cl::Kern
 void neo::randomUniformXY(cl::Image3D &image3D, sys::ComputeSystem &cs, cl::Kernel &randomUniform3DXYKernel, cl_int3 size, cl_float2 range, std::mt19937 &rng) {
 	int argIndex = 0;
 
-	std::uniform_int_distribution<int> seedDist;
+	std::uniform_int_distribution<int> seedDist(0, 999);
 
 	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 
@@ -79,7 +79,7 @@ void neo::randomUniformXY(cl::Image3D &image3D, sys::ComputeSystem &cs, cl::Kern
 void neo::randomUniformXZ(cl::Image2D &image2D, sys::ComputeSystem &cs, cl::Kernel &randomUniform2DXZKernel, cl_int2 size, cl_float2 range, std::mt19937 &rng) {
 	int argIndex = 0;
 
-	std::uniform_int_distribution<int> seedDist;
+	std::uniform_int_distribution<int> seedDist(0, 999);
 
 	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 
@@ -93,7 +93,7 @@ void neo::randomUniformXZ(cl::Image2D &image2D, sys::ComputeSystem &cs, cl::Kern
 void neo::randomUniformXZ(cl::Image3D &image3D, sys::ComputeSystem &cs, cl::Kernel &randomUniform3DXZKernel, cl_int3 size, cl_float2 range, std::mt19937 &rng) {
 	int argIndex = 0;
 
-	std::uniform_int_distribution<int> seedDist;
+	std::uniform_int_distribution<int> seedDist(0, 999);
 
 	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 

@@ -97,7 +97,7 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 		std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 	}
 
-	std::uniform_int_distribution<int> seedDist;
+	std::uniform_int_distribution<int> seedDist(0, 999);
 
 	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 
@@ -164,7 +164,7 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 		std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 	}
 
-	std::uniform_int_distribution<int> seedDist;
+	std::uniform_int_distribution<int> seedDist(0, 999);
 
 	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
 

@@ -788,10 +788,10 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 	
 	float s = sum.x > 0.5f ? 1.0f : 0.0f;
 
-	float2 state = (float2)(randFloat(&seedValue) < noise ? 1.0f - s : s, sum.y);
+	float2 state = (float2)(s, sum.y);//(float2)(randFloat(&seedValue) < noise ? 1.0f - s : s, sum.y);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
-	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s, sum.y, 0.0f, 0.0f));
+	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(sum.x, sum.y, 0.0f, 0.0f));
 }
 
 void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, 
@@ -812,7 +812,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 
 	float randError = predPrev.x - predActPrev;
 
-	float tdError = reward + gamma * state.y - predPrev.y;
+	float tdError = reward - predPrev.y;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -832,8 +832,8 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 				float newYTrace = weightPrev.y * weightLambda.x + predError * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * fmax(0.0f, tdError) * newYTrace, newYTrace,
-						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
+						weightPrev.z + weightAlpha.y * tdError * statePrev, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}
