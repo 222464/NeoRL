@@ -251,7 +251,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only im
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	
-	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;
+	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x + read_imagef(hiddenBiases, hiddenPosition).x;
 
 	float statePrev = read_imagef(hiddenStatesBack, hiddenPosition).x;
 
@@ -345,26 +345,24 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	
-	if (state != 0.0f) {
-		for (int dx = -radius; dx <= radius; dx++)
-			for (int dy = -radius; dy <= radius; dy++) {
-				int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
 
-				if (inBounds0(visiblePosition, visibleSize)) {
-					int2 offset = visiblePosition - fieldLowerBound;
+			if (inBounds0(visiblePosition, visibleSize)) {
+				int2 offset = visiblePosition - fieldLowerBound;
 
-					int wi = offset.y + offset.x * (radius * 2 + 1);
+				int wi = offset.y + offset.x * (radius * 2 + 1);
 
-					float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
+				float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
 
-					float visibleState = read_imagef(visibleStates, visiblePosition).x;
+				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-					float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * state * (visibleState - state * weightPrev.x));
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * state * (visibleState - state * weightPrev.x));
 
-					write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
-				}
+				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
 			}
-	}
+		}
 }
 
 // ----------------------------------------- Sparse Coder -----------------------------------------
