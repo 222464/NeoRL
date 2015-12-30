@@ -122,7 +122,7 @@ int main() {
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
 
-	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 8, layerDescs, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 8, layerDescs, { -0.5f, 0.5f }, generator);
 	
 	std::vector<int> actionIndices;
 
@@ -180,7 +180,7 @@ int main() {
 		{
 			float reward;
 			
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::K))
+			if (!sf::Keyboard::isKeyPressed(sf::Keyboard::K))
 				reward = -runner0._pBody->GetLinearVelocity().x;
 			else
 				reward = runner0._pBody->GetLinearVelocity().x;

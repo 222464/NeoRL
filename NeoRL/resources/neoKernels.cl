@@ -180,44 +180,6 @@ void kernel cscForwardError(read_only image2d_t hiddenStates, read_only image2d_
 	write_imagef(reconstructionError, visiblePosition, (float4)(error));
 }
 
-void kernel cscForward(read_only image2d_t hiddenStates,
-	write_only image2d_t reconstruction, read_only image3d_t weights,
-	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
-{
-	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
-	
-	float recon = 0.0f;
-
-	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
-		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
-			int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
-		
-			if (inBounds0(hiddenPosition, hiddenSize)) {
-				// Next layer node's receptive field
-				int2 fieldCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
-
-				int2 fieldLowerBound = fieldCenter - (int2)(radius);
-				int2 fieldUpperBound = fieldCenter + (int2)(radius + 1); // So is included in inBounds
-		
-				// Check for containment
-				if (inBounds(visiblePosition, fieldLowerBound, fieldUpperBound)) {	
-					int2 offset = visiblePosition - fieldLowerBound;
-
-					float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
-
-					int wi = offset.y + offset.x * (radius * 2 + 1);
-
-					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
-				
-					recon += hiddenState * weight;
-				}
-			}
-		}
-
-	write_imagef(reconstruction, visiblePosition, (float4)(recon));
-}
-
 void kernel cscActivate(read_only image2d_t visibleStates,
 	read_only image2d_t hiddenSummationTempBack, write_only image2d_t hiddenSummationTempFront, read_only image3d_t weights,
 	int2 visibleSize, float2 hiddenToVisible, int radius)
@@ -289,7 +251,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only im
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	
-	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x + read_imagef(hiddenBiases, hiddenPosition).x;
+	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
 	float statePrev = read_imagef(hiddenStatesBack, hiddenPosition).x;
 
@@ -347,24 +309,26 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates,
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	
-	for (int dx = -radius; dx <= radius; dx++)
-		for (int dy = -radius; dy <= radius; dy++) {
-			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
+	if (state != 0.0f) {
+		for (int dx = -radius; dx <= radius; dx++)
+			for (int dy = -radius; dy <= radius; dy++) {
+				int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
 
-			if (inBounds0(visiblePosition, visibleSize)) {
-				int2 offset = visiblePosition - fieldLowerBound;
+				if (inBounds0(visiblePosition, visibleSize)) {
+					int2 offset = visiblePosition - fieldLowerBound;
 
-				int wi = offset.y + offset.x * (radius * 2 + 1);
+					int wi = offset.y + offset.x * (radius * 2 + 1);
 
-				float weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+					float weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
-				float visibleState = read_imagef(visibleStates, visiblePosition).x;
+					float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * state * (visibleState - weightPrev);
+					float weight = weightPrev + weightAlpha * state * (visibleState - state * weightPrev);
 
-				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
+					write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
+				}
 			}
-		}
+	}
 }
 
 void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only image2d_t visibleStates,
@@ -380,25 +344,27 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 	float reward = read_imagef(rewards, hiddenPosition).x;
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
+	
+	if (state != 0.0f) {
+		for (int dx = -radius; dx <= radius; dx++)
+			for (int dy = -radius; dy <= radius; dy++) {
+				int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
 
-	for (int dx = -radius; dx <= radius; dx++)
-		for (int dy = -radius; dy <= radius; dy++) {
-			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
+				if (inBounds0(visiblePosition, visibleSize)) {
+					int2 offset = visiblePosition - fieldLowerBound;
 
-			if (inBounds0(visiblePosition, visibleSize)) {
-				int2 offset = visiblePosition - fieldLowerBound;
+					int wi = offset.y + offset.x * (radius * 2 + 1);
 
-				int wi = offset.y + offset.x * (radius * 2 + 1);
+					float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
 
-				float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
+					float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float visibleState = read_imagef(visibleStates, visiblePosition).x;
+					float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * state * (visibleState - state * weightPrev.x));
 
-				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * state * (visibleState - weightPrev.x));
-
-				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
+					write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
+				}
 			}
-		}
+	}
 }
 
 // ----------------------------------------- Sparse Coder -----------------------------------------
@@ -812,9 +778,9 @@ void kernel predSolveHiddenSwarm(read_only image2d_t hiddenSummationTemp,
 }
 
 void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTemp,
-	read_only image2d_t hiddenStatesBack, write_only image2d_t hiddenStatesFront, 
+	read_only image2d_t hiddenStatesBack, write_only image2d_t hiddenStatesFront,
 	read_only image2d_t hiddenActivationsBack, write_only image2d_t hiddenActivationsFront,
-	float noise, uint2 seed)  
+	float noise, uint2 seed) 
 {
 	uint2 seedValue = seed + (uint2)(get_global_id(0) * 45 + 25, get_global_id(1) * 56 + 24) * 6;
 
@@ -822,9 +788,9 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 	
 	float2 sum = read_imagef(hiddenSummationTemp, hiddenPosition).xy;
 	
-	float s = sigmoid(sum.x);
+	float s = sum.x > 0.5f ? 1.0f : 0.0f;
 
-	float2 state = (float2)(randFloat(&seedValue) < noise ? randFloat(&seedValue) : s, sum.y);
+	float2 state = (float2)(randFloat(&seedValue) < noise ? 1.0f - s : s, sum.y);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s, sum.y, 0.0f, 0.0f));
@@ -868,7 +834,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 				float newYTrace = weightPrev.y * weightLambda.x + randError * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.z * predError * statePrev + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
+				float4 weight = (float4)(weightPrev.x + weightAlpha.z * predError * statePrev + weightAlpha.x * tdError * newYTrace, newYTrace,
 						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
