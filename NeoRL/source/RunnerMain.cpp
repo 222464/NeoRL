@@ -133,7 +133,7 @@ int main() {
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 5, 5);
 	std::vector<float> inputs(25, 0.0f);
 
-	std::vector<float> actions(32, 0.0f);
+	std::vector<float> actions(16, 0.0f);
 
 
 	// ---------------------------- Game Loop -----------------------------
@@ -212,7 +212,7 @@ int main() {
 			std::vector<float> finalActions(16);
 
 			for (int i = 0; i < finalActions.size(); i++)
-				finalActions[i] = actions[i * 2 + 0] * 0.5f + 0.5f;
+				finalActions[i] = actions[i] * 0.5f + 0.5f;
 
 			//std::cout << std::endl;
 

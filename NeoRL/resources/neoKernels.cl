@@ -1366,7 +1366,7 @@ void kernel phModulate(read_only image2d_t inputsLeft, read_only image2d_t input
 	float left = read_imagef(inputsLeft, position).x;
 	float right = read_imagef(inputsRight, position).x;
 
-	write_imagef(states, position, (float4)(left * (minAttention + (1.0f - minAttention) * (right * 0.5f + 0.5f))));
+	write_imagef(states, position, (float4)(left * (minAttention + (1.0f - minAttention) * right)));
 }
 
 void kernel phCopyAction(read_only image2d_t source, write_only image2d_t destination) {
@@ -1397,7 +1397,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
-	float sum = 0.0f;//read_imagef(qBiases, hiddenPosition).x;
+	float sum = read_imagef(qBiases, hiddenPosition).x;
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
@@ -1420,7 +1420,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = sigmoid(sum) * hiddenState;
+	float state = tanh(sum) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
@@ -1491,7 +1491,7 @@ void kernel qBackward(read_only image2d_t qStates, read_only image3d_t qWeights,
 
 	float qState = read_imagef(qStates, visiblePosition).x;
 
-	float error = sum * qState * (1.0f - qState);
+	float error = sum * (qState == 0.0f ? 0.0f : 1.0f) * (1.0f - qState * qState);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1530,7 +1530,7 @@ void kernel qLastBackward(read_only image2d_t qStates, read_only image3d_t qWeig
 
 	float qState = read_imagef(qStates, visiblePosition).x;
 
-	float error = sum * qState * (1.0f - qState);
+	float error = sum * (qState == 0.0f ? 0.0f : 1.0f) * (1.0f - qState * qState);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }

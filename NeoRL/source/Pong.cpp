@@ -10,7 +10,7 @@
 
 #include <runner/Runner.h>
 
-#include <neo/AgentSPG.h>
+#include <neo/AgentHA.h>
 
 #include <time.h>
 #include <iostream>
@@ -95,20 +95,19 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
+	std::vector<neo::AgentHA::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 16, 16 };
 	layerDescs[1]._size = { 16, 16 };
 	layerDescs[2]._size = { 16, 16 };
 
-	neo::AgentSPG agent;
+	neo::AgentHA agent;
 
 	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.01f, 0.01f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	std::vector<float> input(inWidth * inHeight, 0.0f);
 	std::vector<float> action(aWidth * aHeight, 0.0f);
-	std::vector<float> actionTemp(2 * aWidth * aHeight, 0.0f);
 
 	// ---------------------------- Game Loop -----------------------------
 
@@ -220,15 +219,14 @@ int main() {
 
 		agent.simStep(cs, reward, inputImage, generator);
 
-		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
-
-		for (int i = 0; i < action.size(); i++)
-			action[i] = actionTemp[i * 2 + 0];
+		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
 		float act = 0.0f;
 
 		for (int i = 0; i < 4; i++) {
 			act += action[i];// *2.0f - 1.0f;
+
+			std::cout << action[i] << std::endl;
 		}
 
 		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.2f * std::min(1.0f, std::max(-1.0f, act * 0.5f))));
@@ -278,9 +276,9 @@ int main() {
 			float scale = 4.0f;
 
 			for (int l = 0; l < layerDescs.size() - 1; l++) {
-				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y * 2);
+				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l + 1)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 
@@ -290,7 +288,7 @@ int main() {
 					for (int y = 0; y < img.getSize().y; y++) {
 						sf::Color c = sf::Color::White;
 
-						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * (data[(x + y * img.getSize().x) * 2 + 0]));
+						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * (data[(x + y * img.getSize().x)]));
 
 						img.setPixel(x, y, c);
 					}
