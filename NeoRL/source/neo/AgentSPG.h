@@ -94,6 +94,16 @@ namespace neo {
 		*/
 		cl_int2 _actionSize;
 
+		/*!
+		\brief Store action (from reconstruction)
+		*/
+		cl::Image2D _action;
+
+		/*!
+		\brief Store exploratory action
+		*/
+		cl::Image2D _exploratoryAction;
+
 		//!@{
 		/*!
 		\brief Layers and descs
@@ -107,39 +117,22 @@ namespace neo {
 		\brief Kernels for hierarchy
 		*/
 		cl::Kernel _predictionRewardKernel;
+		cl::Kernel _explorationKernel;
 		//!@}
-
-		/*!
-		\brief Predictor (first layer)
-		*/
-		PredictorSwarm _firstLayerPred;
 
 	public:
 		/*!
-		\brief Learning rate for first layer predictor
+		\brief Exploration
 		*/
-		cl_float3 _firstLayerPredWeightAlpha;
-
-		/*!
-		\brief Exploration for first layer predictor
-		*/
-		cl_float _firstLayerNoise;
-
-		//!@{
-		/*!
-		\brief RL for first layer predictor
-		*/
-		cl_float _firstLayerGamma;
-		cl_float2 _firstLayerLambda;
-		//!@}
+		cl_float _expPert;
+		cl_float _expBreak;
 
 		/*!
 		\brief Initialize defaults
 		*/
 		AgentSPG()
-			: _firstLayerPredWeightAlpha({ 0.1f, 0.0002f, 0.1f }),
-			_firstLayerNoise(0.04f),
-			_firstLayerGamma(0.95f), _firstLayerLambda({ 0.92f, 0.92f })
+			: _expPert(0.05f),
+			_expBreak(0.02f)
 		{}
 
 		/*!
@@ -193,10 +186,10 @@ namespace neo {
 		}
 
 		/*!
-		\brief Get first layer predictor (contains predictions for input)
+		\brief Get exploratory action
 		*/
-		const PredictorSwarm &getFirstLayerPred() const {
-			return _firstLayerPred;
+		const cl::Image2D &getExploratoryAction() const {
+			return _exploratoryAction;
 		}
 	};
 }

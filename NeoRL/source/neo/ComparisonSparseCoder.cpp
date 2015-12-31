@@ -212,6 +212,25 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 	}
 }
 
+void ComparisonSparseCoder::reconstruct(sys::ComputeSystem &cs, const cl::Image2D &hiddenStates, int visibleLayerIndex, cl::Image2D &visibleStates) {
+	VisibleLayer &vl = _visibleLayers[visibleLayerIndex];
+	VisibleLayerDesc &vld = _visibleLayerDescs[visibleLayerIndex];
+
+	int argIndex = 0;
+
+	_forwardKernel.setArg(argIndex++, hiddenStates);
+	_forwardKernel.setArg(argIndex++, visibleStates);
+	_forwardKernel.setArg(argIndex++, vl._weights[_back]);
+	_forwardKernel.setArg(argIndex++, vld._size);
+	_forwardKernel.setArg(argIndex++, _hiddenSize);
+	_forwardKernel.setArg(argIndex++, vl._visibleToHidden);
+	_forwardKernel.setArg(argIndex++, vl._hiddenToVisible);
+	_forwardKernel.setArg(argIndex++, vld._radius);
+	_forwardKernel.setArg(argIndex++, vl._reverseRadii);
+
+	cs.getQueue().enqueueNDRangeKernel(_forwardKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
+}
+
 void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float boostAlpha, float activeRatio) {
 	// Learn biases
 	{

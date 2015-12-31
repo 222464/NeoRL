@@ -124,6 +124,7 @@ namespace neo {
 		cl::Kernel _learnHiddenBiasesKernel;
 		cl::Kernel _learnHiddenWeightsKernel;
 		cl::Kernel _learnHiddenWeightsTracesKernel;
+		cl::Kernel _forwardKernel;
 		//!@}
 
 		/*!
@@ -145,6 +146,11 @@ namespace neo {
 		\brief Activate (find sparse codes)
 		*/
 		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio);
+
+		/*!
+		\brief Reconstruct (find input from sparse codes)
+		*/
+		void reconstruct(sys::ComputeSystem &cs, const cl::Image2D &hiddenStates, int visibleLayerIndex, cl::Image2D &visibleStates);
 
 		//!@{
 		/*!

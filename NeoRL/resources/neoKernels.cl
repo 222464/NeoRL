@@ -371,6 +371,44 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 		}
 }
 
+void kernel cscForward(read_only image2d_t hiddenStates,
+	write_only image2d_t reconstruction, read_only image3d_t weights,
+	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
+{
+	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
+	
+	float recon = 0.0f;
+
+	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
+		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
+			int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
+		
+			if (inBounds0(hiddenPosition, hiddenSize)) {
+				// Next layer node's receptive field
+				int2 fieldCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
+
+				int2 fieldLowerBound = fieldCenter - (int2)(radius);
+				int2 fieldUpperBound = fieldCenter + (int2)(radius + 1); // So is included in inBounds
+		
+				// Check for containment
+				if (inBounds(visiblePosition, fieldLowerBound, fieldUpperBound)) {	
+					int2 offset = visiblePosition - fieldLowerBound;
+
+					float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
+
+					int wi = offset.y + offset.x * (radius * 2 + 1);
+
+					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+				
+					recon += hiddenState * weight;
+				}
+			}
+		}
+
+	write_imagef(reconstruction, visiblePosition, (float4)(recon));
+}
+
 // ----------------------------------------- Sparse Coder -----------------------------------------
 
 void kernel scReconstructVisibleError(read_only image2d_t hiddenStates, read_only image2d_t visibleStates,
@@ -794,7 +832,7 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 	
 	float s = sum.x > 0.5f ? 1.0f : 0.0f;
 
-	float2 state = (float2)(s, sum.y);//(float2)(randFloat(&seedValue) < noise ? 1.0f - s : s, sum.y);
+	float2 state = (float2)(randFloat(&seedValue) < noise ? 1.0f - s : s, sum.y);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s, sum.y, 0.0f, 0.0f));
@@ -835,7 +873,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 
 				//float oneMinusStatePrev = 1.0f - statePrev;
 
-				float newYTrace = weightPrev.y * weightLambda.x + predError * statePrev;
+				float newYTrace = weightPrev.y * weightLambda.x + predError * (statePrev - weightPrev.x);
 				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
 
 				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
@@ -1291,6 +1329,18 @@ void kernel phCopyAction(read_only image2d_t source, write_only image2d_t destin
 	float s = read_imagef(source, position).x;
 	
 	write_imagef(destination, position, (float4)(s));
+}
+
+void kernel phExploration(read_only image2d_t actions,
+	write_only image2d_t actionsExploratory, float expPert, float expBreak, uint2 seed)  
+{
+	uint2 seedValue = seed + (uint2)(get_global_id(0) * 45 + 25, get_global_id(1) * 56 + 24) * 6;
+
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float action = read_imagef(actions, position).x;
+	
+	write_imagef(actionsExploratory, position, (float4)(randFloat(&seedValue) < expBreak ? randFloat(&seedValue) * 2.0f - 1.0f : fmin(1.0f, fmax(-1.0f, action + expPert * randNormal(&seedValue)))));
 }
 
 // ----------------------------------------- Q Route -----------------------------------------

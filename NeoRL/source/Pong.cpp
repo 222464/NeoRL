@@ -220,7 +220,7 @@ int main() {
 
 		agent.simStep(cs, reward, inputImage, generator);
 
-		cs.getQueue().enqueueReadImage(agent.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
+		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
 
 		for (int i = 0; i < action.size(); i++)
 			action[i] = actionTemp[i * 2 + 0];
