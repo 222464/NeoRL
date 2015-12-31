@@ -76,6 +76,7 @@ void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputePro
 	_learnHiddenBiasesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenBiases");
 	_learnHiddenWeightsKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeights");
 	_learnHiddenWeightsTracesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsTraces");
+	_forwardKernel = cl::Kernel(program.getProgram(), "cscForward");
 }
 
 void ComparisonSparseCoder::reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates) {

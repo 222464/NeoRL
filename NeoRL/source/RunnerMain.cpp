@@ -202,16 +202,16 @@ int main() {
 
 			std::cout << avgReward << std::endl;
 
-			agent.simStep(cs, reward * 100.0f, inputImage, generator);
+			agent.simStep(cs, reward * 10.0f, inputImage, generator);
 
-			cs.getQueue().enqueueReadImage(agent.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
+			cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
 
 			cs.getQueue().finish();
 
 			std::vector<float> finalActions(16);
 
 			for (int i = 0; i < finalActions.size(); i++)
-				finalActions[i] = actions[i * 2 + 0];
+				finalActions[i] = std::min(1.0f, std::max(-1.0f, actions[i * 2 + 0] * 1.0f)) * 0.5f + 0.5f;
 
 			//std::cout << std::endl;
 
@@ -336,6 +336,42 @@ int main() {
 
 				std::cout << "Q: " << data[1] << std::endl;
 			}*/
+
+			float xOffset = 0.0f;
+			float scale = 4.0f;
+
+			for (int l = 0; l < layerDescs.size() - 1; l++) {
+				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y * 2);
+
+				cs.getQueue().enqueueReadImage(agent.getLayer(l + 1)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+
+				sf::Image img;
+
+				img.create(layerDescs[l]._size.x, layerDescs[l]._size.y);
+
+				for (int x = 0; x < img.getSize().x; x++)
+					for (int y = 0; y < img.getSize().y; y++) {
+						sf::Color c = sf::Color::White;
+
+						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * (data[(x + y * img.getSize().x) * 2 + 0]));
+
+						img.setPixel(x, y, c);
+					}
+
+				layerTextures[l].loadFromImage(img);
+
+				sf::Sprite s;
+
+				s.setTexture(layerTextures[l]);
+
+				s.setPosition(xOffset, window.getSize().y - img.getSize().y * scale);
+
+				s.setScale(scale, scale);
+
+				window.draw(s);
+
+				xOffset += img.getSize().x * scale;
+			}
 
 			window.setView(view);
 
