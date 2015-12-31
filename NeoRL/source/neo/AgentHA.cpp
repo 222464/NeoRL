@@ -219,7 +219,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 		if (l == 0)
 			_layers[l]._predSwarm.activate(cs, visibleStates, _layerDescs[l]._noise, rng);
 		else
-			_layers[l]._predSwarm.activate(cs, visibleStates, _layers[l]._sc.getHiddenStates()[_back], _layerDescs[l]._noise, rng);
+			_layers[l]._predSwarm.activate(cs, visibleStates, _layers[l - 1]._sc.getHiddenStates()[_back], _layerDescs[l]._noise, rng);
 	}
 
 	if (learn) {
@@ -241,7 +241,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			if (l == 0)
 				_layers[l]._predSwarm.learn(cs, reward, _layerDescs[l]._gamma, visibleStatesPrev, _layerDescs[l]._predSwarmWeightAlpha, _layerDescs[l]._predSwarmWeightLambda);
 			else
-				_layers[l]._predSwarm.learn(cs, reward, _layerDescs[l]._gamma, visibleStatesPrev, _layers[l]._sc.getHiddenStates()[_back], _layerDescs[l]._predSwarmWeightAlpha, _layerDescs[l]._predSwarmWeightLambda);
+				_layers[l]._predSwarm.learn(cs, reward, _layerDescs[l]._gamma, visibleStatesPrev, _layers[l - 1]._sc.getHiddenStates()[_back], _layerDescs[l]._predSwarmWeightAlpha, _layerDescs[l]._predSwarmWeightLambda);
 		}
 	}
 }

@@ -856,7 +856,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 
 	float randError = predPrev.x - predActPrev;
 
-	float tdError = reward + gamma * state.y - predPrev.y;
+	float tdError = reward - predPrev.y;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -876,7 +876,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 				float newYTrace = weightPrev.y * weightLambda.x + randError * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * tdError * newYTrace, newYTrace,
 						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
@@ -900,7 +900,7 @@ void kernel predLearnWeightsTracesModulatedSwarm(read_only image2d_t visibleStat
 
 	float randError = predPrev.x - predActPrev;
 
-	float tdError = reward + gamma * state.y - predPrev.y;
+	float tdError = reward - predPrev.y;
 
 	float m = read_imagef(modulatorImage, hiddenPosition).x;
 
@@ -922,7 +922,7 @@ void kernel predLearnWeightsTracesModulatedSwarm(read_only image2d_t visibleStat
 				float newYTrace = weightPrev.y * weightLambda.x + m * randError * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + m * statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * tdError * newYTrace, newYTrace,
 						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);

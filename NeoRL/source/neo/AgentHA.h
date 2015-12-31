@@ -70,10 +70,10 @@ namespace neo {
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.0005f), _scWeightLambda(0.95f),
 				_scActiveRatio(0.04f), _scBoostAlpha(0.001f),
-				_predWeightAlpha(0.01f),
-				_predSwarmWeightAlpha({ 0.01f, 0.01f }), _predSwarmWeightLambda({ 0.92f, 0.92f }),
+				_predWeightAlpha(0.02f),
+				_predSwarmWeightAlpha({ 0.5f, 0.001f }), _predSwarmWeightLambda({ 0.92f, 0.92f }),
 				_gamma(0.95f),
-				_noise(0.01f)
+				_noise(0.05f)
 			{}
 		};
 
@@ -123,20 +123,6 @@ namespace neo {
 		//!@}
 
 	public:
-		/*!
-		\brief Exploration
-		*/
-		cl_float _expPert;
-		cl_float _expBreak;
-
-		/*!
-		\brief Initialize defaults
-		*/
-		AgentHA()
-			: _expPert(0.01f),
-			_expBreak(0.005f)
-		{}
-
 		/*!
 		\brief Create a comparison sparse coder with random initialization
 		Requires the compute system, program with the NeoRL kernels, and initialization information.
