@@ -9,6 +9,7 @@
 
 #include <neo/AgentSwarm.h>
 #include <neo/AgentSPG.h>
+#include <neo/AgentHA.h>
 
 #include <time.h>
 #include <iostream>
@@ -110,14 +111,14 @@ int main() {
 	prsdr.createRandom(7, 7, 8, inputTypes, layerDescs, -0.01f, 0.01f, 0.01f, 0.05f, 0.5f, generator);
 	*/
 
-	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
+	std::vector<neo::AgentHA::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 16, 16 };
 	//layerDescs[0].32 = { 0.5f, 0.01f, 0.01f };
 	layerDescs[1]._size = { 16, 16 };
 	layerDescs[2]._size = { 16, 16 };
 
-	neo::AgentSPG agent;
+	neo::AgentHA agent;
 
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;

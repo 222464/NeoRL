@@ -91,9 +91,9 @@ namespace neo {
 		*/
 		cl::Kernel _activateKernel;
 		cl::Kernel _solveHiddenKernel;
-		cl::Kernel _solveHiddenThresholdKernel;
+		cl::Kernel _solveHiddenModulatedKernel;
 		cl::Kernel _learnWeightsTracesKernel;
-		cl::Kernel _inhibitKernel;
+		cl::Kernel _learnWeightsTracesModulatedKernel;
 		//!@}
 
 	public:
@@ -105,17 +105,22 @@ namespace neo {
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange,
 			std::mt19937 &rng);
 
+		//!@{
 		/*!
 		\brief Activate predictor
 		Specify a non-one active ratio and non-negative-one inhibition radius to inhibit the result
 		*/
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold, float noise, std::mt19937 &rng);
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio, int inhibitionRadius, float noise, std::mt19937 &rng);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float noise, std::mt19937 &rng);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const cl::Image2D &modulatorImage, float noise, std::mt19937 &rng);
+		//!@}
 
+		//!@{
 		/*!
 		\brief Learn with RL + prediction error
 		*/
-		void learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float3 weightAlpha, cl_float2 weightLambda);
+		void learn(sys::ComputeSystem &cs, float reward, float gamma, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda);
+		void learn(sys::ComputeSystem &cs, float reward, float gamma, std::vector<cl::Image2D> &visibleStatesPrev, const cl::Image2D &modulatorImage, cl_float2 weightAlpha, cl_float2 weightLambda);
+		//!@}
 
 		/*!
 		\brief Get number of visible layers

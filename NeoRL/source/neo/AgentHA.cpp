@@ -1,8 +1,8 @@
-#include "AgentSPG.h"
+#include "AgentHA.h"
 
 using namespace neo;
 
-void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
+void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
 	cl_float2 initWeightRange,
 	std::mt19937 &rng)
@@ -60,25 +60,55 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
 
-		std::vector<PredictorSwarm::VisibleLayerDesc> predDescs;
+		// Predictor
+		{
+			std::vector<Predictor::VisibleLayerDesc> predDescs;
 
-		if (l < _layers.size() - 1) {
-			predDescs.resize(2);
+			if (l < _layers.size() - 1) {
+				predDescs.resize(2);
 
-			predDescs[0]._size = _layerDescs[l]._size;
-			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
+				predDescs[0]._size = _layerDescs[l]._size;
+				predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 
-			predDescs[1]._size = _layerDescs[l + 1]._size;
-			predDescs[1]._radius = _layerDescs[l]._feedBackRadius;
+				predDescs[1]._size = _layerDescs[l + 1]._size;
+				predDescs[1]._radius = _layerDescs[l]._feedBackRadius;
+			}
+			else {
+				predDescs.resize(1);
+
+				predDescs[0]._size = _layerDescs[l]._size;
+				predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
+			}
+
+			_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, rng);
 		}
-		else {
-			predDescs.resize(1);
 
-			predDescs[0]._size = _layerDescs[l]._size;
-			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
+
+		// Swarm
+		{
+			std::vector<PredictorSwarm::VisibleLayerDesc> predDescs;
+
+			if (l < _layers.size() - 1) {
+				predDescs.resize(2);
+
+				predDescs[0]._size = _layerDescs[l]._size;
+				predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
+
+				predDescs[1]._size = _layerDescs[l + 1]._size;
+				predDescs[1]._radius = _layerDescs[l]._feedBackRadius;
+			}
+			else {
+				predDescs.resize(1);
+
+				predDescs[0]._size = _layerDescs[l]._size;
+				predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
+			}
+
+			if (l == 0)
+				_layers[l]._predSwarm.createRandom(cs, program, predDescs, _actionSize, initWeightRange, rng);
+			else
+				_layers[l]._predSwarm.createRandom(cs, program, predDescs, _layerDescs[l - 1]._size, initWeightRange, rng);
 		}
-
-		_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, rng);
 
 		// Create baselines
 		_layers[l]._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
@@ -91,24 +121,10 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 		cs.getQueue().enqueueFillImage(_layers[l]._reward, zeroColor, zeroOrigin, layerRegion);
 	}
 
-	{
-		_action = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _actionSize.x, _actionSize.y);
-		_exploratoryAction = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _actionSize.x, _actionSize.y);
-
-		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-		cl::array<cl::size_type, 3> layerRegion = { _actionSize.x, _actionSize.y, 1 };
-	
-		cs.getQueue().enqueueFillImage(_action, zeroColor, zeroOrigin, layerRegion);
-		cs.getQueue().enqueueFillImage(_exploratoryAction, zeroColor, zeroOrigin, layerRegion);
-	}
-
 	_predictionRewardKernel = cl::Kernel(program.getProgram(), "phPredictionReward");
-	_explorationKernel = cl::Kernel(program.getProgram(), "phExploration");
 }
 
-void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn) {
+void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn) {
 	// Feed forward
 	for (int l = 0; l < _layers.size(); l++) {
 		{
@@ -124,7 +140,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 				visibleStates.resize(3);
 
 				visibleStates[0] = input;
-				visibleStates[1] = _exploratoryAction;
+				visibleStates[1] = getExploratoryAction();
 				visibleStates[2] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
@@ -161,8 +177,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		abort(); // Fix me
-		//_layers[l]._pred.activate(cs, visibleStates, true, 0.0f, rng);
+		_layers[l]._pred.activate(cs, visibleStates, true);
 	}
 
 	if (learn) {
@@ -181,41 +196,65 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
-			abort(); //Fix me
-			//_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._lambda);
+			_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 		}
 	}
 
-	// Reconstruct
-	_layers.front()._sc.reconstruct(cs, _layers.front()._pred.getHiddenStates()[_back], 1, _action);
+	// Find action
+	for (int l = _layers.size() - 1; l >= 0; l--) {
+		std::vector<cl::Image2D> visibleStates;
 
-	// Exploratory action
-	{
-		std::uniform_int_distribution<int> seedDist(0, 999);
+		if (l < _layers.size() - 1) {
+			visibleStates.resize(2);
 
-		cl_uint2 seed = { seedDist(rng), seedDist(rng) };
+			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
+			visibleStates[1] = _layers[l + 1]._predSwarm.getHiddenStates()[_back];
+		}
+		else {
+			visibleStates.resize(1);
 
-		int argIndex = 0;
+			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
+		}
 
-		_explorationKernel.setArg(argIndex++, _action);
-		_explorationKernel.setArg(argIndex++, _exploratoryAction);
-		_explorationKernel.setArg(argIndex++, _expPert);
-		_explorationKernel.setArg(argIndex++, _expBreak);
-		_explorationKernel.setArg(argIndex++, seed);
+		if (l == 0)
+			_layers[l]._predSwarm.activate(cs, visibleStates, _layerDescs[l]._noise, rng);
+		else
+			_layers[l]._predSwarm.activate(cs, visibleStates, _layers[l]._sc.getHiddenStates()[_back], _layerDescs[l]._noise, rng);
+	}
 
-		cs.getQueue().enqueueNDRangeKernel(_explorationKernel, cl::NullRange, cl::NDRange(_actionSize.x, _actionSize.y));
+	if (learn) {
+		for (int l = _layers.size() - 1; l >= 0; l--) {
+			std::vector<cl::Image2D> visibleStatesPrev;
+
+			if (l < _layers.size() - 1) {
+				visibleStatesPrev.resize(2);
+
+				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+				visibleStatesPrev[1] = _layers[l + 1]._predSwarm.getHiddenStates()[_front];
+			}
+			else {
+				visibleStatesPrev.resize(1);
+
+				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+			}
+
+			if (l == 0)
+				_layers[l]._predSwarm.learn(cs, reward, _layerDescs[l]._gamma, visibleStatesPrev, _layerDescs[l]._predSwarmWeightAlpha, _layerDescs[l]._predSwarmWeightLambda);
+			else
+				_layers[l]._predSwarm.learn(cs, reward, _layerDescs[l]._gamma, visibleStatesPrev, _layers[l]._sc.getHiddenStates()[_back], _layerDescs[l]._predSwarmWeightAlpha, _layerDescs[l]._predSwarmWeightLambda);
+		}
 	}
 }
 
-void AgentSPG::clearMemory(sys::ComputeSystem &cs) {
+void AgentHA::clearMemory(sys::ComputeSystem &cs) {
 	for (int l = 0; l < _layers.size(); l++)
 		_layers[l]._sc.clearMemory(cs);
 }
 
-void AgentSPG::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
+void AgentHA::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 	abort(); // Not working yet
 
-	// Layer information
+			 // Layer information
 	os << _layers.size() << std::endl;
 
 	for (int li = 0; li < _layers.size(); li++) {
@@ -244,7 +283,7 @@ void AgentSPG::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 	}
 }
 
-void AgentSPG::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &program, std::istream &is) {
+void AgentHA::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &program, std::istream &is) {
 	abort(); // Not working yet
 
 			 // Layer information
