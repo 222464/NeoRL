@@ -228,7 +228,7 @@ int main() {
 		float act = 0.0f;
 
 		for (int i = 0; i < 4; i++) {
-			act += action[i] * 2.0f - 1.0f;
+			act += action[i];// *2.0f - 1.0f;
 		}
 
 		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.2f * std::min(1.0f, std::max(-1.0f, act * 0.5f))));
@@ -290,7 +290,7 @@ int main() {
 					for (int y = 0; y < img.getSize().y; y++) {
 						sf::Color c = sf::Color::White;
 
-						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * (data[(x + y * img.getSize().x) * 2 + 1]));
+						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * (data[(x + y * img.getSize().x) * 2 + 0]));
 
 						img.setPixel(x, y, c);
 					}
