@@ -104,7 +104,7 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 			_layers[l]._qStates = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
 
-			cs.getQueue().enqueueFillImage(_layers[l]._qStates[_back], cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_layerDescs[l]._size.x), static_cast<cl::size_type>(_layerDescs[l]._size.y) });
+			cs.getQueue().enqueueFillImage(_layers[l]._qStates[_back], cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_layerDescs[l]._size.x), static_cast<cl::size_type>(_layerDescs[l]._size.y), 1 });
 		}
 
 		// Create baselines
@@ -148,7 +148,7 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 		_qLastStates = createDoubleBuffer2D(cs, _qLastSize, CL_R, CL_FLOAT);
 
-		cs.getQueue().enqueueFillImage(_qLastStates[_back], cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_qLastSize.x), static_cast<cl::size_type>(_qLastSize.y) });
+		cs.getQueue().enqueueFillImage(_qLastStates[_back], cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_qLastSize.x), static_cast<cl::size_type>(_qLastSize.y), 1 });
 	}
 
 	_predictionRewardKernel = cl::Kernel(program.getProgram(), "phPredictionReward");
@@ -170,8 +170,8 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 	_qFirstErrors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _actionSize.x, _actionSize.y);
 
-	cs.getQueue().enqueueFillImage(_action, cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y) });
-	cs.getQueue().enqueueFillImage(_actionExploratory, cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y) });
+	cs.getQueue().enqueueFillImage(_action, cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
+	cs.getQueue().enqueueFillImage(_actionExploratory, cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
 }
 
 void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn) {
@@ -344,6 +344,8 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			int argIndex = 0;
 
+			/*read_only image2d_t hiddenStates, read_only image3d_t qWeights, write_only image2d_t qErrors,
+	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii*/
 			_qLastBackwardKernel.setArg(argIndex++, _layers.back()._sc.getHiddenStates()[_back]);
 			_qLastBackwardKernel.setArg(argIndex++, _qLastWeights[_back]);
 			_qLastBackwardKernel.setArg(argIndex++, _layers.back()._qErrors);
@@ -351,6 +353,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qLastBackwardKernel.setArg(argIndex++, _qLastSize);
 			_qLastBackwardKernel.setArg(argIndex++, visibleToHidden);
 			_qLastBackwardKernel.setArg(argIndex++, hiddenToVisible);
+			_qLastBackwardKernel.setArg(argIndex++, _qLastRadius);
 			_qLastBackwardKernel.setArg(argIndex++, reverseRadii);
 
 			cs.getQueue().enqueueNDRangeKernel(_qLastBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs.back()._size.x, _layerDescs.back()._size.y));
@@ -381,6 +384,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qBackwardKernel.setArg(argIndex++, prevLayerSize);
 			_qBackwardKernel.setArg(argIndex++, visibleToHidden);
 			_qBackwardKernel.setArg(argIndex++, hiddenToVisible);
+			_qBackwardKernel.setArg(argIndex++, _layerDescs[l + 1]._qRadius);
 			_qBackwardKernel.setArg(argIndex++, reverseRadii);
 
 			cs.getQueue().enqueueNDRangeKernel(_qBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
@@ -410,6 +414,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qFirstBackwardKernel.setArg(argIndex++, prevLayerSize);
 			_qFirstBackwardKernel.setArg(argIndex++, visibleToHidden);
 			_qFirstBackwardKernel.setArg(argIndex++, hiddenToVisible);
+			_qFirstBackwardKernel.setArg(argIndex++, _layerDescs.front()._qRadius);
 			_qFirstBackwardKernel.setArg(argIndex++, reverseRadii);
 
 			cs.getQueue().enqueueNDRangeKernel(_qFirstBackwardKernel, cl::NullRange, cl::NDRange(_actionSize.x, _actionSize.y));
@@ -548,6 +553,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qLastBackwardKernel.setArg(argIndex++, _qLastSize);
 			_qLastBackwardKernel.setArg(argIndex++, visibleToHidden);
 			_qLastBackwardKernel.setArg(argIndex++, hiddenToVisible);
+			_qLastBackwardKernel.setArg(argIndex++, _qLastRadius);
 			_qLastBackwardKernel.setArg(argIndex++, reverseRadii);
 
 			cs.getQueue().enqueueNDRangeKernel(_qLastBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs.back()._size.x, _layerDescs.back()._size.y));
@@ -578,6 +584,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qBackwardKernel.setArg(argIndex++, prevLayerSize);
 			_qBackwardKernel.setArg(argIndex++, visibleToHidden);
 			_qBackwardKernel.setArg(argIndex++, hiddenToVisible);
+			_qBackwardKernel.setArg(argIndex++, _layerDescs[l + 1]._qRadius);
 			_qBackwardKernel.setArg(argIndex++, reverseRadii);
 
 			cs.getQueue().enqueueNDRangeKernel(_qBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
