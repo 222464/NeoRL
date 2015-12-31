@@ -23,6 +23,7 @@ namespace neo {
 			\brief Radii
 			*/
 			cl_int _qRadius;
+			cl_int _hiddenRadius;
 			cl_int _startRadius;
 			//!@}
 
@@ -30,7 +31,7 @@ namespace neo {
 			\brief Initialize defaults
 			*/
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _qRadius(4), _startRadius(4)
+				: _size({ 8, 8 }), _qRadius(4), _hiddenRadius(4), _startRadius(4)
 			{}
 		};
 

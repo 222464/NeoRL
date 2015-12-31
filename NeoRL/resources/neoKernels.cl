@@ -833,12 +833,12 @@ void kernel predSolveHiddenModulatedSwarm(read_only image2d_t hiddenSummationTem
 
 	float2 sum = read_imagef(hiddenSummationTemp, hiddenPosition).xy;
 
-	float s = sigmoid(sum.x) * m;
+	float s = sigmoid(sum.x);
 
 	float2 state = (float2)((randFloat(&seedValue) < noise ? randFloat(&seedValue) : s) * m, sum.y);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
-	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s, sum.y, 0.0f, 0.0f));
+	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s * m, sum.y, 0.0f, 0.0f));
 }
 
 void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, 
@@ -856,7 +856,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 
 	float randError = predPrev.x - predActPrev;
 
-	float tdError = reward - predPrev.y;
+	float tdError = reward + gamma * state.y - predPrev.y;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -873,7 +873,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev,
 
 				//float oneMinusStatePrev = 1.0f - statePrev;
 
-				float newYTrace = weightPrev.y * weightLambda.x + randError * statePrev;
+				float newYTrace = weightPrev.y * weightLambda.x + tdError * randError * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
 
 				float4 weight = (float4)(weightPrev.x + weightAlpha.x * tdError * newYTrace, newYTrace,
@@ -900,7 +900,7 @@ void kernel predLearnWeightsTracesModulatedSwarm(read_only image2d_t visibleStat
 
 	float randError = predPrev.x - predActPrev;
 
-	float tdError = reward - predPrev.y;
+	float tdError = reward + gamma * state.y - predPrev.y;
 
 	float m = read_imagef(modulatorImage, hiddenPosition).x;
 
@@ -919,7 +919,7 @@ void kernel predLearnWeightsTracesModulatedSwarm(read_only image2d_t visibleStat
 
 				//float oneMinusStatePrev = 1.0f - statePrev;
 
-				float newYTrace = weightPrev.y * weightLambda.x + m * randError * statePrev;
+				float newYTrace = weightPrev.y * weightLambda.x + tdError * m * randError * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + m * statePrev;
 
 				float4 weight = (float4)(weightPrev.x + weightAlpha.x * tdError * newYTrace, newYTrace,
@@ -1391,8 +1391,8 @@ void kernel phExploration(read_only image2d_t actions,
 
 // ----------------------------------------- Q Route -----------------------------------------
 
-void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, read_only image2d_t qBiases, read_only image2d_t qStatesPrev, write_only image2d_t qStatesFront, write_only image2d_t qActivationsFront,
-	int2 visibleSize, float2 hiddenToVisible, int radius, float eluAlpha)
+void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, read_only image2d_t qBiases, read_only image2d_t qStatesPrev, write_only image2d_t qStatesFront,
+	int2 visibleSize, float2 hiddenToVisible, int radius)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
@@ -1420,15 +1420,13 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float s = elu(sum, eluAlpha);
-	float state = s * hiddenState;//elu(sum, eluAlpha) * hiddenState;
+	float state = sum * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
-	write_imagef(qActivationsFront, hiddenPosition, (float4)(s));
 }
 
-void kernel qForwardFirstLayer(read_only image2d_t hiddenStates, read_only image2d_t originalActions, read_only image3d_t qWeights, read_only image2d_t qBiases, read_only image2d_t qStatesPrev, write_only image2d_t qStatesFront, write_only image2d_t qActivationsFront,
-	int2 visibleSize, float2 hiddenToVisible, int radius, float eluAlpha)
+void kernel qLastForward(read_only image3d_t qWeights, read_only image2d_t qBiases, read_only image2d_t qStatesPrev, write_only image2d_t qStatesFront,
+	int2 visibleSize, float2 hiddenToVisible, int radius)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
@@ -1446,28 +1444,19 @@ void kernel qForwardFirstLayer(read_only image2d_t hiddenStates, read_only image
 
 				int wi = offset.y + offset.x * (radius * 2 + 1);
 
-				float2 weight = read_imagef(qWeights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xz;
+				float weight = read_imagef(qWeights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
 				float state = read_imagef(qStatesPrev, visiblePosition).x;
 
-				float original = read_imagef(originalActions, visiblePosition).x;
-
-				sum += weight.x * state + weight.y * (1.0f - state);
+				sum += weight * state;
 			}
 		}
 
-	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
-
-	float s = elu(sum, eluAlpha);
-	float state = s * hiddenState;//elu(sum, eluAlpha) * hiddenState;
-	
-	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
-	write_imagef(qActivationsFront, hiddenPosition, (float4)(s));
+	write_imagef(qStatesFront, hiddenPosition, (float4)(sum));
 }
 
-void kernel qBackward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, read_only image2d_t qStates, read_only image2d_t qActivations, read_only image2d_t qErrorsNext, write_only image2d_t qErrors,
-	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii,
-	float eluAlpha)
+void kernel qBackward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, read_only image2d_t qErrorsNext, write_only image2d_t qErrors,
+	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
 {
 	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
@@ -1502,16 +1491,51 @@ void kernel qBackward(read_only image2d_t hiddenStates, read_only image3d_t qWei
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float state = read_imagef(qStates, visiblePosition).x;
-
-	float activation = read_imagef(qActivations, visiblePosition).x;
-
-	float error = sum * elud(activation, eluAlpha) * hiddenState;
+	float error = sum * hiddenState;
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
 
-void kernel qBackwardFirstLayer(read_only image3d_t qWeights, read_only image2d_t qErrorsNext, write_only image2d_t qErrors,
+void kernel qLastBackward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, write_only image2d_t qErrors,
+	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
+{
+	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
+	
+	float sum = 0.0f;
+
+	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
+		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
+			int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
+		
+			if (inBounds0(hiddenPosition, hiddenSize)) {
+				// Next layer node's receptive field
+				int2 fieldCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
+
+				int2 fieldLowerBound = fieldCenter - (int2)(radius);
+				int2 fieldUpperBound = fieldCenter + (int2)(radius + 1); // So is included in inBounds
+		
+				// Check for containment
+				if (inBounds(visiblePosition, fieldLowerBound, fieldUpperBound)) {	
+					int2 offset = visiblePosition - fieldLowerBound;
+
+					int wi = offset.y + offset.x * (radius * 2 + 1);
+
+					float weight = read_imagef(qWeights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+				
+					sum += weight;
+				}
+			}
+		}
+
+	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
+
+	float error = sum * hiddenState;
+
+	write_imagef(qErrors, visiblePosition, (float4)(error));
+}
+
+void kernel qFirstBackward(read_only image3d_t qWeights, read_only image2d_t qErrorsNext, write_only image2d_t qErrors,
 	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
 {
 	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
@@ -1538,9 +1562,9 @@ void kernel qBackwardFirstLayer(read_only image3d_t qWeights, read_only image2d_
 
 					int wi = offset.y + offset.x * (radius * 2 + 1);
 
-					float2 weight = read_imagef(qWeights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xz;
+					float weight = read_imagef(qWeights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 				
-					sum += errorNext * weight.x - errorNext * weight.y;
+					sum += errorNext * weight;
 				}
 			}
 		}
@@ -1551,7 +1575,7 @@ void kernel qBackwardFirstLayer(read_only image3d_t qWeights, read_only image2d_
 void kernel qWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t qStates, read_only image2d_t qErrors,
 	read_only image3d_t qWeightsBack, write_only image3d_t qWeightsFront,
 	read_only image2d_t qBiasesBack, write_only image2d_t qBiasesFront,
-	int2 visibleSize, float2 hiddenToVisible, int radius, float alpha, float biasAlpha, float gammaLambda, float tdError)
+	int2 visibleSize, float2 hiddenToVisible, int radius, float alpha, float biasAlpha, float lambda, float tdError)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
@@ -1585,29 +1609,27 @@ void kernel qWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t q
 
 				//float oneMinusStatePrev = 1.0f - statePrev;
 
-				float2 weight = (float2)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * gammaLambda + error * statePrev);
+				float2 weight = (float2)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * lambda + error * statePrev);
 
 				write_imagef(qWeightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
 		}
 }
 
-void kernel qWeightUpdateFirstLayer(read_only image2d_t qStatesPrev, read_only image2d_t originalActions, read_only image2d_t qStates, read_only image2d_t qErrors,
+void kernel qLastWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t qStates,
 	read_only image3d_t qWeightsBack, write_only image3d_t qWeightsFront,
 	read_only image2d_t qBiasesBack, write_only image2d_t qBiasesFront,
-	int2 visibleSize, float2 hiddenToVisible, int radius, float alpha, float biasAlpha, float gammaLambda, float tdError)
+	int2 visibleSize, float2 hiddenToVisible, int radius, float alpha, float biasAlpha, float lambda, float tdError)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
 	float state = read_imagef(qStates, hiddenPosition).x;
 
-	float error = read_imagef(qErrors, hiddenPosition).x;
-	
 	// Bias
 	float2 biasPrev = read_imagef(qBiasesBack, hiddenPosition).xy;
 
-	float2 bias = (float2)(biasPrev.x + alpha * tdError * biasPrev.y, biasPrev.y * gammaLambda + error);
+	float2 bias = (float2)(biasPrev.x + alpha * tdError * biasPrev.y, biasPrev.y * gammaLambda + 1.0f);
 	//float2 bias = (float2)(biasPrev.x + biasAlpha * (0.5f - state), biasPrev.y * gammaLambda + error);
 
 	write_imagef(qBiasesFront, hiddenPosition, (float4)(bias, 0.0f, 0.0f));
@@ -1623,16 +1645,27 @@ void kernel qWeightUpdateFirstLayer(read_only image2d_t qStatesPrev, read_only i
 
 				int wi = offset.y + offset.x * (radius * 2 + 1);
 
-				float4 weightPrev = read_imagef(qWeightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0));
+				float2 weightPrev = read_imagef(qWeightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
 
 				float statePrev = read_imagef(qStatesPrev, visiblePosition).x;
-				float original = read_imagef(originalActions, visiblePosition).x;
+
 				//float oneMinusStatePrev = 1.0f - statePrev;
 
-				float4 weight = (float4)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * gammaLambda + error * statePrev,
-					weightPrev.z + alpha * tdError * weightPrev.w, weightPrev.w * gammaLambda + error * (1.0f - statePrev));
+				float2 weight = (float2)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * lambda + statePrev);
 
-				write_imagef(qWeightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
+				write_imagef(qWeightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
 		}
+}
+
+void kernel qActionUpdate(read_only image2d_t actionsPrev, read_only image2d_t errors, write_only image2d_t actions, float alpha) {
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float actionPrev = read_imagef(actionsPrev, position).x;
+
+	float error = read_imagef(errors, position).x;
+
+	float action = fmin(1.0f, fmax(-1.0f, action + alpha * (error > 0.0f ? 1.0f : -1.0f)));
+
+	write_imagef(actions, position, (float4)(action));
 }

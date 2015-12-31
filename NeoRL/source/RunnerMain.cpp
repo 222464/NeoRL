@@ -203,7 +203,7 @@ int main() {
 
 			std::cout << avgReward << std::endl;
 
-			agent.simStep(cs, reward * 10.0f, inputImage, generator);
+			agent.simStep(cs, reward * 10.0f, inputImage, generator, false);
 
 			cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
 
@@ -342,9 +342,9 @@ int main() {
 			float scale = 4.0f;
 
 			for (int l = 0; l < layerDescs.size() - 1; l++) {
-				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
+				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y * 2);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l + 1)._predSwarm.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 
@@ -354,7 +354,7 @@ int main() {
 					for (int y = 0; y < img.getSize().y; y++) {
 						sf::Color c = sf::Color::White;
 
-						c.r = c.b = c.g = 255.0f * sigmoid(10.0f * (data[(x + y * img.getSize().x)]));
+						c.r = c.b = c.g = 255.0f * data[(x + y * img.getSize().x) * 2 + 0];
 
 						img.setPixel(x, y, c);
 					}

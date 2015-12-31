@@ -44,17 +44,12 @@ namespace neo {
 
 			//!@{
 			/*!
-			\brief Predictor swarm parameters
-			*/
-			cl_float2 _predSwarmWeightAlpha;
-			cl_float2 _predSwarmWeightLambda;
-			//!@}
-
-			//!@{
-			/*!
 			\brief RL
 			*/
-			cl_float _gamma;
+			cl_float _qAlpha;
+			cl_float _qBiasAlpha;
+			cl_float _qLambda;
+			cl_int _qRadius;
 			//!@}
 
 			/*!
@@ -68,11 +63,10 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.0005f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.04f), _scBoostAlpha(0.001f),
-				_predWeightAlpha(0.02f),
-				_predSwarmWeightAlpha({ 0.5f, 0.001f }), _predSwarmWeightLambda({ 0.92f, 0.92f }),
-				_gamma(0.95f),
+				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.05f), _scBoostAlpha(0.01f),
+				_predWeightAlpha(0.01f),
+				_qAlpha(0.001f), _qBiasAlpha(0.001f), _qLambda(0.9f), _qRadius(6),
 				_noise(0.05f)
 			{}
 		};
@@ -86,8 +80,17 @@ namespace neo {
 			\brief Sparse coder and predictor
 			*/
 			ComparisonSparseCoder _sc;
-			PredictorSwarm _predSwarm;
 			Predictor _pred;
+			//!@}
+
+			//!@{
+			/*!
+			\brief Q Hierarchy data
+			*/
+			DoubleBuffer3D _qWeights;
+			DoubleBuffer2D _qBiases;
+			DoubleBuffer2D _qStates;
+			cl::Image2D _qErrors;
 			//!@}
 
 			/*!
@@ -107,6 +110,11 @@ namespace neo {
 		*/
 		cl_int2 _actionSize;
 
+		/*!
+		\brief Predictor for actions
+		*/
+		Predictor _actionPred;
+
 		//!@{
 		/*!
 		\brief Layers and descs
@@ -120,9 +128,80 @@ namespace neo {
 		\brief Kernels for hierarchy
 		*/
 		cl::Kernel _predictionRewardKernel;
+
+		cl::Kernel _qForwardKernel;
+		cl::Kernel _qLastForwardKernel;
+		cl::Kernel _qBackwardKernel;
+		cl::Kernel _qLastBackwardKernel;
+		cl::Kernel _qFirstBackwardKernel;
+		cl::Kernel _qWeightUpdateKernel;
+		cl::Kernel _qLastWeightUpdateKernel;
+		cl::Kernel _qActionUpdateKernel;
+
+		cl::Kernel _explorationKernel;
+		//!@}
+
+		//!@{
+		/*!
+		\brief Q Hierarchy data
+		*/
+		DoubleBuffer3D _qLastWeights;
+		DoubleBuffer2D _qLastBiases;
+		DoubleBuffer2D _qLastStates;
+
+		cl::Image2D _qFirstErrors;
+
+		cl_float _prevValue;
+		//!@}
+
+		//!@{
+		/*!
+		\brief Action buffers
+		*/
+		cl::Image2D _action;
+		cl::Image2D _actionExploratory;
 		//!@}
 
 	public:
+		//!@{
+		/*!
+		\brief Last RL
+		*/
+		cl_int2 _qLastSize;
+		cl_float _qGamma;
+		cl_float _qLastAlpha;
+		cl_float _qLastBiasAlpha;
+		cl_float _qLastLambda;
+		cl_int _qLastRadius;
+		//!@}
+
+		//!@{
+		/*!
+		\brief General RL parameters
+		*/
+		cl_int _actionImprovementIterations;
+		cl_float _actionImprovementAlpha;
+
+		cl_float _expPert;
+		cl_float _expBreak;
+		//!@}
+
+		/*!
+		\brief Action predictor parameters
+		*/
+		cl_float _predActionWeightAlpha;
+
+		/*!
+		\brief Initialize defaults
+		*/
+		AgentHA()
+			: _qLastSize({ 16, 16 }),
+			_qLastAlpha(0.001f), _qLastBiasAlpha(0.001f), _qLastLambda(0.9f), _qLastRadius(8),
+			_actionImprovementIterations(1), _actionImprovementAlpha(0.1f),
+			_expPert(0.01f), _expBreak(0.01f),
+			_predActionWeightAlpha(0.01f)
+		{}
+
 		/*!
 		\brief Create a comparison sparse coder with random initialization
 		Requires the compute system, program with the NeoRL kernels, and initialization information.
@@ -177,7 +256,7 @@ namespace neo {
 		\brief Get exploratory action
 		*/
 		const cl::Image2D &getExploratoryAction() const {
-			return _layers.front()._predSwarm.getHiddenStates()[_back];
+			return _actionExploratory;
 		}
 	};
 }
