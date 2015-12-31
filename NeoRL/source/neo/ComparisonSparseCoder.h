@@ -55,6 +55,11 @@ namespace neo {
 		*/
 		struct VisibleLayer {
 			/*!
+			\brief Reconstruction error
+			*/
+			cl::Image2D _reconstructionError;
+
+			/*!
 			\brief Weights
 			*/
 			DoubleBuffer3D _weights;
@@ -97,6 +102,7 @@ namespace neo {
 		\brief Temporary summation buffers
 		*/
 		DoubleBuffer2D _hiddenActivationSummationTemp;
+		DoubleBuffer2D _hiddenErrorSummationTemp;
 		//!@}
 
 		//!@{
@@ -111,6 +117,7 @@ namespace neo {
 		/*!
 		\brief Kernels
 		*/
+		cl::Kernel _forwardErrorKernel;
 		cl::Kernel _activateKernel;
 		cl::Kernel _activateIgnoreMiddleKernel;
 		cl::Kernel _solveHiddenKernel;
@@ -118,6 +125,11 @@ namespace neo {
 		cl::Kernel _learnHiddenWeightsKernel;
 		cl::Kernel _learnHiddenWeightsTracesKernel;
 		//!@}
+
+		/*!
+		\brief Reconstruct and find error with input for all visible layers
+		*/
+		void reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
 
 	public:
 		/*!

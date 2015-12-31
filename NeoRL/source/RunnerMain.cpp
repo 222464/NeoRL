@@ -112,10 +112,10 @@ int main() {
 
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 32, 32 };
+	layerDescs[0]._size = { 16, 16 };
 	//layerDescs[0].32 = { 0.5f, 0.01f, 0.01f };
-	layerDescs[1]._size = { 16, 32 };
-	layerDescs[2]._size = { 32, 32 };
+	layerDescs[1]._size = { 16, 16 };
+	layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentSPG agent;
 
@@ -181,7 +181,7 @@ int main() {
 		{
 			float reward;
 			
-			if (!sf::Keyboard::isKeyPressed(sf::Keyboard::K))
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::K))
 				reward = -runner0._pBody->GetLinearVelocity().x;
 			else
 				reward = runner0._pBody->GetLinearVelocity().x;
