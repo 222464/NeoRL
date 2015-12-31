@@ -203,7 +203,7 @@ int main() {
 
 			std::cout << avgReward << std::endl;
 
-			agent.simStep(cs, reward * 10.0f, inputImage, generator, false);
+			agent.simStep(cs, reward * 10.0f, inputImage, generator);
 
 			cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
 
@@ -344,7 +344,7 @@ int main() {
 			for (int l = 0; l < layerDescs.size() - 1; l++) {
 				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l + 1)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 

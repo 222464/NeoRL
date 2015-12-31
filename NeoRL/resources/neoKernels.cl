@@ -1420,7 +1420,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = sum * hiddenState;
+	float state = sigmoid(sum) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
@@ -1455,7 +1455,7 @@ void kernel qLastForward(read_only image3d_t qWeights, read_only image2d_t qBias
 	write_imagef(qStatesFront, hiddenPosition, (float4)(sum));
 }
 
-void kernel qBackward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, read_only image2d_t qErrorsNext, write_only image2d_t qErrors,
+void kernel qBackward(read_only image2d_t qStates, read_only image3d_t qWeights, read_only image2d_t qErrorsNext, write_only image2d_t qErrors,
 	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
 {
 	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
@@ -1489,14 +1489,14 @@ void kernel qBackward(read_only image2d_t hiddenStates, read_only image3d_t qWei
 			}
 		}
 
-	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
+	float qState = read_imagef(qStates, visiblePosition).x;
 
-	float error = sum * hiddenState;
+	float error = sum * qState * (1.0f - qState);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
 
-void kernel qLastBackward(read_only image2d_t hiddenStates, read_only image3d_t qWeights, write_only image2d_t qErrors,
+void kernel qLastBackward(read_only image2d_t qStates, read_only image3d_t qWeights, write_only image2d_t qErrors,
 	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
 {
 	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
@@ -1528,9 +1528,9 @@ void kernel qLastBackward(read_only image2d_t hiddenStates, read_only image3d_t 
 			}
 		}
 
-	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
+	float qState = read_imagef(qStates, visiblePosition).x;
 
-	float error = sum * hiddenState;
+	float error = sum * qState * (1.0f - qState);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1665,7 +1665,7 @@ void kernel qActionUpdate(read_only image2d_t actionsPrev, read_only image2d_t e
 
 	float error = read_imagef(errors, position).x;
 
-	float action = fmin(1.0f, fmax(-1.0f, action + alpha * (error > 0.0f ? 1.0f : -1.0f)));
+	float action = fmin(1.0f, fmax(-1.0f, actionPrev + alpha * (error > 0.0f ? 1.0f : -1.0f)));
 
 	write_imagef(actions, position, (float4)(action));
 }

@@ -66,7 +66,7 @@ namespace neo {
 				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
 				_scActiveRatio(0.05f), _scBoostAlpha(0.01f),
 				_predWeightAlpha(0.05f),
-				_qAlpha(0.001f), _qBiasAlpha(0.001f), _qLambda(0.9f), _qRadius(6),
+				_qAlpha(0.01f), _qBiasAlpha(0.01f), _qLambda(0.95f), _qRadius(6),
 				_noise(0.05f)
 			{}
 		};
@@ -195,9 +195,10 @@ namespace neo {
 		\brief Initialize defaults
 		*/
 		AgentHA()
-			: _qLastSize({ 16, 16 }),
-			_qLastAlpha(0.001f), _qLastBiasAlpha(0.001f), _qLastLambda(0.9f), _qLastRadius(8),
-			_actionImprovementIterations(1), _actionImprovementAlpha(0.1f),
+			: _prevValue(0.0f),
+			_qLastSize({ 16, 16 }), _qGamma(0.99f),
+			_qLastAlpha(0.01f), _qLastBiasAlpha(0.01f), _qLastLambda(0.95f), _qLastRadius(8),
+			_actionImprovementIterations(8), _actionImprovementAlpha(0.1f),
 			_expPert(0.01f), _expBreak(0.01f),
 			_predActionWeightAlpha(0.05f)
 		{}
