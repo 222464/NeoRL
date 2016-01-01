@@ -47,11 +47,14 @@ float sigmoid(float x) {
 }
 
 float relu(float x, float leak) {
+	if (x > 1.0f)
+		return 1.0f + (x - 1.0f) * leak;
+
 	return x > 0.0f ? x : x * leak;
 }
 
 float relud(float x, float leak) {
-	return x > 0.0f ? 1.0f : leak;
+	return x > 0.0f && x < 1.0f ? 1.0f : leak;
 }
 
 float elu(float x, float alpha) {
@@ -1397,7 +1400,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
-	float sum = read_imagef(qBiases, hiddenPosition).x;
+	float sum = 0.0f;//read_imagef(qBiases, hiddenPosition).x;
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
@@ -1420,7 +1423,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = sigmoid(sum) * hiddenState;
+	float state = relu(sum, reluLeak) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
@@ -1489,9 +1492,11 @@ void kernel qBackward(read_only image2d_t qStates, read_only image3d_t qWeights,
 			}
 		}
 
+	//sum = sum > 0.0f ? 1.0f : -1.0f;
+	
 	float qState = read_imagef(qStates, visiblePosition).x;
 
-	float error = sum * qState * (1.0f - qState);
+	float error = sum * relud(qState, reluLeak);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1536,7 +1541,7 @@ void kernel qLastBackward(read_only image2d_t qStates, read_only image3d_t qWeig
 
 	float qState = read_imagef(qStates, visiblePosition).x;
 
-	float error = sum * qState * (1.0f - qState);
+	float error = sum * relud(qState, reluLeak);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
