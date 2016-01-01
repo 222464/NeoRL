@@ -1525,14 +1525,14 @@ void kernel qLastBackward(read_only image2d_t qStates, read_only image3d_t qWeig
 
 					float weight = read_imagef(qWeights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 				
-					sum += weight > 0.0f ? 1.0f : -1.0f;
+					sum += weight;
 
 					count++;
 				}
 			}
 		}
 
-	sum /= count;
+	sum = sum > 0.0f ? 1.0f : -1.0f;
 
 	float qState = read_imagef(qStates, visiblePosition).x;
 
