@@ -104,8 +104,8 @@ int main() {
 
 	std::vector<neo::AgentHA::LayerDesc> layerDescs(2);
 
-	layerDescs[0]._size = { 16, 16 };
-	layerDescs[1]._size = { 8, 8 };
+	layerDescs[0]._size = { 32, 32 };
+	layerDescs[1]._size = { 16, 16 };
 	//layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentHA agent;
