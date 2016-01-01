@@ -251,7 +251,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only im
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	
-	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x + read_imagef(hiddenBiases, hiddenPosition).x;
+	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;// + read_imagef(hiddenBiases, hiddenPosition).x;
 
 	float statePrev = read_imagef(hiddenStatesBack, hiddenPosition).x;
 
