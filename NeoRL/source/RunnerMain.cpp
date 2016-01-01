@@ -111,12 +111,11 @@ int main() {
 	prsdr.createRandom(7, 7, 8, inputTypes, layerDescs, -0.01f, 0.01f, 0.01f, 0.05f, 0.5f, generator);
 	*/
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(3);
+	std::vector<neo::AgentHA::LayerDesc> layerDescs(1);
 
 	layerDescs[0]._size = { 16, 16 };
-	//layerDescs[0].32 = { 0.5f, 0.01f, 0.01f };
-	layerDescs[1]._size = { 16, 16 };
-	layerDescs[2]._size = { 16, 16 };
+	//layerDescs[1]._size = { 16, 16 };
+	//layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentHA agent;
 
