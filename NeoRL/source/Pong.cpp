@@ -223,13 +223,13 @@ int main() {
 
 		float act = 0.0f;
 
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 1; i++) {
 			act += action[i];// *2.0f - 1.0f;
 
 			std::cout << action[i] << std::endl;
 		}
 
-		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.2f * std::min(1.0f, std::max(-1.0f, act * 0.5f))));
+		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.2f * std::min(1.0f, std::max(-1.0f, act))));
 
 		//std::cout << averageReward << std::endl;
 
