@@ -50,6 +50,7 @@ namespace neo {
 			cl_float _qBiasAlpha;
 			cl_float _qLambda;
 			cl_int _qRadius;
+			cl_float _qReluLeak;
 			//!@}
 
 			/*!
@@ -63,10 +64,10 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.03f), _scBoostAlpha(0.005f),
+				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.1f), _scBoostAlpha(0.001f),
 				_predWeightAlpha(0.01f),
-				_qAlpha(0.04f), _qBiasAlpha(0.04f), _qLambda(0.95f), _qRadius(6),
+				_qAlpha(0.001f), _qBiasAlpha(0.001f), _qLambda(0.96f), _qRadius(6), _qReluLeak(0.01f),
 				_noise(0.05f)
 			{}
 		};
@@ -196,9 +197,9 @@ namespace neo {
 		*/
 		AgentHA()
 			: _prevValue(0.0f),
-			_qLastSize({ 16, 16 }), _qGamma(0.95f),
-			_qLastAlpha(0.004f), _qLastBiasAlpha(0.004f), _qLastLambda(0.9f), _qLastRadius(8),
-			_actionImprovementIterations(3), _actionImprovementAlpha(0.2f),
+			_qLastSize({ 8, 8 }), _qGamma(0.98f),
+			_qLastAlpha(0.001f), _qLastBiasAlpha(0.001f), _qLastLambda(0.96f), _qLastRadius(8),
+			_actionImprovementIterations(1), _actionImprovementAlpha(0.1f),
 			_expPert(0.05f), _expBreak(0.03f),
 			_predActionWeightAlpha(0.02f)
 		{}

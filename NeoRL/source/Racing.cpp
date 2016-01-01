@@ -81,7 +81,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_gpu);
+	cs.create(sys::ComputeSystem::_cpu);
 
 	sys::ComputeProgram prog;
 
@@ -91,7 +91,7 @@ int main() {
 
 	sf::RenderWindow window;
 
-	window.create(sf::VideoMode(640, 640), "BIDInet", sf::Style::Default);
+	window.create(sf::VideoMode(640, 640), "Racing", sf::Style::Default);
 
 	window.setFramerateLimit(60);
 	window.setVerticalSyncEnabled(true);
@@ -102,10 +102,10 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(1);
+	std::vector<neo::AgentHA::LayerDesc> layerDescs(2);
 
-	layerDescs[0]._size = { 32, 32 };
-	//layerDescs[1]._size = { 16, 16 };
+	layerDescs[0]._size = { 16, 16 };
+	layerDescs[1]._size = { 16, 16 };
 	//layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentHA agent;
@@ -354,7 +354,7 @@ int main() {
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, reset ? -100.0f : (reward - std::abs(action[1]) * 0.2f), inputImage, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.5f * (reward - std::abs(action[1]) * 0.01f), inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 	} while (!quit);

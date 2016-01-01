@@ -300,7 +300,8 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				_qForwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
 				_qForwardKernel.setArg(argIndex++, prevLayerSize);
 				_qForwardKernel.setArg(argIndex++, hiddenToVisible);
-				_qForwardKernel.setArg(argIndex++,_layerDescs[l]._qRadius);
+				_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qRadius);
+				_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qReluLeak);
 
 				cs.getQueue().enqueueNDRangeKernel(_qForwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 			}
@@ -373,6 +374,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qLastBackwardKernel.setArg(argIndex++, hiddenToVisible);
 			_qLastBackwardKernel.setArg(argIndex++, _qLastRadius);
 			_qLastBackwardKernel.setArg(argIndex++, reverseRadii);
+			_qLastBackwardKernel.setArg(argIndex++, _layerDescs.back()._qReluLeak);
 
 			cs.getQueue().enqueueNDRangeKernel(_qLastBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs.back()._size.x, _layerDescs.back()._size.y));
 		}
@@ -404,6 +406,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qBackwardKernel.setArg(argIndex++, hiddenToVisible);
 			_qBackwardKernel.setArg(argIndex++, _layerDescs[l + 1]._qRadius);
 			_qBackwardKernel.setArg(argIndex++, reverseRadii);
+			_qBackwardKernel.setArg(argIndex++, _layerDescs[l]._qReluLeak);
 
 			cs.getQueue().enqueueNDRangeKernel(_qBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 
@@ -500,6 +503,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				_qForwardKernel.setArg(argIndex++, prevLayerSize);
 				_qForwardKernel.setArg(argIndex++, hiddenToVisible);
 				_qForwardKernel.setArg(argIndex++,_layerDescs[l]._qRadius);
+				_qForwardKernel.setArg(argIndex++, _layerDescs[l]._qReluLeak);
 
 				cs.getQueue().enqueueNDRangeKernel(_qForwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 			}
@@ -546,7 +550,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 		q /= qValues.size();
 
 		// Bellman equation
-		tdError = reward + _qGamma * q - _prevValue;
+		tdError = reward + _qGamma * maxQ - _prevValue;
 
 		std::cout << "Q: " << q << std::endl;
 
@@ -575,6 +579,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qLastBackwardKernel.setArg(argIndex++, hiddenToVisible);
 			_qLastBackwardKernel.setArg(argIndex++, _qLastRadius);
 			_qLastBackwardKernel.setArg(argIndex++, reverseRadii);
+			_qLastBackwardKernel.setArg(argIndex++, _layerDescs.back()._qReluLeak);
 
 			cs.getQueue().enqueueNDRangeKernel(_qLastBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs.back()._size.x, _layerDescs.back()._size.y));
 		}
@@ -606,6 +611,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qBackwardKernel.setArg(argIndex++, hiddenToVisible);
 			_qBackwardKernel.setArg(argIndex++, _layerDescs[l + 1]._qRadius);
 			_qBackwardKernel.setArg(argIndex++, reverseRadii);
+			_qBackwardKernel.setArg(argIndex++, _layerDescs[l]._qReluLeak);
 
 			cs.getQueue().enqueueNDRangeKernel(_qBackwardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 
