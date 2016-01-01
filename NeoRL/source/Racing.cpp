@@ -102,10 +102,10 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(1);
+	std::vector<neo::AgentHA::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
-	//layerDescs[1]._size = { 8, 8 };
+	layerDescs[1]._size = { 8, 8 };
 	//layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentHA agent;
@@ -195,14 +195,14 @@ int main() {
 		else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 			action[1] = -1.0f;*/
 
-			// Physics update
+		// Physics update
 		sf::Vector2f prevPosition = car._position;
 
 		car._position += sf::Vector2f(std::cos(car._rotation), std::sin(car._rotation)) * car._speed;
 		car._speed *= 0.95f;
 
-		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel * (action[0] * 0.5f + 0.5f)));
-		car._rotation = std::fmod(car._rotation + 0.5f * (action[1] - action[2]) * spinRate, 3.141596f * 2.0f);
+		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel));// *(action[0] * 0.5f + 0.5f)));
+		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, 0.333f * (action[0] + action[1] - action[2] - action[3]))) * spinRate, 3.141596f * 2.0f);
 
 		sf::Color curColor = collisionImg.getPixel(car._position.x, car._position.y);
 
@@ -354,7 +354,7 @@ int main() {
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.04f * reward, inputImage, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.04f * (reward - std::abs(action[1]) * 2.0f), inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 	} while (!quit);
