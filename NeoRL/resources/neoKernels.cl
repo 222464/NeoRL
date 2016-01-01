@@ -1420,7 +1420,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = tanh(sum) * hiddenState;
+	float state = sigmoid(sum) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
@@ -1491,7 +1491,7 @@ void kernel qBackward(read_only image2d_t qStates, read_only image3d_t qWeights,
 
 	float qState = read_imagef(qStates, visiblePosition).x;
 
-	float error = sum * (qState == 0.0f ? 0.0f : 1.0f) * (1.0f - qState * qState);
+	float error = sum * qState * (1.0f - qState);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1530,7 +1530,7 @@ void kernel qLastBackward(read_only image2d_t qStates, read_only image3d_t qWeig
 
 	float qState = read_imagef(qStates, visiblePosition).x;
 
-	float error = sum * (qState == 0.0f ? 0.0f : 1.0f) * (1.0f - qState * qState);
+	float error = sum * qState * (1.0f - qState);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
