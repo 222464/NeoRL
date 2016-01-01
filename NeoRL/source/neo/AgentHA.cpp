@@ -616,7 +616,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 	// Update weights
 	{
-		cl::Image2D prevLayerInput = _action;
+		cl::Image2D prevLayerInput = _actionExploratory;
 		cl_int2 prevLayerSize = _actionSize;
 
 		for (int l = 0; l < _layers.size(); l++) {

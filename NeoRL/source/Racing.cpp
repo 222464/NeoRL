@@ -102,11 +102,11 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(3);
+	std::vector<neo::AgentHA::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
 	layerDescs[1]._size = { 16, 16 };
-	layerDescs[2]._size = { 16, 16 };
+	//layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentHA agent;
 
@@ -202,7 +202,7 @@ int main() {
 		car._speed *= 0.95f;
 
 		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel * action[0]));
-		car._rotation = std::fmod(car._rotation + action[1] * spinRate, 3.141596f * 2.0f);
+		car._rotation = std::fmod(car._rotation + 0.5f * (action[1] - action[2]) * spinRate, 3.141596f * 2.0f);
 
 		sf::Color curColor = collisionImg.getPixel(car._position.x, car._position.y);
 

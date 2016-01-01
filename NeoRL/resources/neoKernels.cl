@@ -1609,7 +1609,7 @@ void kernel qWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t q
 
 				//float oneMinusStatePrev = 1.0f - statePrev;
 
-				float2 weight = (float2)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * lambda + error * statePrev * exp(-fabs(weightPrev.y)));
+				float2 weight = (float2)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * lambda + error * statePrev);
 
 				write_imagef(qWeightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -1651,7 +1651,7 @@ void kernel qLastWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d
 
 				//float oneMinusStatePrev = 1.0f - statePrev;
 
-				float2 weight = (float2)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * lambda + statePrev * exp(-fabs(weightPrev.y)));
+				float2 weight = (float2)(weightPrev.x + alpha * tdError * weightPrev.y, weightPrev.y * lambda + statePrev);
 
 				write_imagef(qWeightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
