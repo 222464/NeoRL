@@ -273,6 +273,8 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 	cs.getQueue().enqueueCopyImage(_actionPred.getHiddenStates()[_back], _action, { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
 
 	// Find best Q
+	float maxQ;
+
 	for (int iter = 0; iter < _actionImprovementIterations; iter++) {
 		cl::Image2D prevLayerInput = _action;
 		cl_int2 prevLayerSize = _actionSize;
@@ -330,6 +332,22 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qLastForwardKernel.setArg(argIndex++, _qLastRadius);
 
 			cs.getQueue().enqueueNDRangeKernel(_qLastForwardKernel, cl::NullRange, cl::NDRange(_qLastSize.x, _qLastSize.y));
+		}
+
+		if (iter == _actionImprovementIterations - 1) {
+			// Find average Q
+			float q = 0.0f;
+
+			std::vector<float> qValues(_qLastSize.x * _qLastSize.y);
+
+			cs.getQueue().enqueueReadImage(_qLastStates[_front], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_qLastSize.x), static_cast<cl::size_type>(_qLastSize.y), 1 }, 0, 0, qValues.data());
+
+			for (int i = 0; i < qValues.size(); i++)
+				q += qValues[i];
+
+			q /= qValues.size();
+
+			maxQ = q;
 		}
 
 		// Backpropagate last layer
@@ -530,7 +548,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 		// Bellman equation
 		tdError = reward + _qGamma * q - _prevValue;
 
-		std::cout << "TD: " << q << std::endl;
+		std::cout << "Q: " << q << std::endl;
 
 		_prevValue = q;
 

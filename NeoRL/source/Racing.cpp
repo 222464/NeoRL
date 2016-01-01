@@ -9,6 +9,7 @@
 #include <system/ComputeProgram.h>
 
 #include <neo/AgentHA.h>
+#include <deep/SDRRL.h>
 
 #include <time.h>
 #include <iostream>
@@ -103,9 +104,9 @@ int main() {
 
 	std::vector<neo::AgentHA::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 8, 8 };
-	layerDescs[1]._size = { 8, 8 };
-	layerDescs[2]._size = { 8, 8 };
+	layerDescs[0]._size = { 16, 16 };
+	layerDescs[1]._size = { 16, 16 };
+	layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentHA agent;
 
@@ -114,6 +115,10 @@ int main() {
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	std::vector<float> input(inWidth * inHeight, 0.0f);
 	std::vector<float> action(aWidth * aHeight, 0.0f);
+
+	deep::SDRRL agent2;
+
+	agent2.createRandom(18, 2, 32, -0.01f, 0.01f, 0.01f, 0.05f, 0.05f, generator);
 
 	// -------------------------- Game Resources --------------------------
 
@@ -190,10 +195,12 @@ int main() {
 		else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 			action[1] = -1.0f;*/
 
-		// Physics update
+			// Physics update
+		sf::Vector2f prevPosition = car._position;
+
 		car._position += sf::Vector2f(std::cos(car._rotation), std::sin(car._rotation)) * car._speed;
 		car._speed *= 0.95f;
-		
+
 		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel * action[0]));
 		car._rotation = std::fmod(car._rotation + action[1] * spinRate, 3.141596f * 2.0f);
 
@@ -212,7 +219,7 @@ int main() {
 
 			reset = true;
 		}
-		
+
 		sf::Vector2f vec = checkpoints[(curCheckpoint + 1) % static_cast<int>(checkpoints.size())] - checkpoints[curCheckpoint];
 
 		// Project position onto vec
@@ -221,7 +228,7 @@ int main() {
 		sf::Vector2f proj = (relPos.x * vec.x + relPos.y * vec.y) / std::pow(magnitude(vec), 2) * vec;
 
 		float addDist = magnitude(proj) * ((vec.x * proj.x + vec.y * proj.y) > 0.0f ? 1.0f : -1.0f);
-		
+
 		// If past checkpoint (before or after current segment)
 		if (addDist >= magnitude(vec)) {
 			curCheckpoint = (curCheckpoint + 1) % static_cast<int>(checkpoints.size());
@@ -269,6 +276,15 @@ int main() {
 
 		prevDistance = distance;
 
+		sf::Vector2f carDir(car._position - prevPosition);
+
+		carDir /= std::max(0.00001f, magnitude(carDir));
+
+		sf::Vector2f trackDir = vec / magnitude(vec);
+		sf::Vector2f trackPerp(-trackDir.y, trackDir.x);
+
+		float reward = std::abs(car._speed) * (carDir.x * trackDir.x + carDir.y * trackDir.y);
+
 		// Sensors
 		std::vector<float> sensors(16);
 
@@ -288,35 +304,39 @@ int main() {
 			sensors[s] = v / sensorRange;
 		}
 
-		sf::Sprite backgroundS;
-		backgroundS.setTexture(backgroundTex);
+		if (!sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
+			sf::Sprite backgroundS;
+			backgroundS.setTexture(backgroundTex);
 
-		window.draw(backgroundS);
+			window.draw(backgroundS);
 
-		sf::VertexArray va;
+			sf::VertexArray va;
 
-		va.setPrimitiveType(sf::Lines);
-		va.resize(sensors.size() * 2);
+			va.setPrimitiveType(sf::Lines);
+			va.resize(sensors.size() * 2);
 
-		for (int s = 0; s < sensors.size(); s++) {
-			float d = sensorAngle * (s - sensors.size() * 0.5f) + car._rotation;
+			for (int s = 0; s < sensors.size(); s++) {
+				float d = sensorAngle * (s - sensors.size() * 0.5f) + car._rotation;
 
-			sf::Vector2f dir = sf::Vector2f(std::cos(d), std::sin(d));
+				sf::Vector2f dir = sf::Vector2f(std::cos(d), std::sin(d));
 
-			va[s * 2 + 0] = car._position;
-			va[s * 2 + 1] = car._position + dir * sensors[s] * sensorRange;
+				va[s * 2 + 0] = car._position;
+				va[s * 2 + 1] = car._position + dir * sensors[s] * sensorRange;
+			}
+
+			window.draw(va);
+
+			sf::Sprite carS;
+			carS.setTexture(carTex);
+
+			carS.setOrigin(carTex.getSize().x * 0.5f, carTex.getSize().y * 0.5f);
+			carS.setPosition(car._position);
+			carS.setRotation(car._rotation * 180.0f / 3.141596f + 90.0f);
+
+			window.draw(carS);
+
+			window.display();
 		}
-
-		window.draw(va);
-
-		sf::Sprite carS;
-		carS.setTexture(carTex);
-
-		carS.setOrigin(carTex.getSize().x * 0.5f, carTex.getSize().y * 0.5f);
-		carS.setPosition(car._position);
-		carS.setRotation(car._rotation * 180.0f / 3.141596f + 90.0f);
-
-		window.draw(carS);
 
 		for (int i = 0; i < sensors.size(); i++)
 			input[i] = sensors[i];
@@ -324,13 +344,19 @@ int main() {
 		input[sensors.size() + 0] = (car._rotation / (2.0f * 3.141596f)) * 2.0f - 1.0f;
 		input[sensors.size() + 1] = car._speed * 0.1f;
 
+		/*for (int i = 0; i < 18; i++)
+			agent2.setState(i, input[i]);
+
+		agent2.simStep(deltaDistance * 10.0f, 0.1f, 0.99f, 8, 8, 0.1f, 0.01f, 0.1f, 0.01f, 0.01f, 0.1f, 17, 0.1f, 0.95f, 0.01f, 0.01f, 0.01f, 4.0f, generator);
+
+		action[0] = agent2.getAction(0) * 2.0f - 1.0f;
+		action[1] = agent2.getAction(1) * 2.0f - 1.0f;*/
+
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, deltaDistance, inputImage, generator);
+		agent.simStep(cs, reward - std::abs(action[1]) * 0.5f, inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
-	
-		window.display();
 	} while (!quit);
 
 	return 0;
