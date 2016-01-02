@@ -29,8 +29,8 @@ int main() {
 
 	prog.loadFromFile("resources/neoKernels.cl", cs);
 
-	const int sampleWidth = 16;
-	const int sampleHeight = 16;
+	const int sampleWidth = 32;
+	const int sampleHeight = 32;
 	const int codeWidth = 16;
 	const int codeHeight = 16;
 	const int stepsPerFrame = 5;
@@ -39,6 +39,7 @@ int main() {
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), sampleWidth, sampleHeight);
 	cl::Image2D rewardImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), codeWidth, codeHeight);
+	cl::Image2D reconstruction = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), sampleWidth, sampleWidth);
 
 	cs.getQueue().enqueueFillImage(rewardImage, cl_float4 { 1.0f, 1.0f, 1.0f, 1.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(codeWidth), static_cast<cl::size_type>(codeHeight), 1 });
 
@@ -154,25 +155,27 @@ int main() {
 			sparseCoder.learn(cs, std::vector<cl::Image2D>(1, inputImage), 0.1f, 0.1f);
 		}
 
-		/*if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
 			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
 			cl::array<cl::size_type, 3> region = { sampleWidth, sampleHeight, 1 };
 
 			std::vector<float> recon(sampleWidth * sampleHeight);
 
-			cs.getQueue().enqueueReadImage(sparseCoder.getVisibleLayer(0)._reconstructionError, CL_TRUE, origin, region, 0, 0, recon.data());
+			sparseCoder.reconstruct(cs, sparseCoder.getHiddenStates()[neo::_back], 0, reconstruction);
+
+			cs.getQueue().enqueueReadImage(reconstruction, CL_TRUE, origin, region, 0, 0, recon.data());
 
 			for (int x = 0; x < sampleWidth; x++)
 				for (int y = 0; y < sampleHeight; y++) {
 					sf::Color c = sf::Color::White;
 
-					c.r = c.b = c.g = sig(10.0f * recon[x + y * sampleWidth]) * 255.0f;
+					c.r = c.b = c.g = sig(1.0f * recon[x + y * sampleWidth]) * 255.0f;
 
 					reconstructionImage.setPixel(x, y, c);
 				}
 
 			reconstructionTexture.loadFromImage(reconstructionImage);
-		}*/
+		}
 
 		// ----------------------------- Rendering -----------------------------
 
