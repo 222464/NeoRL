@@ -141,7 +141,7 @@ void kernel randomUniform3DXZ(write_only image3d_t values, uint2 seed, float2 mi
 
 // ----------------------------------------- Comparison Sparse Coder -----------------------------------------
 
-void kernel cscForwardError(read_only image2d_t hiddenStates, read_only image2d_t visibleStates,
+void kernel cscForwardError(read_only image2d_t hiddenStates, read_only image2d_t hiddenActivations, read_only image2d_t visibleStates,
 	write_only image2d_t reconstructionError, read_only image3d_t weights,
 	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
 {
@@ -166,6 +166,7 @@ void kernel cscForwardError(read_only image2d_t hiddenStates, read_only image2d_
 					int2 offset = visiblePosition - fieldLowerBound;
 
 					float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
+					float hiddenActivation = read_imagef(hiddenActivations, hiddenPosition).x;
 
 					int wi = offset.y + offset.x * (radius * 2 + 1);
 
@@ -248,15 +249,16 @@ void kernel cscActivateIgnoreMiddle(read_only image2d_t visibleStates,
 	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum));
 }
 
-void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only image2d_t hiddenBiases,
-	read_only image2d_t hiddenStatesBack, write_only image2d_t hiddenStatesFront,
-	int2 hiddenSize, int radius, float activeRatio)
+void kernel cscSolveHiddenRandom(read_only image2d_t hiddenSummationTemp, read_only image2d_t hiddenBiases,
+	write_only image2d_t hiddenStatesFront,
+	int2 hiddenSize, int radius, float activeRatio,
+	uint2 seed)
 {
+	uint2 seedValue = seed + (uint2)(get_global_id(0) * 4 + 73 + get_global_id(2) * 51, get_global_id(1) * 3 + 6 + get_global_id(2) * 7) * 66;
+
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	
 	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;// + read_imagef(hiddenBiases, hiddenPosition).x;
-
-	float statePrev = read_imagef(hiddenStatesBack, hiddenPosition).x;
 
 	int2 fieldLowerBound = hiddenPosition - (int2)(radius);
 
@@ -280,7 +282,44 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only im
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
+	float probability = inhibition < (counter * activeRatio) ? sigmoid(activation) : 0.0f;
+
+	float state = randFloat(&seedValue) < probability ? 1.0f : 0.0f;
+
+	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
+}
+
+void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only image2d_t hiddenBiases,
+	write_only image2d_t hiddenStatesFront,
+	int2 hiddenSize, int radius, float activeRatio)
+{
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+	
+	float activation = read_imagef(hiddenSummationTemp, hiddenPosition).x;// + read_imagef(hiddenBiases, hiddenPosition).x;
+
+	int2 fieldLowerBound = hiddenPosition - (int2)(radius);
+
+	float inhibition = 0.0f;
+
+	float counter = 0.0f;
+
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			if (dx == 0 && dy == 0)
+				continue;
+			
+			int2 otherPosition = hiddenPosition + (int2)(dx, dy);
+
+			if (inBounds0(otherPosition, hiddenSize)) {
+				float otherActivation = read_imagef(hiddenSummationTemp, otherPosition).x;
+
+				inhibition += otherActivation >= activation ? 1.0f : 0.0f;
+
+				counter++;
+			}
+		}
+
+	float state = inhibition < (counter * activeRatio) ? sigmoid(activation) : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -295,15 +334,15 @@ void kernel cscLearnHiddenBiases(read_only image2d_t biasesBack, write_only imag
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 
-	//float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f - state * state);
+	float error = read_imagef(hiddenErrors, hiddenPosition).x * state;
 
 	float bias = biasPrev + boostAlpha * (activeRatio - state);
 
 	write_imagef(biasesFront, hiddenPosition, (float4)(bias));
 }
 
-void kernel cscLearnHiddenWeights(read_only image2d_t visibleErrors, read_only image2d_t visibleStates,
-	read_only image2d_t hiddenErrors, read_only image2d_t hiddenStates, read_only image2d_t hiddenActivations,
+void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only image2d_t visibleReconstruction,
+	read_only image2d_t hiddenStates, read_only image2d_t hiddenReconstruction,
 	read_only image3d_t weightsBack, write_only image3d_t weightsFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha)
 {
@@ -313,11 +352,8 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleErrors, read_only i
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
+	float recon = read_imagef(hiddenReconstruction, hiddenPosition).x;
 	
-	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
-
-	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
-
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
 			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
@@ -329,18 +365,18 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleErrors, read_only i
 
 				float weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
-				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
-
-				float weight = weightPrev + weightAlpha * (state * activation * visibleError + error * visibleState);
+				float visibleRecon = read_imagef(visibleReconstruction, visiblePosition).x;
+				
+				float weight = weightPrev + weightAlpha * (state * visibleState - recon * visibleRecon);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
 		}
 }
 
-void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only image2d_t visibleErrors, read_only image2d_t visibleStates,
-	read_only image2d_t hiddenErrors, read_only image2d_t hiddenStates, read_only image2d_t hiddenActivations,
+void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only image2d_t visibleStates, read_only image2d_t visibleReconstruction, 
+	read_only image2d_t hiddenStates, read_only image2d_t hiddenReconstruction,
 	read_only image3d_t weightsBack, write_only image3d_t weightsFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda)
 {
@@ -352,10 +388,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 	float reward = read_imagef(rewards, hiddenPosition).x;
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
-
-	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
-
-	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
+	float recon = read_imagef(hiddenReconstruction, hiddenPosition).x;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -368,10 +401,10 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 
 				float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
 
-				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
+				float visibleRecon = read_imagef(visibleReconstruction, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * weightPrev.y, weightPrev.y * weightLambda + (state * activation * visibleError + error * visibleState));
+				float2 weight = (float2)(weightPrev.x + weightAlpha * reward * weightPrev.y, weightPrev.y * weightLambda + (state * visibleState - recon * visibleRecon));
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight.x, weight.y, 0.0f, 0.0f));
 			}
@@ -1396,7 +1429,7 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 
 	float state = read_imagef(hiddenStates, position).x;
 
-	float reward = 1.0f;// - pred * state;
+	float reward = 1.0f - pred * state;
 
 	write_imagef(rewards, position, (float4)(reward));
 }

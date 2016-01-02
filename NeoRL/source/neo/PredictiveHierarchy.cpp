@@ -96,7 +96,8 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStates[0] = prevLayerState;
 			visibleStates[1] = _layers[l]._scHiddenStatesPrev;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
+			abort();
+			//_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio, rng);
 
 			// Get reward
 			{

@@ -171,7 +171,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 			visibleStates[0] = _layers[l]._modulatedFeedForwardInput;
 			visibleStates[1] = _layers[l]._modulatedRecurrentInput;
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
+			//_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
 			_layers[l]._sc.learn(cs, _layers[l]._reward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}

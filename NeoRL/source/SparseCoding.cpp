@@ -150,9 +150,9 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.1f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.1f, generator);
 
-			sparseCoder.learn(cs, std::vector<cl::Image2D>(1, inputImage), 0.1f, 0.1f);
+			sparseCoder.learn(cs, std::vector<cl::Image2D>(1, inputImage), 0.5f, 0.1f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {

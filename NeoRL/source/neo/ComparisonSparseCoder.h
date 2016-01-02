@@ -45,7 +45,7 @@ namespace neo {
 			\brief Initialize defaults
 			*/
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.0001f), _weightLambda(0.95f),
+				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.01f), _weightLambda(0.95f),
 				_ignoreMiddle(false), _useTraces(false)
 			{}
 		};
@@ -57,7 +57,7 @@ namespace neo {
 			/*!
 			\brief Reconstruction error
 			*/
-			cl::Image2D _reconstructionError;
+			cl::Image2D _reconstruction;
 
 			/*!
 			\brief Weights
@@ -85,6 +85,7 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenBiases;
+		cl::Image2D _hiddenReconstructedStates;
 		//!@}
 
 		/*!
@@ -102,7 +103,7 @@ namespace neo {
 		\brief Temporary summation buffers
 		*/
 		DoubleBuffer2D _hiddenActivationSummationTemp;
-		DoubleBuffer2D _hiddenErrorSummationTemp;
+		DoubleBuffer2D _hiddenReconstructionSummationTemp;
 		//!@}
 
 		//!@{
@@ -117,20 +118,15 @@ namespace neo {
 		/*!
 		\brief Kernels
 		*/
-		cl::Kernel _forwardErrorKernel;
 		cl::Kernel _activateKernel;
 		cl::Kernel _activateIgnoreMiddleKernel;
+		cl::Kernel _solveHiddenRandomKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnHiddenBiasesKernel;
 		cl::Kernel _learnHiddenWeightsKernel;
 		cl::Kernel _learnHiddenWeightsTracesKernel;
 		cl::Kernel _forwardKernel;
 		//!@}
-
-		/*!
-		\brief Reconstruct and find error with input for all visible layers
-		*/
-		void reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
 
 	public:
 		/*!
@@ -145,7 +141,7 @@ namespace neo {
 		/*!
 		\brief Activate (find sparse codes)
 		*/
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio, std::mt19937 &rng);
 
 		/*!
 		\brief Reconstruct (find input from sparse codes)
