@@ -365,6 +365,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			int argIndex = 0;
 
+			_qLastBackwardKernel.setArg(argIndex++, _layers.back()._sc.getHiddenStates()[_back]);
 			_qLastBackwardKernel.setArg(argIndex++, _layers.back()._qStates[_front]);
 			_qLastBackwardKernel.setArg(argIndex++, _qLastWeights[_back]);
 			_qLastBackwardKernel.setArg(argIndex++, _layers.back()._qErrors);
@@ -396,6 +397,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			int argIndex = 0;
 
+			_qBackwardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 			_qBackwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
 			_qBackwardKernel.setArg(argIndex++, _qLastWeights[_back]);
 			_qBackwardKernel.setArg(argIndex++, prevLayerInput);
@@ -428,6 +430,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			int argIndex = 0;
 
+			_qFirstBackwardKernel.setArg(argIndex++, _action);
 			_qFirstBackwardKernel.setArg(argIndex++, _qLastWeights[_back]);
 			_qFirstBackwardKernel.setArg(argIndex++, prevLayerInput);
 			_qFirstBackwardKernel.setArg(argIndex++, _qFirstErrors);
@@ -570,6 +573,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			int argIndex = 0;
 
+			_qLastBackwardKernel.setArg(argIndex++, _layers.back()._sc.getHiddenStates()[_back]);
 			_qLastBackwardKernel.setArg(argIndex++, _layers.back()._qStates[_front]);
 			_qLastBackwardKernel.setArg(argIndex++, _qLastWeights[_back]);
 			_qLastBackwardKernel.setArg(argIndex++, _layers.back()._qErrors);
@@ -601,6 +605,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			int argIndex = 0;
 
+			_qBackwardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 			_qBackwardKernel.setArg(argIndex++, _layers[l]._qStates[_front]);
 			_qBackwardKernel.setArg(argIndex++, _qLastWeights[_back]);
 			_qBackwardKernel.setArg(argIndex++, prevLayerInput);
