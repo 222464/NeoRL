@@ -6,7 +6,7 @@ using namespace neo;
 
 void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
-	cl_float2 initWeightRange,
+	cl_float2 initWeightRange, cl_float2 initInhibitionRange, cl_float initThreshold,
 	std::mt19937 &rng)
 {
 	_inputSize = inputSize;
@@ -19,7 +19,7 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl::Kernel randomUniform3DKernel = cl::Kernel(program.getProgram(), "randomUniform3D");
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs;
+		std::vector<SparseCoder::VisibleLayerDesc> scDescs;
 
 		if (l != 0) {
 			scDescs.resize(2);
@@ -63,7 +63,7 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			scDescs[2]._useTraces = true;
 		}
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initInhibitionRange, initThreshold, rng);
 
 		// Predictor
 		{
@@ -196,7 +196,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				visibleStates[2] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio, rng);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
 
 			// Get reward
 			{
@@ -210,7 +210,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			}
 
 			if (learn)
-				_layers[l]._sc.learn(cs, _layers[l]._reward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+				_layers[l]._sc.learn(cs, _layers[l]._reward, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 		}
 	}
 
@@ -714,8 +714,9 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 }
 
 void AgentHA::clearMemory(sys::ComputeSystem &cs) {
-	for (int l = 0; l < _layers.size(); l++)
-		_layers[l]._sc.clearMemory(cs);
+	abort(); // Fix me
+	//for (int l = 0; l < _layers.size(); l++)
+	//	_layers[l]._sc.clearMemory(cs);
 }
 
 void AgentHA::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
@@ -730,10 +731,10 @@ void AgentHA::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 
 		// Desc
 		os << ld._size.x << " " << ld._size.y << " " << ld._feedForwardRadius << " " << ld._recurrentRadius << " " << ld._lateralRadius << " " << ld._feedBackRadius << " " << ld._predictiveRadius << std::endl;
-		os << ld._scWeightAlpha << " " << ld._scWeightRecurrentAlpha << " " << ld._scWeightLambda << " " << ld._scActiveRatio << " " << ld._scBoostAlpha << std::endl;
+		//os << ld._scWeightAlpha << " " << ld._scWeightRecurrentAlpha << " " << ld._scWeightLambda << " " << ld._scActiveRatio << " " << ld._scBoostAlpha << std::endl;
 		//os << ld._predWeightAlpha << std::endl;
 
-		l._sc.writeToStream(cs, os);
+		//l._sc.writeToStream(cs, os);
 		//l._pred.writeToStream(cs, os);
 
 		// Layer
@@ -767,12 +768,12 @@ void AgentHA::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 
 		// Desc
 		is >> ld._size.x >> ld._size.y >> ld._feedForwardRadius >> ld._recurrentRadius >> ld._lateralRadius >> ld._feedBackRadius >> ld._predictiveRadius;
-		is >> ld._scWeightAlpha >> ld._scWeightRecurrentAlpha >> ld._scWeightLambda >> ld._scActiveRatio >> ld._scBoostAlpha;
+		//is >> ld._scWeightAlpha >> ld._scWeightRecurrentAlpha >> ld._scWeightLambda >> ld._scActiveRatio >> ld._scBoostAlpha;
 		//is >> ld._predWeightAlpha;
 
 		l._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
 
-		l._sc.readFromStream(cs, program, is);
+		//l._sc.readFromStream(cs, program, is);
 		//l._pred.readFromStream(cs, program, is);
 
 		// Layer

@@ -575,7 +575,7 @@ void kernel scSolveHidden(read_only image2d_t hiddenSummationTemp,
 		activation = 0.0f;
 	}
 
-	float state = (1.0f - accum) * statePrev + accum * spike;
+	float state = spike;//(1.0f - accum) * statePrev + accum * spike;
 
 	write_imagef(hiddenSpikesFront, hiddenPosition, (float4)(spike));
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
@@ -1429,7 +1429,7 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 
 	float state = read_imagef(hiddenStates, position).x;
 
-	float reward = 1.0f - pred * state;
+	float reward = pred * state;
 
 	write_imagef(rewards, position, (float4)(reward));
 }

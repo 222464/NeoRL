@@ -8,7 +8,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 
-#include <neo/ComparisonSparseCoder.h>
+#include <neo/SparseCoder.h>
 
 #include <time.h>
 #include <iostream>
@@ -43,16 +43,16 @@ int main() {
 
 	cs.getQueue().enqueueFillImage(rewardImage, cl_float4 { 1.0f, 1.0f, 1.0f, 1.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(codeWidth), static_cast<cl::size_type>(codeHeight), 1 });
 
-	neo::ComparisonSparseCoder sparseCoder;
+	neo::SparseCoder sparseCoder;
 
-	std::vector<neo::ComparisonSparseCoder::VisibleLayerDesc> layerDescs(1);
+	std::vector<neo::SparseCoder::VisibleLayerDesc> layerDescs(1);
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 8;
 	layerDescs[0]._useTraces = false;
 	layerDescs[0]._weightAlpha = 0.001f;
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, generator);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 
@@ -150,12 +150,12 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.1f, generator);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 17, 0.1f);
 
-			sparseCoder.learn(cs, std::vector<cl::Image2D>(1, inputImage), 0.5f, 0.1f);
+			sparseCoder.learn(cs, 0.05f, 0.01f, 0.1f);
 		}
 
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
+		/*if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
 			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
 			cl::array<cl::size_type, 3> region = { sampleWidth, sampleHeight, 1 };
 
@@ -175,7 +175,7 @@ int main() {
 				}
 
 			reconstructionTexture.loadFromImage(reconstructionImage);
-		}
+		}*/
 
 		// ----------------------------- Rendering -----------------------------
 
