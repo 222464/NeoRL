@@ -62,7 +62,7 @@ namespace neo {
 				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.98f),
 				_scActiveRatio(0.1f), _scBoostAlpha(0.05f),
 				_predWeightAlpha(0.01f),
-				_qAlpha(0.001f), _qBiasAlpha(0.001f), _qLambda(0.96f), _qRadius(6), _qReluLeak(0.01f)
+				_qAlpha(0.01f), _qBiasAlpha(0.01f), _qLambda(0.96f), _qRadius(6), _qReluLeak(0.01f)
 			{}
 		};
 
@@ -193,9 +193,9 @@ namespace neo {
 			: _prevValue(0.0f),
 			_qLastSize({ 8, 8 }), _qGamma(0.99f),
 			_qLastAlpha(0.001f), _qLastBiasAlpha(0.001f), _qLastLambda(0.98f), _qLastRadius(8),
-			_actionImprovementIterations(1), _actionImprovementAlpha(0.04f),
+			_actionImprovementIterations(1), _actionImprovementAlpha(1.0f),
 			_expPert(0.05f), _expBreak(0.03f),
-			_predActionWeightAlpha(0.02f)
+			_predActionWeightAlpha(0.04f)
 		{}
 
 		/*!

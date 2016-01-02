@@ -553,7 +553,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 		q /= qValues.size();
 
 		// Bellman equation
-		tdError = reward + _qGamma * maxQ - _prevValue;
+		tdError = reward + _qGamma * q - _prevValue;
 
 		std::cout << "Q: " << q << std::endl;
 
