@@ -1,11 +1,11 @@
 #pragma once
 
 #include "ComparisonSparseCoder.h"
-#include "PredictorSwarm.h"
+#include "Predictor.h"
 
 namespace neo {
 	/*!
-	\brief Predictive hierarchy (no RL)
+	\brief Policy gradient agent
 	*/
 	class AgentSPG {
 	public:
@@ -37,14 +37,14 @@ namespace neo {
 			/*!
 			\brief Predictor parameters
 			*/
-			cl_float3 _predWeightAlpha;
+			cl_float _predWeightAlpha;
 
 			//!@{
 			/*!
 			\brief RL
 			*/
 			cl_float _gamma;
-			cl_float2 _lambda;
+			cl_float _lambda;
 			//!@}
 
 			/*!
@@ -55,8 +55,8 @@ namespace neo {
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.0005f), _scWeightLambda(0.95f),
 				_scActiveRatio(0.04f), _scBoostAlpha(0.001f),
-				_predWeightAlpha({ 0.01f, 0.001f, 0.1f }),
-				_gamma(0.95f), _lambda({ 0.92f, 0.92f })
+				_predWeightAlpha(0.01f),
+				_gamma(0.95f), _lambda(0.92f)
 			{}
 		};
 
@@ -69,7 +69,7 @@ namespace neo {
 			\brief Sparse coder and predictor
 			*/
 			ComparisonSparseCoder _sc;
-			PredictorSwarm _pred;
+			Predictor _pred;
 			//!@}
 
 			/*!
@@ -88,6 +88,21 @@ namespace neo {
 		\brief Store action size
 		*/
 		cl_int2 _actionSize;
+
+		/*!
+		\brief Store q size
+		*/
+		cl_int2 _qSize;
+
+		/*!
+		\brief Random offsets for Q value input
+		*/
+		cl::Image2D _qOffsets;
+
+		/*!
+		\brief Q Values
+		*/
+		cl::Image2D _qValues;
 
 		/*!
 		\brief Store action (from reconstruction)
@@ -113,7 +128,22 @@ namespace neo {
 		*/
 		cl::Kernel _predictionRewardKernel;
 		cl::Kernel _explorationKernel;
+		cl::Kernel _setQKernel;
+		cl::Kernel _getQKernel;
 		//!@}
+
+		//!@{
+		/*!
+		\brief Q and Action prediction layers
+		*/
+		Predictor _qPred;
+		Predictor _actionPred;
+		//!@}
+
+		/*!
+		\brief RL
+		*/
+		float _prevValue;
 
 	public:
 		/*!
@@ -126,7 +156,8 @@ namespace neo {
 		\brief Initialize defaults
 		*/
 		AgentSPG()
-			: _expPert(0.01f),
+			: _prevValue(0.0f),
+			_expPert(0.01f),
 			_expBreak(0.005f)
 		{}
 
@@ -135,7 +166,7 @@ namespace neo {
 		Requires the compute system, program with the NeoRL kernels, and initialization information.
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
+			cl_int2 inputSize, cl_int2 actionSize, cl_int2 qSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange,
 			std::mt19937 &rng);
 

@@ -4,8 +4,11 @@ using namespace neo;
 
 void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange,
+	bool useTraces,
 	std::mt19937 &rng)
 {
+	_useTraces = useTraces;
+
 	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	_visibleLayerDescs = visibleLayerDescs;
@@ -41,7 +44,7 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 
 		cl_int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
 
-		vl._weights = createDoubleBuffer3D(cs, weightsSize, CL_R, CL_FLOAT);
+		vl._weights = createDoubleBuffer3D(cs, weightsSize, useTraces ? CL_RG : CL_R, CL_FLOAT);
 
 		randomUniform(vl._weights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
 	}
@@ -57,6 +60,7 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivate");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHidden");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "predLearnWeights");
+	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTraces");
 }
 
 void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold) {
@@ -130,7 +134,35 @@ void Predictor::learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::v
 	}
 }
 
+void Predictor::learn(sys::ComputeSystem &cs, float tdError, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha, float weightLambda) {
+	// Learn weights
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		int argIndex = 0;
+
+		_learnWeightsTracesKernel.setArg(argIndex++, visibleStatesPrev[vli]);
+		_learnWeightsTracesKernel.setArg(argIndex++, targets);
+		_learnWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_back]);
+		_learnWeightsTracesKernel.setArg(argIndex++, vl._weights[_front]);
+		_learnWeightsTracesKernel.setArg(argIndex++, vld._size);
+		_learnWeightsTracesKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_learnWeightsTracesKernel.setArg(argIndex++, vld._radius);
+		_learnWeightsTracesKernel.setArg(argIndex++, weightAlpha);
+		_learnWeightsTracesKernel.setArg(argIndex++, weightLambda);
+		_learnWeightsTracesKernel.setArg(argIndex++, tdError);
+
+		cs.getQueue().enqueueNDRangeKernel(_learnWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+		std::swap(vl._weights[_front], vl._weights[_back]);
+	}
+}
+
 void Predictor::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
+	abort(); // Not yet working
+
 	os << _hiddenSize.x << " " << _hiddenSize.y << std::endl;
 
 	{
@@ -178,6 +210,8 @@ void Predictor::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 	}
 }
 void Predictor::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &program, std::istream &is) {
+	abort(); // Not yet working
+	
 	is >> _hiddenSize.x >> _hiddenSize.y;
 
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);

@@ -85,7 +85,7 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 				predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 			}
 
-			_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, rng);
+			_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, false, rng);
 		}
 
 		// Q
@@ -129,7 +129,7 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 		predDescs[0]._size = _layerDescs.front()._size;
 		predDescs[0]._radius = firstLayerFeedBackRadius;
 
-		_actionPred.createRandom(cs, program, predDescs, _actionSize, initWeightRange, rng);
+		_actionPred.createRandom(cs, program, predDescs, _actionSize, initWeightRange, false, rng);
 	}
 
 	// Last Q

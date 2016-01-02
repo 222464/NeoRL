@@ -3,15 +3,18 @@
 using namespace neo;
 
 void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-	cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
+	cl_int2 inputSize, cl_int2 actionSize, cl_int2 qSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
 	cl_float2 initWeightRange,
 	std::mt19937 &rng)
 {
 	_inputSize = inputSize;
 	_actionSize = actionSize;
+	_qSize = qSize;
 
 	_layerDescs = layerDescs;
 	_layers.resize(_layerDescs.size());
+
+	cl::Kernel randomUniform2DKernel = cl::Kernel(program.getProgram(), "randomUniform2D");
 
 	for (int l = 0; l < _layers.size(); l++) {
 		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs;
@@ -60,7 +63,7 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
 
-		std::vector<PredictorSwarm::VisibleLayerDesc> predDescs;
+		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
 		if (l < _layers.size() - 1) {
 			predDescs.resize(2);
@@ -78,7 +81,7 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 		}
 
-		_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, rng);
+		_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, true, rng);
 
 		// Create baselines
 		_layers[l]._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
@@ -104,8 +107,34 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 		cs.getQueue().enqueueFillImage(_exploratoryAction, zeroColor, zeroOrigin, layerRegion);
 	}
 
+	{
+		_qOffsets = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _qSize.x, _qSize.y);
+		_qValues = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _qSize.x, _qSize.y);
+
+		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> layerRegion = { _qSize.x, _qSize.y, 1 };
+		
+		randomUniform(_qOffsets, cs, randomUniform2DKernel, _qSize, { -1.0f, 1.0f }, rng);
+
+		cs.getQueue().enqueueFillImage(_qValues, zeroColor, zeroOrigin, layerRegion);
+	}
+
+	{
+		std::vector<Predictor::VisibleLayerDesc> predDescs;
+
+		predDescs.resize(1);
+
+		predDescs[0]._size = _layerDescs.front()._size;
+		//predDescs[0]._radius = actionRad;
+
+		//_actionPred.createRandom(cs, program, )
+	}
+
 	_predictionRewardKernel = cl::Kernel(program.getProgram(), "phPredictionReward");
 	_explorationKernel = cl::Kernel(program.getProgram(), "phExploration");
+	_setQKernel = cl::Kernel(program.getProgram(), "phSetQ");
 }
 
 void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn) {
@@ -161,9 +190,11 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		abort(); // Fix me
-		//_layers[l]._pred.activate(cs, visibleStates, true, 0.0f, rng);
+		_layers[l]._pred.activate(cs, visibleStates, true);
 	}
+
+	// Determine TD error
+
 
 	if (learn) {
 		for (int l = _layers.size() - 1; l >= 0; l--) {
@@ -181,7 +212,6 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
-			abort(); //Fix me
 			//_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._lambda);
 		}
 	}

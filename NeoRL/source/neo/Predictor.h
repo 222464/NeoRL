@@ -87,7 +87,13 @@ namespace neo {
 		cl::Kernel _activateKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnWeightsKernel;
+		cl::Kernel _learnWeightsTracesKernel;
 		//!@}
+
+		/*!
+		\brief Remember if is using traces
+		*/
+		bool _useTraces;
 
 	public:
 		/*!
@@ -95,7 +101,8 @@ namespace neo {
 		Requires the compute system, program with the NeoRL kernels, and initialization information
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange, 
+			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_float2 initWeightRange,
+			bool useTraces,
 			std::mt19937 &rng);
 
 		/*!
@@ -105,9 +112,10 @@ namespace neo {
 
 		//!@{
 		/*!
-		\brief Learning function
+		\brief Learning functions
 		*/
 		void learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha);
+		void learn(sys::ComputeSystem &cs, float tdError, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha, float weightLambda);
 		//!@}
 
 		/*!

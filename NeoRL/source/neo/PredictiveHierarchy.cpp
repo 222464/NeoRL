@@ -51,7 +51,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 		}
 
-		_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, rng);
+		_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, false, rng);
 
 		// Create baselines
 		_layers[l]._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
@@ -79,7 +79,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		predDescs[0]._size = _layerDescs.front()._size;
 		predDescs[0]._radius = firstLayerFeedBackRadius;
 
-		_firstLayerPred.createRandom(cs, program, predDescs, inputSize, initWeightRange, rng);
+		_firstLayerPred.createRandom(cs, program, predDescs, inputSize, initWeightRange, false, rng);
 	}
 
 	_predictionRewardKernel = cl::Kernel(program.getProgram(), "phPredictionReward");
