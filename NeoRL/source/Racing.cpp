@@ -380,14 +380,15 @@ int main() {
 		for (int i = 0; i < sensors.size(); i++)
 			input[i] = sensors[i];
 
-		input[sensors.size() + 0] = (car._rotation / (2.0f * 3.141596f)) * 2.0f - 1.0f;
-		input[sensors.size() + 1] = car._speed * 0.1f;
+		input[sensors.size() + 0] = (car._rotation / (2.0f * 3.141596f));
+		input[sensors.size() + 1] = 1.0f - (car._rotation / (2.0f * 3.141596f));
+		input[sensors.size() + 2] = car._speed * 0.1f;
 
 		//agent2.step(input, action, reset ? -1.0f : 0.04f * (reward - std::abs(action[1]) * 2.0f), 0.5f, 0.99f, 0.96f, 0.01f, 30, 3, 0.2f, 0.01f, 0.02f, 600, 100, 0.01f, generator);
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.01f * (reward - std::abs(action[1]) * 0.1f), inputImage, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.05f * (reward - std::abs(action[1]) * 0.1f), inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 	} while (!quit);
