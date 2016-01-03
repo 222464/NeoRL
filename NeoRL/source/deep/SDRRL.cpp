@@ -44,7 +44,6 @@ void SDRRL::createRandom(int numStates, int numActions, int numCells, float init
 }
 
 void SDRRL::simStep(float reward, float sparsity, float gamma,
-	int subIterSettle, int subIterMeasure, float leak,
 	float gateFeedForwardAlpha, float gateLateralAlpha, float gateThresholdAlpha,
 	float qAlpha, float actionAlpha, int actionDeriveIterations, float actionDeriveAlpha, float gammaLambda,
 	float explorationStdDev, float explorationBreak,
@@ -61,93 +60,26 @@ void SDRRL::simStep(float reward, float sparsity, float gamma,
 		_cells[i]._state = 0.0f;
 	}
 
-	for (int iter = 0; iter < subIterSettle; iter++) {
-		// Activate
-		for (int i = 0; i < _cells.size(); i++) {
-			float excitation = 0.0f;
+	// Activate
+	for (int i = 0; i < _cells.size(); i++) {
+		float activation = -_cells[i]._threshold;
 
-			for (int j = 0; j < _inputs.size(); j++)
-				excitation += _cells[i]._feedForwardConnections[j]._weight * _reconstructionError[j];
+		for (int j = 0; j < _inputs.size(); j++)
+			activation += _cells[i]._feedForwardConnections[j]._weight * _reconstructionError[j];
 
-			float inhibition = 0.0f;
-
-			for (int j = 0; j < _cells.size(); j++)
-				inhibition += _cells[i]._lateralConnections[j]._weight * _cells[j]._spikePrev;
-
-			float activation = (1.0f - leak) * _cells[i]._activation + excitation - inhibition;
-
-			if (activation > _cells[i]._threshold) {
-				activation = 0.0f;
-
-				_cells[i]._spike = 1.0f;
-			}
-			else
-				_cells[i]._spike = 0.0f;
-
-			_cells[i]._activation = activation;
-		}
-
-		// Double buffer update
-		for (int i = 0; i < _cells.size(); i++)
-			_cells[i]._spikePrev = _cells[i]._spike;
-
-		// Reconstruct
-		for (int i = 0; i < _inputs.size(); i++) {
-			float recon = 0.0f;
-
-			for (int j = 0; j < _cells.size(); j++)
-				recon += _cells[j]._spike * _cells[j]._feedForwardConnections[i]._weight;
-
-			_reconstructionError[i] = _inputs[i] - recon;
-		}
+		_cells[i]._activation = activation;
 	}
 
-	const float subIterMeasureInv = 1.0f / subIterMeasure;
+	for (int i = 0; i < _cells.size(); i++) {
+		float inhibition = 0.0f;
 
-	for (int iter = 0; iter < subIterMeasure; iter++) {
-		// Activate
-		for (int i = 0; i < _cells.size(); i++) {
-			float excitation = 0.0f;
+		for (int j = 0; j < _cells.size(); j++)
+			inhibition += std::abs(_cells[j]._activation) < std::abs(_cells[i]._activation) ? 1.0f : 0.0f;
 
-			for (int j = 0; j < _inputs.size(); j++)
-				excitation += _cells[i]._feedForwardConnections[j]._weight * _reconstructionError[j];
-
-			float inhibition = 0.0f;
-
-			for (int j = 0; j < _cells.size(); j++)
-				inhibition += _cells[i]._lateralConnections[j]._weight * _cells[j]._spikePrev;
-
-			float activation = (1.0f - leak) * _cells[i]._activation + excitation - inhibition;
-
-			if (activation > _cells[i]._threshold) {
-				activation = 0.0f;
-
-				_cells[i]._spike = 1.0f;
-			}
-			else
-				_cells[i]._spike = 0.0f;
-
-			_cells[i]._state += _cells[i]._spike * subIterMeasureInv;
-
-			_cells[i]._activation = activation;
-		}
-
-		// Double buffer update
-		for (int i = 0; i < _cells.size(); i++)
-			_cells[i]._spikePrev = _cells[i]._spike;
-
-		// Reconstruct
-		for (int i = 0; i < _inputs.size(); i++) {
-			float recon = 0.0f;
-
-			for (int j = 0; j < _cells.size(); j++)
-				recon += _cells[j]._spike * _cells[j]._feedForwardConnections[i]._weight;
-
-			_reconstructionError[i] = _inputs[i] - recon;
-		}
+		float state = inhibition < sparsity * _cells.size() ? 1.0f : 0.0f;
 	}
 
-	// Final state reconstruction
+	// Reconstruct
 	for (int i = 0; i < _inputs.size(); i++) {
 		float recon = 0.0f;
 
@@ -264,11 +196,8 @@ void SDRRL::simStep(float reward, float sparsity, float gamma,
 		// Learn SDRs
 		if (_cells[i]._state > 0.0f) {
 			for (int j = 0; j < _inputs.size(); j++)
-				_cells[i]._feedForwardConnections[j]._weight += gateFeedForwardAlpha * _cells[i]._state * _reconstructionError[j];
+				_cells[i]._feedForwardConnections[j]._weight += gateFeedForwardAlpha * std::exp(-std::abs(_cells[i]._activation)) * (_cells[i]._activation > 0.0f ? -1.0f : 1.0f) * _reconstructionError[j];
 		}
-
-		for (int j = 0; j < _cells.size(); j++)
-			_cells[i]._lateralConnections[j]._weight = std::max(0.0f, _cells[i]._lateralConnections[j]._weight + gateLateralAlpha * (_cells[i]._state * _cells[j]._state - sparsitySquared));
 
 		_cells[i]._threshold += gateThresholdAlpha * (_cells[i]._state - sparsity);
 	}

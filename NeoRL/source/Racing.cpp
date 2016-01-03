@@ -9,7 +9,7 @@
 #include <system/ComputeProgram.h>
 
 #include <neo/AgentHA.h>
-#include <deep/FERL.h>
+#include <deep/SDRRL.h>
 
 #include <time.h>
 #include <iostream>
@@ -36,7 +36,7 @@ float magnitude(const sf::Vector2f &v) {
 }
 
 float rayCast(const sf::Image &mask, const sf::Vector2f &start, const sf::Vector2f &end) {
-	const float castIncrement = 8.0f;
+	const float castIncrement = 3.0f;
 
 	sf::Vector2f point = start;
 
@@ -91,7 +91,7 @@ int main() {
 
 	sf::RenderWindow window;
 
-	window.create(sf::VideoMode(640, 640), "Racing", sf::Style::Default);
+	window.create(sf::VideoMode(1000, 956), "Racing", sf::Style::Default);
 
 	window.setFramerateLimit(60);
 	window.setVerticalSyncEnabled(true);
@@ -102,10 +102,10 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentHA::LayerDesc> layerDescs(1);
 
 	layerDescs[0]._size = { 16, 16 };
-	layerDescs[1]._size = { 12, 12 };
+	//layerDescs[1]._size = { 12, 12 };
 	//layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentHA agent;
@@ -116,27 +116,30 @@ int main() {
 	std::vector<float> input(inWidth * inHeight, 0.0f);
 	std::vector<float> action(aWidth * aHeight, 0.0f);
 
-	deep::FERL agent2;
+	deep::SDRRL agent2;
 
-	agent2.createRandom(25, 4, 32, 0.01f, generator);
+	agent2.createRandom(25, 4, 32, -0.01f, 0.01f, 0.01f, 0.05f, 0.1f, generator);
 
 	// -------------------------- Game Resources --------------------------
 
 	sf::Texture backgroundTex;
-	backgroundTex.loadFromFile("resources/racingBackground.png");
+	backgroundTex.loadFromFile("resources/racing/racingBackground.png");
+
+	sf::Texture foregroundTex;
+	foregroundTex.loadFromFile("resources/racing/racingForeground.png");
 
 	sf::Image collisionImg;
-	collisionImg.loadFromFile("resources/racingCollision.png");
+	collisionImg.loadFromFile("resources/racing/racingCollision.png");
 
 	sf::Image checkpointsImg;
-	checkpointsImg.loadFromFile("resources/racingCheckpoints.png");
+	checkpointsImg.loadFromFile("resources/racing/racingCheckpoints.png");
 
 	std::vector<sf::Vector2f> checkpoints;
 
 	getCheckpoints(checkpointsImg, checkpoints);
 	
 	sf::Texture carTex;
-	carTex.loadFromFile("resources/racingCar.png");
+	carTex.loadFromFile("resources/racing/racingCar.png");
 
 	Car car;
 
@@ -160,6 +163,14 @@ int main() {
 
 	std::vector<sf::Texture> layerTextures(layerDescs.size());
 
+	sf::View view;
+
+	view.setCenter(250, 239);
+
+	view.zoom(0.5f);
+
+	window.setView(view);
+
 	do {
 		clock.restart();
 
@@ -180,9 +191,9 @@ int main() {
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 			quit = true;
 
-		const float maxSpeed = 10.0f;
-		const float accel = 0.1f;
-		const float spinRate = 0.2f;
+		const float maxSpeed = 5.0f;
+		const float accel = 0.03f;
+		const float spinRate = 0.1f;
 
 		/*action[0] = 0.0f;
 		action[1] = 0.0f;
@@ -210,7 +221,7 @@ int main() {
 
 		bool reset = false;
 
-		if (curColor == sf::Color::White) {
+		if (curColor == sf::Color::White || sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
 			// Reset
 			car._position = checkpoints[0];
 			car._speed = 0.0f;
@@ -291,7 +302,7 @@ int main() {
 		std::vector<float> sensors(16);
 
 		const float sensorAngle = 0.2f;
-		const float sensorRange = 200.0f;
+		const float sensorRange = 60.0f;
 
 		for (int s = 0; s < sensors.size(); s++) {
 			float d = sensorAngle * (s - sensors.size() * 0.5f) + car._rotation;
@@ -334,8 +345,14 @@ int main() {
 			carS.setOrigin(carTex.getSize().x * 0.5f, carTex.getSize().y * 0.5f);
 			carS.setPosition(car._position);
 			carS.setRotation(car._rotation * 180.0f / 3.141596f + 90.0f);
+			carS.setScale(0.5f, 0.5f);
 
 			window.draw(carS);
+
+			sf::Sprite foregroundS;
+			foregroundS.setTexture(foregroundTex);
+			//foregroundS.setColor(sf::Color::Red);
+			window.draw(foregroundS);
 
 			float xOffset = 0.0f;
 			float scale = 4.0f;
@@ -364,7 +381,7 @@ int main() {
 
 				s.setTexture(layerTextures[l]);
 
-				s.setPosition(xOffset, window.getSize().y - img.getSize().y * scale);
+				s.setPosition(xOffset, window.getSize().y * 0.5f - img.getSize().y * scale);
 
 				s.setScale(scale, scale);
 
@@ -384,11 +401,17 @@ int main() {
 		input[sensors.size() + 1] = 1.0f - (car._rotation / (2.0f * 3.141596f));
 		input[sensors.size() + 2] = car._speed * 0.1f;
 
-		//agent2.step(input, action, reset ? -1.0f : 0.04f * (reward - std::abs(action[1]) * 2.0f), 0.5f, 0.99f, 0.96f, 0.01f, 30, 3, 0.2f, 0.01f, 0.02f, 600, 100, 0.01f, generator);
+		//for (int i = 0; i < input.size(); i++)
+		//	agent2.setState(i, input[i]);
+
+		//agent2.simStep(reset ? -1.0f : 0.04f * (reward - std::abs(action[1]) * 2.0f), 0.1f, 0.98f, 0.001f, 0.01f, 0.01f, 0.01f, 0.01f, 20, 0.05f, 0.97f, 0.01f, 0.01f, 0.01f, 4.0f, generator);
+
+		//for (int i = 0; i < action.size(); i++)
+		//	action[i] = agent2.getAction(i);
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.05f * (reward - std::abs(action[1]) * 0.1f), inputImage, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.02f * (reward - std::abs(action[1]) * 0.1f), inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 	} while (!quit);

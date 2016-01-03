@@ -25,16 +25,13 @@ namespace deep {
 
 			float _activation;
 
-			float _spike;
-			float _spikePrev;
-
 			float _state;
 
 			float _actionState;
 			float _actionError;
 
 			Cell()
-				: _spikePrev(0.0f), _actionState(0.0f), _actionError(0.0f)
+				: _actionState(0.0f), _actionError(0.0f)
 			{}
 		};
 
@@ -82,7 +79,6 @@ namespace deep {
 		void createRandom(int numStates, int numActions, int numCells, float initMinWeight, float initMaxWeight, float initMinInhibition, float initMaxInhibition, float initThreshold, std::mt19937 &generator);
 
 		void simStep(float reward, float sparsity, float gamma,
-			int subIterSettle, int subIterMeasure, float leak,
 			float gateFeedForwardAlpha, float gateLateralAlpha, float gateThresholdAlpha,
 			float qAlpha, float actionAlpha, int actionDeriveIterations, float actionDeriveAlpha, float gammaLambda,
 			float explorationStdDev, float explorationBreak,

@@ -29,8 +29,8 @@ int main() {
 
 	prog.loadFromFile("resources/neoKernels.cl", cs);
 
-	const int sampleWidth = 12;
-	const int sampleHeight = 12;
+	const int sampleWidth = 16;
+	const int sampleHeight = 16;
 	const int codeWidth = 20;
 	const int codeHeight = 20;
 	const int stepsPerFrame = 5;
@@ -48,7 +48,7 @@ int main() {
 	std::vector<neo::ComparisonSparseCoder::VisibleLayerDesc> layerDescs(1);
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
-	layerDescs[0]._radius = 4;
+	layerDescs[0]._radius = 8;
 	layerDescs[0]._useTraces = false;
 	layerDescs[0]._weightAlpha = 0.001f;
 
@@ -150,9 +150,9 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.05f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.2f);
 
-			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.0005f, 0.05f);
+			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.0005f, 0.2f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
