@@ -272,7 +272,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
-	float error = read_imagef(hiddenErrors, hiddenPosition).x * (state == 0.0f ? 0.0f : 1.0f);
+	float error = read_imagef(hiddenErrors, hiddenPosition).x * state;
 	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
 
 	for (int dx = -radius; dx <= radius; dx++)
@@ -310,8 +310,11 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
+	float reward = read_imagef(rewards, hiddenPosition).x;
+
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	float error = read_imagef(hiddenErrors, hiddenPosition).x * state;
+	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
 	
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -322,17 +325,17 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 
 				int wi = offset.y + offset.x * (radius * 2 + 1);
 
-				float weightForwardPrev = read_imagef(weightsForwardBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
-				float weightBackwardPrev = read_imagef(weightsBackwardBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+				float2 weightForwardPrev = read_imagef(weightsForwardBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
+				float2 weightBackwardPrev = read_imagef(weightsBackwardBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
 
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				
-				float weightForward = weightForwardPrev + weightAlpha * (visibleError * state);
-				float weightBackward = weightBackwardPrev + weightAlpha * (error * visibleState);
+				float2 weightForward = (float2)(weightForwardPrev.x + reward * weightForwardPrev.y, weightForwardPrev.y * weightLambda + weightAlpha * state * exp(-fabs(activation)) * visibleError);
+				float2 weightBackward = (float2)(weightBackwardPrev.x + reward * weightBackwardPrev.y, weightBackwardPrev.y * weightLambda + weightAlpha * visibleError * state);
 
-				write_imagef(weightsForwardFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weightForward));
-				write_imagef(weightsBackwardFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weightBackward));
+				write_imagef(weightsForwardFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weightForward, 0.0f, 0.0f));
+				write_imagef(weightsBackwardFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weightBackward, 0.0f, 0.0f));
 			}
 		}
 }

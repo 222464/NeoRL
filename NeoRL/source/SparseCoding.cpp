@@ -152,7 +152,7 @@ int main() {
 
 			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.05f);
 
-			sparseCoder.learn(cs, std::vector<cl::Image2D>(1, inputImage), 0.0005f, 0.05f);
+			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.0005f, 0.05f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
