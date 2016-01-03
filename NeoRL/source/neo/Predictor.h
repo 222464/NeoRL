@@ -116,6 +116,7 @@ namespace neo {
 		*/
 		void learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha);
 		void learn(sys::ComputeSystem &cs, float tdError, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha, float weightLambda);
+		void learnCurrent(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha);
 		//!@}
 
 		/*!

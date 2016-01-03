@@ -193,7 +193,7 @@ int main() {
 
 		const float maxSpeed = 5.0f;
 		const float accel = 0.03f;
-		const float spinRate = 0.1f;
+		const float spinRate = 0.05f;
 
 		/*action[0] = 0.0f;
 		action[1] = 0.0f;
@@ -395,7 +395,7 @@ int main() {
 		}
 
 		for (int i = 0; i < sensors.size(); i++)
-			input[i] = sensors[i];
+			input[i] = 1.0f - sensors[i];
 
 		input[sensors.size() + 0] = (car._rotation / (2.0f * 3.141596f));
 		input[sensors.size() + 1] = 1.0f - (car._rotation / (2.0f * 3.141596f));
@@ -411,7 +411,7 @@ int main() {
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.02f * (reward - std::abs(action[1]) * 0.1f), inputImage, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.05f * (reward - std::abs(action[1]) * 0.1f), inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 	} while (!quit);

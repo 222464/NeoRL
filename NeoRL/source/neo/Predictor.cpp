@@ -160,6 +160,30 @@ void Predictor::learn(sys::ComputeSystem &cs, float tdError, const cl::Image2D &
 	}
 }
 
+void Predictor::learnCurrent(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha) {
+	// Learn weights
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		int argIndex = 0;
+
+		_learnWeightsKernel.setArg(argIndex++, visibleStatesPrev[vli]);
+		_learnWeightsKernel.setArg(argIndex++, targets);
+		_learnWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_learnWeightsKernel.setArg(argIndex++, vl._weights[_back]);
+		_learnWeightsKernel.setArg(argIndex++, vl._weights[_front]);
+		_learnWeightsKernel.setArg(argIndex++, vld._size);
+		_learnWeightsKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_learnWeightsKernel.setArg(argIndex++, vld._radius);
+		_learnWeightsKernel.setArg(argIndex++, weightAlpha);
+
+		cs.getQueue().enqueueNDRangeKernel(_learnWeightsKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+		std::swap(vl._weights[_front], vl._weights[_back]);
+	}
+}
+
 void Predictor::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 	abort(); // Not yet working
 
