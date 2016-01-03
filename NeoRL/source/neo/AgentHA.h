@@ -193,9 +193,9 @@ namespace neo {
 			: _prevValue(0.0f),
 			_qLastSize({ 8, 8 }), _qGamma(0.985f),
 			_qLastAlpha(0.01f), _qLastBiasAlpha(0.01f), _qLastLambda(0.98f), _qLastRadius(8),
-			_actionImprovementIterations(2), _actionImprovementAlpha(0.05f),
+			_actionImprovementIterations(1), _actionImprovementAlpha(0.07f),
 			_expPert(0.02f), _expBreak(0.005f),
-			_predActionWeightAlpha(0.04f)
+			_predActionWeightAlpha(0.05f)
 		{}
 
 		/*!
