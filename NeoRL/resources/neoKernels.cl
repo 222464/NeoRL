@@ -1489,7 +1489,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = relu(sum, reluLeak) * hiddenState;
+	float state = (sum > 0.0f ? 1.0f : 0.0f) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
@@ -1564,7 +1564,7 @@ void kernel qBackward(read_only image2d_t hiddenStates, read_only image2d_t qSta
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float error = sum * relud(qState, reluLeak);
+	float error = sum * qState;//relud(qState, reluLeak);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1607,7 +1607,7 @@ void kernel qLastBackward(read_only image2d_t hiddenStates, read_only image2d_t 
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float error = sum * relud(qState, reluLeak);
+	float error = sum * qState;//relud(qState, reluLeak);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1666,8 +1666,8 @@ void kernel qWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d_t q
 	// Bias
 	float2 biasPrev = read_imagef(qBiasesBack, hiddenPosition).xy;
 
-	float2 bias = (float2)(biasPrev.x + alpha * tdError * biasPrev.y, biasPrev.y * lambda + error);
-	//float2 bias = (float2)(biasPrev.x + biasAlpha * (0.5f - state), biasPrev.y * lambda + error);
+	//float2 bias = (float2)(biasPrev.x + alpha * tdError * biasPrev.y, biasPrev.y * lambda + error);
+	float2 bias = (float2)(biasPrev.x + biasAlpha * (0.5f - state), biasPrev.y * lambda + error);
 
 	write_imagef(qBiasesFront, hiddenPosition, (float4)(bias, 0.0f, 0.0f));
 
@@ -1706,8 +1706,8 @@ void kernel qLastWeightUpdate(read_only image2d_t qStatesPrev, read_only image2d
 	// Bias
 	float2 biasPrev = read_imagef(qBiasesBack, hiddenPosition).xy;
 
-	float2 bias = (float2)(biasPrev.x + alpha * tdError * biasPrev.y, biasPrev.y * lambda + 1.0f);
-	//float2 bias = (float2)(biasPrev.x + biasAlpha * (0.5f - state), biasPrev.y * lambda + 1.0f);
+	//float2 bias = (float2)(biasPrev.x + alpha * tdError * biasPrev.y, biasPrev.y * lambda + 1.0f);
+	float2 bias = (float2)(biasPrev.x + biasAlpha * (0.5f - state), biasPrev.y * lambda + 1.0f);
 
 	write_imagef(qBiasesFront, hiddenPosition, (float4)(bias, 0.0f, 0.0f));
 

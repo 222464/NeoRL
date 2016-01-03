@@ -96,8 +96,8 @@ int main() {
 	window.setFramerateLimit(60);
 	window.setVerticalSyncEnabled(true);
 
-	int inWidth = 5;
-	int inHeight = 5;
+	int inWidth = 8;
+	int inHeight = 8;
 
 	int aWidth = 2;
 	int aHeight = 2;
@@ -105,6 +105,7 @@ int main() {
 	std::vector<neo::AgentHA::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
+	layerDescs[0]._feedForwardRadius = 7;
 	layerDescs[1]._size = { 12, 12 };
 	//layerDescs[2]._size = { 16, 16 };
 
@@ -118,7 +119,7 @@ int main() {
 
 	deep::SDRRL agent2;
 
-	agent2.createRandom(25, 4, 32, -0.01f, 0.01f, 0.01f, 0.05f, 0.1f, generator);
+	agent2.createRandom(64, 4, 32, -0.01f, 0.01f, 0.01f, 0.05f, 0.1f, generator);
 
 	// -------------------------- Game Resources --------------------------
 
@@ -395,11 +396,14 @@ int main() {
 		}
 
 		for (int i = 0; i < sensors.size(); i++)
-			input[i] = 1.0f - sensors[i];
+			input[i] = sensors[i];
 
-		input[sensors.size() + 0] = (car._rotation / (2.0f * 3.141596f));
-		input[sensors.size() + 1] = 1.0f - (car._rotation / (2.0f * 3.141596f));
-		input[sensors.size() + 2] = car._speed * 0.1f;
+		for (int i = 0; i < sensors.size(); i++)
+			input[i + sensors.size()] = 1.0f - sensors[i];
+
+		input[sensors.size() * 2 + 0] = (car._rotation / (2.0f * 3.141596f));
+		input[sensors.size() * 2 + 1] = 1.0f - (car._rotation / (2.0f * 3.141596f));
+		input[sensors.size() * 2 + 2] = car._speed * 0.1f;
 
 		//for (int i = 0; i < input.size(); i++)
 		//	agent2.setState(i, input[i]);
@@ -411,7 +415,7 @@ int main() {
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.05f * (reward - std::abs(action[1]) * 0.1f), inputImage, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.004f * reward, inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 	} while (!quit);
