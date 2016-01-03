@@ -100,9 +100,9 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 			randomUniform(_layers[l]._qWeights[_back], cs, randomUniform3DKernel, qWeightsSize, initWeightRange, rng);
 
-			_layers[l]._qBiases = createDoubleBuffer2D(cs, _qLastSize, CL_R, CL_FLOAT);
+			_layers[l]._qBiases = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
 
-			randomUniform(_layers[l]._qBiases[_back], cs, randomUniform2DKernel, _qLastSize, initWeightRange, rng);
+			randomUniform(_layers[l]._qBiases[_back], cs, randomUniform2DKernel, _layerDescs[l]._size, initWeightRange, rng);
 
 			_layers[l]._qStates = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
 
@@ -232,14 +232,6 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 		_layers[l]._pred.activate(cs, visibleStates, true);
 	}
 
-	{
-		std::vector<cl::Image2D> visibleStates(1);
-
-		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
-
-		_actionPred.activate(cs, visibleStates, false);
-	}
-
 	if (learn) {
 		for (int l = _layers.size() - 1; l >= 0; l--) {
 			std::vector<cl::Image2D> visibleStatesPrev;
@@ -258,15 +250,15 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 		}
+	}
 
-		// Action predictor
-		{
-			std::vector<cl::Image2D> visibleStatesPrev(1);
+	// Find action
+	{
+		std::vector<cl::Image2D> visibleStates(1);
 
-			visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
+		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
 
-			_actionPred.learn(cs, _action, visibleStatesPrev, _predActionWeightAlpha);
-		}
+		_actionPred.activate(cs, visibleStates, false);
 	}
 
 	// Copy prediction as starting action
@@ -696,6 +688,15 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			cs.getQueue().enqueueNDRangeKernel(_qLastWeightUpdateKernel, cl::NullRange, cl::NDRange(_qLastSize.x, _qLastSize.y));
 		}
+	}
+
+	// Action predictor
+	{
+		std::vector<cl::Image2D> visibleStates(1);
+
+		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
+
+		_actionPred.learn(cs, _action, visibleStates, _predActionWeightAlpha);
 	}
 
 	// Buffer swaps
