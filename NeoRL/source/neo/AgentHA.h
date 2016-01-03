@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SparseCoder.h"
+#include "ComparisonSparseCoder.h"
 #include "Predictor.h"
 #include "PredictorSwarm.h"
 
@@ -28,14 +28,11 @@ namespace neo {
 			/*!
 			\brief Sparse coder parameters
 			*/
-			cl_int _scIterations;
-			cl_float _scLeak;
 			cl_float _scWeightAlpha;
-			cl_float _scWeightLateralAlpha;
 			cl_float _scWeightRecurrentAlpha;
 			cl_float _scWeightLambda;
 			cl_float _scActiveRatio;
-			cl_float _scThresholdAlpha;
+			cl_float _scBoostAlpha;
 			//!@}
 
 			//!@{
@@ -61,12 +58,11 @@ namespace neo {
 			*/
 			LayerDesc()
 				: _size({ 8, 8 }),
-				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scIterations(9), _scLeak(0.1f),
-				_scWeightAlpha(0.0004f), _scWeightLateralAlpha(0.05f), _scWeightRecurrentAlpha(0.0004f), _scWeightLambda(0.98f),
-				_scActiveRatio(0.1f), _scThresholdAlpha(0.01f),
+				_feedForwardRadius(3), _recurrentRadius(3), _lateralRadius(3), _feedBackRadius(4), _predictiveRadius(4),
+				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.98f),
+				_scActiveRatio(0.1f),
 				_predWeightAlpha(0.01f),
-				_qAlpha(0.01f), _qBiasAlpha(0.01f), _qLambda(0.96f), _qRadius(6), _qReluLeak(0.01f)
+				_qAlpha(0.001f), _qBiasAlpha(0.001f), _qLambda(0.96f), _qRadius(4), _qReluLeak(0.01f)
 			{}
 		};
 
@@ -78,7 +74,7 @@ namespace neo {
 			/*!
 			\brief Sparse coder and predictor
 			*/
-			SparseCoder _sc;
+			ComparisonSparseCoder _sc;
 			Predictor _pred;
 			//!@}
 
@@ -198,8 +194,8 @@ namespace neo {
 			_qLastSize({ 8, 8 }), _qGamma(0.99f),
 			_qLastAlpha(0.001f), _qLastBiasAlpha(0.001f), _qLastLambda(0.98f), _qLastRadius(8),
 			_actionImprovementIterations(1), _actionImprovementAlpha(1.0f),
-			_expPert(0.05f), _expBreak(0.03f),
-			_predActionWeightAlpha(0.04f)
+			_expPert(0.02f), _expBreak(0.01f),
+			_predActionWeightAlpha(0.02f)
 		{}
 
 		/*!
