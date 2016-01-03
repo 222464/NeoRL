@@ -50,9 +50,9 @@ int main() {
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 8;
 	layerDescs[0]._useTraces = false;
-	layerDescs[0]._weightAlpha = 0.001f;
+	layerDescs[0]._weightAlpha = 0.01f;
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, generator);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.5f, 0.5f }, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 
@@ -152,7 +152,7 @@ int main() {
 
 			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.2f);
 
-			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.0005f, 0.2f);
+			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.01f, 0.2f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {

@@ -64,7 +64,6 @@ namespace neo {
 			\brief Weights
 			*/
 			DoubleBuffer3D _weightsForward;
-			DoubleBuffer3D _weightsBackward;
 			//!@}
 
 			//!@{
@@ -105,7 +104,6 @@ namespace neo {
 		\brief Temporary summation buffers
 		*/
 		DoubleBuffer2D _hiddenActivationSummationTemp;
-		DoubleBuffer2D _hiddenErrorSummationTemp;
 		//!@}
 
 		//!@{
