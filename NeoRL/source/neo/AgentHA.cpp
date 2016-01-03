@@ -240,6 +240,35 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 		_actionPred.activate(cs, visibleStates, false);
 	}
 
+	if (learn) {
+		for (int l = _layers.size() - 1; l >= 0; l--) {
+			std::vector<cl::Image2D> visibleStatesPrev;
+
+			if (l < _layers.size() - 1) {
+				visibleStatesPrev.resize(2);
+
+				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+				visibleStatesPrev[1] = _layers[l + 1]._pred.getHiddenStates()[_front];
+			}
+			else {
+				visibleStatesPrev.resize(1);
+
+				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+			}
+
+			_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+		}
+
+		// Action predictor
+		{
+			std::vector<cl::Image2D> visibleStatesPrev(1);
+
+			visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
+
+			_actionPred.learn(cs, _action, visibleStatesPrev, _predActionWeightAlpha);
+		}
+	}
+
 	// Copy prediction as starting action
 	cs.getQueue().enqueueCopyImage(_actionPred.getHiddenStates()[_back], _action, { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
 
@@ -666,35 +695,6 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_qLastWeightUpdateKernel.setArg(argIndex++, tdError);
 
 			cs.getQueue().enqueueNDRangeKernel(_qLastWeightUpdateKernel, cl::NullRange, cl::NDRange(_qLastSize.x, _qLastSize.y));
-		}
-	}
-
-	if (learn) {
-		for (int l = _layers.size() - 1; l >= 0; l--) {
-			std::vector<cl::Image2D> visibleStatesPrev;
-
-			if (l < _layers.size() - 1) {
-				visibleStatesPrev.resize(2);
-
-				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
-				visibleStatesPrev[1] = _layers[l + 1]._pred.getHiddenStates()[_front];
-			}
-			else {
-				visibleStatesPrev.resize(1);
-
-				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
-			}
-
-			_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
-		}
-
-		// Action predictor
-		{
-			std::vector<cl::Image2D> visibleStatesPrev(1);
-
-			visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
-
-			_actionPred.learn(cs, _action, visibleStatesPrev, _predActionWeightAlpha);
 		}
 	}
 
