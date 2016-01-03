@@ -102,10 +102,10 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(1);
+	std::vector<neo::AgentHA::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
-	//layerDescs[1]._size = { 16, 16 };
+	layerDescs[1]._size = { 12, 12 };
 	//layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentHA agent;
