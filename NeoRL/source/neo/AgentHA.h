@@ -60,7 +60,7 @@ namespace neo {
 				: _size({ 8, 8 }),
 				_feedForwardRadius(3), _recurrentRadius(3), _lateralRadius(3), _feedBackRadius(4), _predictiveRadius(4),
 				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.98f),
-				_scActiveRatio(0.1f), _scBoostAlpha(0.0001f),
+				_scActiveRatio(0.1f), _scBoostAlpha(0.00004f),
 				_predWeightAlpha(0.01f),
 				_qAlpha(0.001f), _qBiasAlpha(0.001f), _qLambda(0.96f), _qRadius(4), _qReluLeak(0.01f)
 			{}
@@ -193,7 +193,7 @@ namespace neo {
 			: _prevValue(0.0f),
 			_qLastSize({ 8, 8 }), _qGamma(0.99f),
 			_qLastAlpha(0.001f), _qLastBiasAlpha(0.001f), _qLastLambda(0.98f), _qLastRadius(8),
-			_actionImprovementIterations(1), _actionImprovementAlpha(1.0f),
+			_actionImprovementIterations(1), _actionImprovementAlpha(0.04f),
 			_expPert(0.02f), _expBreak(0.01f),
 			_predActionWeightAlpha(0.02f)
 		{}
@@ -204,7 +204,7 @@ namespace neo {
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
-			cl_float2 initWeightRange, cl_float2 initInhibitionRange, cl_float initThreshold,
+			cl_float2 initWeightRange,
 			std::mt19937 &rng);
 
 		/*!

@@ -81,7 +81,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_gpu);
+	cs.create(sys::ComputeSystem::_cpu);
 
 	sys::ComputeProgram prog;
 
@@ -102,15 +102,15 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentHA::LayerDesc> layerDescs(1);
 
 	layerDescs[0]._size = { 16, 16 };
-	layerDescs[1]._size = { 16, 16 };
+	//layerDescs[1]._size = { 16, 16 };
 	//layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentHA agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.01f, 0.01f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	std::vector<float> input(inWidth * inHeight, 0.0f);
@@ -182,7 +182,7 @@ int main() {
 
 		const float maxSpeed = 10.0f;
 		const float accel = 0.1f;
-		const float spinRate = 0.1f;
+		const float spinRate = 0.2f;
 
 		/*action[0] = 0.0f;
 		action[1] = 0.0f;
