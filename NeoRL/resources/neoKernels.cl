@@ -255,7 +255,7 @@ void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only im
 
 void kernel cscLearnHiddenBiases(read_only image2d_t biasesBack, write_only image2d_t biasesFront,
 	read_only image2d_t hiddenStates, read_only image2d_t hiddenActivations,
-	float boostAlpha, float activeRatio)
+	float boostAlpha, float activeRatio, int2 hiddenSize, int radius)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	
@@ -264,6 +264,22 @@ void kernel cscLearnHiddenBiases(read_only image2d_t biasesBack, write_only imag
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 
 	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
+
+	/*float maxActivation = activation;
+
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			if (dx == 0 && dy == 0)
+				continue;
+			
+			int2 otherPosition = hiddenPosition + (int2)(dx, dy);
+
+			if (inBounds0(otherPosition, hiddenSize)) {
+				float otherActivation = read_imagef(hiddenActivations, otherPosition).x;
+
+				maxActivation = fmax(maxActivation, otherActivation);
+			}
+		}*/
 
 	float bias = biasPrev + boostAlpha * (activeRatio - state);
 
@@ -297,7 +313,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				
-				float weightForward = weightForwardPrev + weightAlpha * state * activation * (visibleError - activation * weightForwardPrev);
+				float weightForward = weightForwardPrev + weightAlpha * state * (visibleError + visibleState);
 	
 				write_imagef(weightsForwardFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weightForward));
 			}
@@ -1438,7 +1454,7 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 
 	float state = read_imagef(hiddenStates, position).x;
 
-	float reward = state * (1.0f - pred);//((1.0f - pred) * state + pred * (1.0f - state));
+	float reward = 1.0f - ((1.0f - pred) * state + pred * (1.0f - state));
 
 	write_imagef(rewards, position, (float4)(reward));
 }
@@ -1527,7 +1543,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = sigmoid(sum) * hiddenState;
+	float state = relu(sum, reluLeak) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
@@ -1538,7 +1554,7 @@ void kernel qLastForward(read_only image3d_t qWeights, read_only image2d_t qBias
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
-	float sum = read_imagef(qBiases, hiddenPosition).x;
+	float sum = 0.0f;//read_imagef(qBiases, hiddenPosition).x;
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
@@ -1596,13 +1612,13 @@ void kernel qBackward(read_only image2d_t hiddenStates, read_only image2d_t qSta
 			}
 		}
 
-	//sum = sum > 0.0f ? 1.0f : -1.0f;
+	sum = sum > 0.0f ? 1.0f : -1.0f;
 
 	float qState = read_imagef(qStates, visiblePosition).x;
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float error = sum * qState * (1.0f - qState);//relud(qState, reluLeak);
+	float error = sum * relud(qState, reluLeak);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1639,13 +1655,13 @@ void kernel qLastBackward(read_only image2d_t hiddenStates, read_only image2d_t 
 			}
 		}
 
-	//sum = sum > 0.0f ? 1.0f : -1.0f;
+	sum = sum > 0.0f ? 1.0f : -1.0f;
 
 	float qState = read_imagef(qStates, visiblePosition).x;
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float error = sum * qState * (1.0f - qState);//relud(qState, reluLeak);
+	float error = sum * relud(qState, reluLeak);
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1778,7 +1794,7 @@ void kernel qActionUpdate(read_only image2d_t actionsPrev, read_only image2d_t e
 
 	float error = read_imagef(errors, position).x;
 
-	float action = fmin(1.0f, fmax(-1.0f, actionPrev + alpha * (error > 0.0f ? 1.0f : -1.0f)));
+	float action = fmin(1.0f, fmax(-1.0f, actionPrev + alpha * error));
 
 	write_imagef(actions, position, (float4)(action));
 }

@@ -195,6 +195,8 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const std::vector<cl::
 		_learnHiddenBiasesKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
 		_learnHiddenBiasesKernel.setArg(argIndex++, boostAlpha);
 		_learnHiddenBiasesKernel.setArg(argIndex++, activeRatio);
+		_learnHiddenBiasesKernel.setArg(argIndex++, _hiddenSize);
+		_learnHiddenBiasesKernel.setArg(argIndex++, _lateralRadius);
 
 		cs.getQueue().enqueueNDRangeKernel(_learnHiddenBiasesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
@@ -236,6 +238,8 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const cl::Image2D &rew
 		_learnHiddenBiasesKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
 		_learnHiddenBiasesKernel.setArg(argIndex++, boostAlpha);
 		_learnHiddenBiasesKernel.setArg(argIndex++, activeRatio);
+		_learnHiddenBiasesKernel.setArg(argIndex++, _hiddenSize);
+		_learnHiddenBiasesKernel.setArg(argIndex++, _lateralRadius);
 
 		cs.getQueue().enqueueNDRangeKernel(_learnHiddenBiasesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 

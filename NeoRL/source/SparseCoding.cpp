@@ -50,7 +50,7 @@ int main() {
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 10;
 	layerDescs[0]._useTraces = false;
-	layerDescs[0]._weightAlpha = 0.1f;
+	layerDescs[0]._weightAlpha = 0.01f;
 
 	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.5f, 0.5f }, generator);
 
