@@ -36,7 +36,7 @@ float magnitude(const sf::Vector2f &v) {
 }
 
 float rayCast(const sf::Image &mask, const sf::Vector2f &start, const sf::Vector2f &end) {
-	const float castIncrement = 3.0f;
+	const float castIncrement = 1.0f;
 
 	sf::Vector2f point = start;
 
@@ -388,7 +388,7 @@ int main() {
 			window.draw(foregroundS);
 
 			float xOffset = 0.0f;
-			float scale = 4.0f;
+			float scale = 2.0f;
 
 			for (int l = 0; l < layerDescs.size(); l++) {
 				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
@@ -447,7 +447,7 @@ int main() {
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.02f * reward, inputImage, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.2f * reward, inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 

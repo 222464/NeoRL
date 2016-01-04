@@ -694,7 +694,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
 
-			_actionPred.learn(cs, _actionExploratory[_front], visibleStates, _predActionWeightAlpha);
+			_actionPred.learnCurrent(cs, _action, visibleStates, _predActionWeightAlpha);
 		}
 	}
 #else
