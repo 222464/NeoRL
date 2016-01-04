@@ -85,7 +85,11 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 				predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 			}
 
+#ifdef USE_DETERMINISTIC_POLICY_GRADIENT
+			_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, false, rng);
+#else
 			_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, true, rng);
+#endif
 		}
 
 		// Q
@@ -129,7 +133,11 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 		predDescs[0]._size = _layerDescs.front()._size;
 		predDescs[0]._radius = firstLayerFeedBackRadius;
 
+#ifdef USE_DETERMINISTIC_POLICY_GRADIENT
+		_actionPred.createRandom(cs, program, predDescs, _actionSize, initWeightRange, false, rng);
+#else
 		_actionPred.createRandom(cs, program, predDescs, _actionSize, initWeightRange, true, rng);
+#endif
 	}
 
 	// Last Q
@@ -244,8 +252,9 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 	// Copy prediction as starting action
 	cs.getQueue().enqueueCopyImage(_actionPred.getHiddenStates()[_back], _action, { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
 
+#ifdef USE_DETERMINISTIC_POLICY_GRADIENT
 	// Find best Q
-	/*float maxQ;
+	float maxQ;
 
 	for (int iter = 0; iter < _actionImprovementIterations; iter++) {
 		cl::Image2D prevLayerInput = _action;
@@ -260,8 +269,6 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				cl_float2 visibleToHidden = cl_float2{ static_cast<float>(_layerDescs[l]._size.x) / static_cast<float>(prevLayerSize.x),
 					static_cast<float>(_layerDescs[l]._size.y) / static_cast<float>(prevLayerSize.y)
 				};
-
-				cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _layerDescs[l]._qRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _layerDescs[l]._qRadius)) };
 
 				int argIndex = 0;
 
@@ -291,8 +298,6 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			cl_float2 visibleToHidden = cl_float2{ static_cast<float>(_qLastSize.x) / static_cast<float>(prevLayerSize.x),
 				static_cast<float>(_qLastSize.y) / static_cast<float>(prevLayerSize.y)
 			};
-
-			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _qLastRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _qLastRadius)) };
 
 			int argIndex = 0;
 
@@ -333,7 +338,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				static_cast<float>(_qLastSize.y) / static_cast<float>(_layerDescs.back()._size.y)
 			};
 
-			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _qLastRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _qLastRadius)) };
+			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * (_qLastRadius + 0.5f))), static_cast<int>(std::ceil(visibleToHidden.y * (_qLastRadius + 0.5f))) };
 
 			int argIndex = 0;
 
@@ -365,7 +370,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				static_cast<float>(prevLayerSize.y) / static_cast<float>(_layerDescs[l]._size.y)
 			};
 
-			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _layerDescs[l + 1]._qRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _layerDescs[l + 1]._qRadius)) };
+			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * (_layerDescs[l + 1]._qRadius + 0.5f))), static_cast<int>(std::ceil(visibleToHidden.y * (_layerDescs[l + 1]._qRadius + 0.5f))) };
 
 			int argIndex = 0;
 
@@ -398,7 +403,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				static_cast<float>(prevLayerSize.y) / static_cast<float>(_actionSize.y)
 			};
 
-			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _layerDescs.front()._qRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _layerDescs.front()._qRadius)) };
+			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * (_layerDescs.front()._qRadius + 0.5f))), static_cast<int>(std::ceil(visibleToHidden.y * (_layerDescs.front()._qRadius + 0.5f))) };
 
 			int argIndex = 0;
 
@@ -422,14 +427,16 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			_qActionUpdateKernel.setArg(argIndex++, _action);
 			_qActionUpdateKernel.setArg(argIndex++, _qFirstErrors);
-			_qActionUpdateKernel.setArg(argIndex++, _actionExploratory);
+			_qActionUpdateKernel.setArg(argIndex++, _actionExploratory[_front]);
 			_qActionUpdateKernel.setArg(argIndex++, _actionImprovementAlpha);
 
 			cs.getQueue().enqueueNDRangeKernel(_qActionUpdateKernel, cl::NullRange, cl::NDRange(_actionSize.x, _actionSize.y));
 		}
 
-		std::swap(_action, _actionExploratory);
-	}*/
+		std::swap(_action, _actionExploratory[_front]);
+	}
+
+#endif
 
 	// Explore and final activation
 	{
@@ -661,6 +668,36 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 		}
 	}
 
+#ifdef USE_DETERMINISTIC_POLICY_GRADIENT
+	if (learn) {
+		for (int l = _layers.size() - 1; l >= 0; l--) {
+			std::vector<cl::Image2D> visibleStatesPrev;
+
+			if (l < _layers.size() - 1) {
+				visibleStatesPrev.resize(2);
+
+				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+				visibleStatesPrev[1] = _layers[l + 1]._pred.getHiddenStates()[_front];
+			}
+			else {
+				visibleStatesPrev.resize(1);
+
+				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+			}
+
+			_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+		}
+	
+		// Action predictor
+		{
+			std::vector<cl::Image2D> visibleStates(1);
+
+			visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
+
+			_actionPred.learn(cs, _actionExploratory[_front], visibleStates, _predActionWeightAlpha);
+		}
+	}
+#else
 	if (learn) {
 		for (int l = _layers.size() - 1; l >= 0; l--) {
 			std::vector<cl::Image2D> visibleStatesPrev;
@@ -679,7 +716,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			_layers[l]._pred.learn(cs, (tdError > 0.0f ? 1.0f : 0.0f), _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 		}
-	
+
 		// Action predictor
 		{
 			std::vector<cl::Image2D> visibleStatesPrev(1);
@@ -689,6 +726,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_actionPred.learn(cs, (tdError > 0.0f ? 1.0f : 0.0f), _actionExploratory[_back], visibleStatesPrev, _predActionWeightAlpha, _predActionWeightLambda);
 		}
 	}
+#endif
 
 	// Buffer swaps
 	{

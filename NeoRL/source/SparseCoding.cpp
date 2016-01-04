@@ -29,10 +29,10 @@ int main() {
 
 	prog.loadFromFile("resources/neoKernels.cl", cs);
 
-	const int sampleWidth = 32;
-	const int sampleHeight = 32;
-	const int codeWidth = 20;
-	const int codeHeight = 20;
+	const int sampleWidth = 16;
+	const int sampleHeight = 16;
+	const int codeWidth = 30;
+	const int codeHeight = 30;
 	const int stepsPerFrame = 5;
 
 	// --------------------------- Create the Sparse Coder ---------------------------
@@ -48,7 +48,7 @@ int main() {
 	std::vector<neo::ComparisonSparseCoder::VisibleLayerDesc> layerDescs(1);
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
-	layerDescs[0]._radius = 10;
+	layerDescs[0]._radius = 6;
 	layerDescs[0]._useTraces = false;
 	layerDescs[0]._weightAlpha = 0.01f;
 
@@ -150,9 +150,9 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.1f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.02f);
 
-			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.02f, 0.1f);
+			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.01f, 0.02f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
@@ -171,7 +171,7 @@ int main() {
 				for (int y = 0; y < sampleHeight; y++) {
 					sf::Color c = sf::Color::White;
 
-					c.r = c.b = c.g = sig(3.0f * recon[x + y * sampleWidth]) * 255.0f;
+					c.r = c.b = c.g = sig(1.0f * recon[x + y * sampleWidth]) * 255.0f;
 
 					reconstructionImage.setPixel(x, y, c);
 				}

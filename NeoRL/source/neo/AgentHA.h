@@ -4,6 +4,8 @@
 #include "Predictor.h"
 #include "PredictorSwarm.h"
 
+#define USE_DETERMINISTIC_POLICY_GRADIENT
+
 namespace neo {
 	/*!
 	\brief Predictive hierarchy (no RL)
