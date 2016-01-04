@@ -210,7 +210,7 @@ int main() {
 
 		const float maxSpeed = 5.0f;
 		const float accel = 0.03f;
-		const float spinRate = 0.3f;
+		const float spinRate = 0.08f;
 
 		/*action[0] = 0.0f;
 		action[1] = 0.0f;
@@ -232,7 +232,7 @@ int main() {
 		car._speed *= 0.95f;
 
 		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel));// * (action[0] * 0.5f + 0.5f)
-		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, action[0])) * spinRate, 3.141596f * 2.0f);
+		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, 0.7f * (action[1] + action[2]))) * spinRate, 3.141596f * 2.0f);
 
 		sf::Color curColor = collisionImg.getPixel(car._position.x, car._position.y);
 
