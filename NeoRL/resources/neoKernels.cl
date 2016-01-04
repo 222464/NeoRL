@@ -349,7 +349,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				
-				float2 weightForward = (float2)(weightForwardPrev.x + reward * weightForwardPrev.y, weightForwardPrev.y * weightLambda + weightAlpha * state * (1.0f - activation) * visibleError);
+				float2 weightForward = (float2)(weightForwardPrev.x + reward * weightForwardPrev.y, weightForwardPrev.y * weightLambda + weightAlpha * state * (visibleError + visibleState));
 	
 				write_imagef(weightsForwardFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weightForward, 0.0f, 0.0f));
 			}
@@ -1454,7 +1454,7 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 
 	float state = read_imagef(hiddenStates, position).x;
 
-	float reward = 1.0f - ((1.0f - pred) * state + pred * (1.0f - state));
+	float reward = ((1.0f - pred) * state + pred * (1.0f - state));
 
 	write_imagef(rewards, position, (float4)(reward));
 }

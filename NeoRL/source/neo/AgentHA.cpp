@@ -168,12 +168,12 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 	// Actions
 	_action = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _actionSize.x, _actionSize.y);
-	_actionExploratory = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _actionSize.x, _actionSize.y);
+	_actionExploratory = createDoubleBuffer2D(cs, _actionSize, CL_R, CL_FLOAT);
 
 	_qFirstErrors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _actionSize.x, _actionSize.y);
 
 	cs.getQueue().enqueueFillImage(_action, cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
-	cs.getQueue().enqueueFillImage(_actionExploratory, cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
+	cs.getQueue().enqueueFillImage(_actionExploratory[_back], cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
 }
 
 void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn) {
@@ -440,7 +440,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 		int argIndex = 0;
 
 		_explorationKernel.setArg(argIndex++, _action);
-		_explorationKernel.setArg(argIndex++, _actionExploratory);
+		_explorationKernel.setArg(argIndex++, _actionExploratory[_front]);
 		_explorationKernel.setArg(argIndex++, _expPert);
 		_explorationKernel.setArg(argIndex++, _expBreak);
 		_explorationKernel.setArg(argIndex++, seed);
@@ -452,7 +452,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 	// Activate from exploratory actions
 	{
-		cl::Image2D prevLayerInput = _actionExploratory;
+		cl::Image2D prevLayerInput = _actionExploratory[_front];
 		cl_int2 prevLayerSize = _actionSize;
 
 		for (int l = 0; l < _layers.size(); l++) {
@@ -594,7 +594,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 	// Update weights
 	{
-		cl::Image2D prevLayerInput = _actionExploratory;
+		cl::Image2D prevLayerInput = _actionExploratory[_front];
 		cl_int2 prevLayerSize = _actionSize;
 
 		for (int l = 0; l < _layers.size(); l++) {
@@ -686,7 +686,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
 
-			_actionPred.learn(cs, (tdError > 0.0f ? 1.0f : 0.0f), _actionExploratory, visibleStatesPrev, _predActionWeightAlpha, _predActionWeightLambda);
+			_actionPred.learn(cs, (tdError > 0.0f ? 1.0f : 0.0f), _actionExploratory[_back], visibleStatesPrev, _predActionWeightAlpha, _predActionWeightLambda);
 		}
 	}
 
@@ -702,6 +702,8 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 		std::swap(_qLastStates[_front], _qLastStates[_back]);
 		std::swap(_qLastWeights[_front], _qLastWeights[_back]);
 		std::swap(_qLastBiases[_front], _qLastBiases[_back]);
+
+		std::swap(_actionExploratory[_front], _actionExploratory[_back]);
 	}
 }
 
