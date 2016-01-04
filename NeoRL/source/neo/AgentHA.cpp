@@ -465,8 +465,6 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 					static_cast<float>(_layerDescs[l]._size.y) / static_cast<float>(prevLayerSize.y)
 				};
 
-				cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _layerDescs[l]._qRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _layerDescs[l]._qRadius)) };
-
 				int argIndex = 0;
 
 				_qForwardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
@@ -495,8 +493,6 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			cl_float2 visibleToHidden = cl_float2{ static_cast<float>(_qLastSize.x) / static_cast<float>(prevLayerSize.x),
 				static_cast<float>(_qLastSize.y) / static_cast<float>(prevLayerSize.y)
 			};
-
-			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _qLastRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _qLastRadius)) };
 
 			int argIndex = 0;
 
@@ -540,7 +536,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				static_cast<float>(_qLastSize.y) / static_cast<float>(_layerDescs.back()._size.y)
 			};
 
-			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _qLastRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _qLastRadius)) };
+			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * (_qLastRadius + 0.5f))), static_cast<int>(std::ceil(visibleToHidden.y * (_qLastRadius + 0.5f))) };
 
 			int argIndex = 0;
 
@@ -572,7 +568,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				static_cast<float>(prevLayerSize.y) / static_cast<float>(_layerDescs[l]._size.y)
 			};
 
-			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _layerDescs[l + 1]._qRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _layerDescs[l + 1]._qRadius)) };
+			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * (_layerDescs[l + 1]._qRadius + 0.5f))), static_cast<int>(std::ceil(visibleToHidden.y * (_layerDescs[l + 1]._qRadius + 0.5f))) };
 
 			int argIndex = 0;
 
@@ -611,8 +607,6 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 					static_cast<float>(_layerDescs[l]._size.y) / static_cast<float>(prevLayerSize.y)
 				};
 
-				cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _layerDescs[l]._qRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _layerDescs[l]._qRadius)) };
-
 				int argIndex = 0;
 
 				_qWeightUpdateKernel.setArg(argIndex++, prevLayerInput);
@@ -646,8 +640,6 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			cl_float2 visibleToHidden = cl_float2{ static_cast<float>(_qLastSize.x) / static_cast<float>(prevLayerSize.x),
 				static_cast<float>(_qLastSize.y) / static_cast<float>(prevLayerSize.y)
 			};
-
-			cl_int2 reverseRadii = cl_int2{ static_cast<int>(std::ceil(visibleToHidden.x * _qLastRadius)), static_cast<int>(std::ceil(visibleToHidden.y * _qLastRadius)) };
 
 			int argIndex = 0;
 
@@ -685,16 +677,16 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
-			_layers[l]._pred.learn(cs, tdError, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+			_layers[l]._pred.learn(cs, (tdError > 0.0f ? 1.0f : 0.0f), _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 		}
 	
 		// Action predictor
 		{
-			std::vector<cl::Image2D> visibleStates(1);
+			std::vector<cl::Image2D> visibleStatesPrev(1);
 
-			visibleStates[0] = _layers.front()._pred.getHiddenStates()[_front];
+			visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
 
-			_actionPred.learn(cs, tdError, _actionExploratory, visibleStates, _predActionWeightAlpha, _predActionWeightLambda);
+			_actionPred.learn(cs, (tdError > 0.0f ? 1.0f : 0.0f), _actionExploratory, visibleStatesPrev, _predActionWeightAlpha, _predActionWeightLambda);
 		}
 	}
 

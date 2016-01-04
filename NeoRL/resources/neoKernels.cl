@@ -175,7 +175,7 @@ void kernel cscActivate(read_only image2d_t visibleStates,
 			}
 		}
 
-	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum + subSum / counter));
+	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum + subSum));
 }
 
 void kernel cscActivateIgnoreMiddle(read_only image2d_t visibleStates,
@@ -215,7 +215,7 @@ void kernel cscActivateIgnoreMiddle(read_only image2d_t visibleStates,
 			}
 		}
 
-	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum + subSum / counter));
+	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum + subSum));
 }
 
 void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp, read_only image2d_t hiddenBiases,

@@ -81,7 +81,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_cpu);
+	cs.create(sys::ComputeSystem::_gpu);
 
 	sys::ComputeProgram prog;
 
@@ -119,6 +119,23 @@ int main() {
 	deep::SDRRL agent2;
 
 	agent2.createRandom(64, 4, 32, -0.01f, 0.01f, 0.01f, 0.05f, 0.1f, generator);
+
+	// Dummy agent
+	int cells = 128;
+
+	std::vector<float> weightsA(cells);
+	std::vector<float> tracesA(cells, 0.0f);
+	std::vector<float> weightsQ(cells);
+	std::vector<float> tracesQ(cells, 0.0f);
+
+	std::uniform_real_distribution<float> wDist(-0.01f, 0.01f);
+
+	for (int i = 0; i < cells; i++) {
+		weightsQ[i] = wDist(generator);
+		weightsA[i] = wDist(generator);
+	}
+
+	float prevVal = 0.0f;
 
 	// -------------------------- Game Resources --------------------------
 
@@ -193,7 +210,7 @@ int main() {
 
 		const float maxSpeed = 5.0f;
 		const float accel = 0.03f;
-		const float spinRate = 0.05f;
+		const float spinRate = 0.3f;
 
 		/*action[0] = 0.0f;
 		action[1] = 0.0f;
@@ -215,7 +232,7 @@ int main() {
 		car._speed *= 0.95f;
 
 		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel));// * (action[0] * 0.5f + 0.5f)
-		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, action[0] + action[1] - action[2] - action[3])) * spinRate, 3.141596f * 2.0f);
+		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, action[0])) * spinRate, 3.141596f * 2.0f);
 
 		sf::Color curColor = collisionImg.getPixel(car._position.x, car._position.y);
 
@@ -349,6 +366,22 @@ int main() {
 
 			window.draw(carS);
 
+			// Draw checkpoints if desired
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::C)) {
+				sf::VertexArray ar;
+
+				ar.setPrimitiveType(sf::LinesStrip);
+				ar.resize(checkpoints.size() + 1);
+
+				for (int i = 0; i < checkpoints.size(); i++) {
+					ar[i] = sf::Vertex(checkpoints[i], sf::Color::Green);
+				}
+
+				ar[checkpoints.size()] = sf::Vertex(checkpoints.front(), sf::Color::Green);
+
+				window.draw(ar);
+			}
+
 			sf::Sprite foregroundS;
 			foregroundS.setTexture(foregroundTex);
 			//foregroundS.setColor(sf::Color::Red);
@@ -417,6 +450,46 @@ int main() {
 		agent.simStep(cs, reset ? -1.0f : 0.02f * reward, inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
+
+		// Dummy agent
+		/*float angle = std::acos(std::min(1.0f, std::max(-1.0f, trackPerp.x * carDir.x + trackPerp.y * carDir.y)));
+
+		if (angle < 0.0f)
+			angle += 3.141596f;
+
+		float ratio = angle / (3.14159f);
+
+		int index = static_cast<int>(ratio * cells);
+
+		float q = weightsQ[index];
+
+		float a = weightsA[index];
+
+		std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+
+		float ae = dist01(generator) < 0.01f ? dist01(generator) : std::min(1.0f, std::max(0.0f, a));
+
+		float r = reset ? -1.0f : 0.02f * reward;
+
+		float tdError = r + 0.97f * q - prevVal;
+		std::cout << a << std::endl;
+		prevVal = q;
+
+		for (int i = 0; i < cells; i++)
+			weightsQ[i] += 0.01f * tdError * tracesQ[i];
+
+		for (int i = 0; i < cells; i++)
+			tracesQ[i] = 0.95f * tracesQ[i] + (i == index ? 1.0f : 0.0f);
+
+		for (int i = 0; i < cells; i++)
+			weightsA[i] += 0.1f * (tdError > 0.0f ? 1.0f : 0.0f) * tracesA[i];
+
+		for (int i = 0; i < cells; i++)
+			tracesA[i] = 0.95f * tracesA[i] + (i == index ? ae - a : 0.0f);
+
+		action[0] = ae * 2.0f - 1.0f;
+
+		action[0] = 20.0f * (ratio * 2.0f - 1.0f);*/
 	} while (!quit);
 
 	return 0;
