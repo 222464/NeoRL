@@ -81,7 +81,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_gpu);
+	cs.create(sys::ComputeSystem::_cpu);
 
 	sys::ComputeProgram prog;
 
@@ -102,15 +102,15 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(3);
+	std::vector<neo::AgentHA::LayerDesc> layerDescs(1);
 
-	layerDescs[0]._size = { 16, 16 };
-	layerDescs[1]._size = { 12, 12 };
-	layerDescs[2]._size = { 8, 8 };
+	layerDescs[0]._size = { 8, 8 };
+	//layerDescs[1]._size = { 12, 12 };
+	//layerDescs[2]._size = { 8, 8 };
 
 	neo::AgentHA agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	std::vector<float> input(inWidth * inHeight, 0.0f);
@@ -214,8 +214,8 @@ int main() {
 		car._position += sf::Vector2f(std::cos(car._rotation), std::sin(car._rotation)) * car._speed;
 		car._speed *= 0.95f;
 
-		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel));// *(action[0] * 0.5f + 0.5f)));
-		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, 0.333f * (action[0] + action[1] - action[2] - action[3]))) * spinRate, 3.141596f * 2.0f);
+		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel * (action[0] * 0.5f + 0.5f)));
+		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, action[1])) * spinRate, 3.141596f * 2.0f);
 
 		sf::Color curColor = collisionImg.getPixel(car._position.x, car._position.y);
 
@@ -414,7 +414,7 @@ int main() {
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.004f * reward, inputImage, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.2f * reward, inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 	} while (!quit);

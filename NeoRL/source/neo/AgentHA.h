@@ -28,7 +28,10 @@ namespace neo {
 			/*!
 			\brief Sparse coder parameters
 			*/
+			cl_int _scIterations;
+			cl_float _scLeak;
 			cl_float _scWeightAlpha;
+			cl_float _scWeightLateralAlpha;
 			cl_float _scWeightRecurrentAlpha;
 			cl_float _scWeightLambda;
 			cl_float _scActiveRatio;
@@ -59,11 +62,12 @@ namespace neo {
 			*/
 			LayerDesc()
 				: _size({ 8, 8 }),
-				_feedForwardRadius(6), _recurrentRadius(6), _lateralRadius(6), _feedBackRadius(7), _predictiveRadius(7),
-				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.05f), _scBoostAlpha(0.0002f),
+				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
+				_scIterations(17), _scLeak(0.1f),
+				_scWeightAlpha(0.01f), _scWeightLateralAlpha(0.02f), _scWeightRecurrentAlpha(0.01f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.05f), _scBoostAlpha(0.004f),
 				_predWeightAlpha(0.01f), _predWeightLambda(0.95f),
-				_qAlpha(0.01f), _qBiasAlpha(0.01f), _qLambda(0.95f), _qRadius(4), _qReluLeak(0.01f)
+				_qAlpha(0.1f), _qBiasAlpha(0.0001f), _qLambda(0.95f), _qRadius(6), _qReluLeak(0.01f)
 			{}
 		};
 
@@ -175,6 +179,9 @@ namespace neo {
 		/*!
 		\brief General RL parameters
 		*/
+		cl_float _actionImprovementAlpha;
+		cl_int _actionImprovementIterations;
+
 		cl_float _expPert;
 		cl_float _expBreak;
 		//!@}
@@ -192,9 +199,9 @@ namespace neo {
 		*/
 		AgentHA()
 			: _prevValue(0.0f),
-			_qLastSize({ 8, 8 }), _qGamma(0.97f),
-			_qLastAlpha(0.01f), _qLastBiasAlpha(0.01f), _qLastLambda(0.95f), _qLastRadius(8),
-			_expPert(0.01f), _expBreak(0.005f),
+			_qLastSize({ 4, 4 }), _qGamma(0.97f),
+			_qLastAlpha(0.01f), _qLastBiasAlpha(0.0001f), _qLastLambda(0.95f), _qLastRadius(6),
+			_actionImprovementAlpha(0.05f), _actionImprovementIterations(17), _expPert(0.01f), _expBreak(0.005f),
 			_predActionWeightAlpha(0.01f), _predActionWeightLambda(0.95f)
 		{}
 
@@ -204,7 +211,7 @@ namespace neo {
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
-			cl_float2 initWeightRange,
+			cl_float2 initWeightRange, cl_float2 initInhibitionRange, cl_float initThreshold,
 			std::mt19937 &rng);
 
 		/*!

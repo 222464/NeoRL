@@ -85,6 +85,7 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	// Create kernels
 	_reconstructVisibleErrorKernel = cl::Kernel(program.getProgram(), "scReconstructVisibleError");
+	_reconstructVisibleKernel = cl::Kernel(program.getProgram(), "scReconstructVisible");
 	_activateFromReconstructionErrorKernel = cl::Kernel(program.getProgram(), "scActivateFromReconstructionError");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "scSolveHidden");
 	_learnThresholdsKernel = cl::Kernel(program.getProgram(), "scLearnThresholds");
@@ -314,4 +315,23 @@ void SparseCoder::learn(sys::ComputeSystem &cs, const cl::Image2D &rewards, floa
 
 		std::swap(_lateralWeights[_front], _lateralWeights[_back]);
 	}
+}
+
+void SparseCoder::reconstruct(sys::ComputeSystem &cs, const cl::Image2D &hiddenStates, int visibleLayerIndex, cl::Image2D &visibleStates) {
+	VisibleLayer &vl = _visibleLayers[visibleLayerIndex];
+	VisibleLayerDesc &vld = _visibleLayerDescs[visibleLayerIndex];
+
+	int argIndex = 0;
+
+	_reconstructVisibleKernel.setArg(argIndex++, hiddenStates);
+	_reconstructVisibleKernel.setArg(argIndex++, visibleStates);
+	_reconstructVisibleKernel.setArg(argIndex++, vl._weights[_back]);
+	_reconstructVisibleKernel.setArg(argIndex++, vld._size);
+	_reconstructVisibleKernel.setArg(argIndex++, _hiddenSize);
+	_reconstructVisibleKernel.setArg(argIndex++, vl._visibleToHidden);
+	_reconstructVisibleKernel.setArg(argIndex++, vl._hiddenToVisible);
+	_reconstructVisibleKernel.setArg(argIndex++, vld._radius);
+	_reconstructVisibleKernel.setArg(argIndex++, vl._reverseRadii);
+
+	cs.getQueue().enqueueNDRangeKernel(_reconstructVisibleKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 }

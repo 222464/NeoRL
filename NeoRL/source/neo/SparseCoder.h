@@ -123,6 +123,7 @@ namespace neo {
 		\brief Kernels
 		*/
 		cl::Kernel _reconstructVisibleErrorKernel;
+		cl::Kernel _reconstructVisibleKernel;
 		cl::Kernel _activateFromReconstructionErrorKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnThresholdsKernel;
@@ -158,6 +159,11 @@ namespace neo {
 		void learn(sys::ComputeSystem &cs, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
 		void learn(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
 		//!@}
+
+		/*!
+		\brief Reconstruct (find input from sparse codes)
+		*/
+		void reconstruct(sys::ComputeSystem &cs, const cl::Image2D &hiddenStates, int visibleLayerIndex, cl::Image2D &visibleStates);
 
 		/*!
 		\brief Get number of visible layers
