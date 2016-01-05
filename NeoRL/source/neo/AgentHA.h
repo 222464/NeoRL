@@ -4,7 +4,7 @@
 #include "Predictor.h"
 #include "PredictorSwarm.h"
 
-#define USE_DETERMINISTIC_POLICY_GRADIENT
+//#define USE_DETERMINISTIC_POLICY_GRADIENT
 
 namespace neo {
 	/*!
@@ -61,11 +61,11 @@ namespace neo {
 			*/
 			LayerDesc()
 				: _size({ 8, 8 }),
-				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scWeightAlpha(0.0005f), _scWeightRecurrentAlpha(0.00005f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.08f), _scBoostAlpha(0.01f),
-				_predWeightAlpha(0.01f), _predWeightLambda(0.95f),
-				_qAlpha(0.002f), _qBiasAlpha(0.002f), _qLambda(0.95f), _qRadius(6), _qReluLeak(0.01f)
+				_feedForwardRadius(3), _recurrentRadius(3), _lateralRadius(3), _feedBackRadius(4), _predictiveRadius(4),
+				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.00005f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.08f), _scBoostAlpha(0.003f),
+				_predWeightAlpha(0.002f), _predWeightLambda(0.93f),
+				_qAlpha(0.05f), _qBiasAlpha(0.005f), _qLambda(0.93f), _qRadius(4), _qReluLeak(0.01f)
 			{}
 		};
 
@@ -197,10 +197,10 @@ namespace neo {
 		*/
 		AgentHA()
 			: _prevValue(0.0f),
-			_qLastSize({ 8, 8 }), _qGamma(0.97f),
-			_qLastAlpha(0.002f), _qLastBiasAlpha(0.002f), _qLastLambda(0.95f), _qLastRadius(6),
-			_actionImprovementAlpha(0.02f), _actionImprovementIterations(1), _expPert(0.04f), _expBreak(0.007f),
-			_predActionWeightAlpha(0.01f), _predActionWeightLambda(0.95f)
+			_qLastSize({ 8, 8 }), _qGamma(0.95f),
+			_qLastAlpha(0.02f), _qLastBiasAlpha(0.02f), _qLastLambda(0.93f), _qLastRadius(6),
+			_actionImprovementAlpha(0.1f), _actionImprovementIterations(1), _expPert(0.03f), _expBreak(0.008f),
+			_predActionWeightAlpha(0.002f), _predActionWeightLambda(0.95f)
 		{}
 
 		/*!

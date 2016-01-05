@@ -36,7 +36,7 @@ float magnitude(const sf::Vector2f &v) {
 }
 
 float rayCast(const sf::Image &mask, const sf::Vector2f &start, const sf::Vector2f &end) {
-	const float castIncrement = 1.0f;
+	const float castIncrement = 3.0f;
 
 	sf::Vector2f point = start;
 
@@ -104,9 +104,9 @@ int main() {
 
 	std::vector<neo::AgentHA::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 24, 24 };
-	layerDescs[1]._size = { 16, 16 };
-	layerDescs[2]._size = { 12, 12 };
+	layerDescs[0]._size = { 22, 22 };
+	layerDescs[1]._size = { 18, 18 };
+	layerDescs[2]._size = { 14, 14 };
 
 	neo::AgentHA agent;
 
@@ -208,7 +208,7 @@ int main() {
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 			quit = true;
 
-		const float maxSpeed = 5.0f;
+		const float maxSpeed = 15.0f;
 		const float accel = 0.03f;
 		const float spinRate = 0.08f;
 
@@ -231,8 +231,8 @@ int main() {
 		car._position += sf::Vector2f(std::cos(car._rotation), std::sin(car._rotation)) * car._speed;
 		car._speed *= 0.95f;
 
-		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel));// * (action[0] * 0.5f + 0.5f)
-		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, 0.7f * (action[1] + action[2]))) * spinRate, 3.141596f * 2.0f);
+		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel * (action[0] * 0.5f + 0.5f)));// * (action[0] * 0.5f + 0.5f)
+		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, 0.7f * (action[1] + action[2] * 0.5f))) * spinRate, 3.141596f * 2.0f);
 
 		sf::Color curColor = collisionImg.getPixel(car._position.x, car._position.y);
 
@@ -319,7 +319,7 @@ int main() {
 		std::vector<float> sensors(16);
 
 		const float sensorAngle = 0.2f;
-		const float sensorRange = 60.0f;
+		const float sensorRange = 40.0f;
 
 		for (int s = 0; s < sensors.size(); s++) {
 			float d = sensorAngle * (s - sensors.size() * 0.5f) + car._rotation;
@@ -445,9 +445,9 @@ int main() {
 		//for (int i = 0; i < action.size(); i++)
 		//	action[i] = agent2.getAction(i);
 
-		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
+		cs.getQueue().enqueueWriteImage(inputImage, CL_FALSE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.2f * reward, inputImage, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.1f * reward, inputImage, generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
