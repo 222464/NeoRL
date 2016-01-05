@@ -58,7 +58,7 @@ int main() {
 
 	sf::Image sampleImage;
 
-	sampleImage.loadFromFile("testImage.png");
+	sampleImage.loadFromFile("testIm_converted.png");
 
 	sf::Texture sampleTexture;
 
@@ -121,28 +121,10 @@ int main() {
 				}
 
 			// Normalize
-			float average = 0.0f;
-
-			for (int i = 0; i < inputf.size(); i++) {
-				average += inputf[i];
-			}
-
-			average /= inputf.size();
-
-			float variance = 0.0f;
+			float average = 0.5f;
 
 			for (int i = 0; i < inputf.size(); i++) {
 				inputf[i] -= average;
-
-				variance += inputf[i] * inputf[i];
-			}
-
-			variance /= inputf.size();
-
-			variance = std::sqrt(variance);
-
-			for (int i = 0; i < inputf.size(); i++) {
-				inputf[i] /= variance;
 			}
 
 			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
