@@ -50,10 +50,10 @@ namespace neo {
 			*/
 			LayerDesc()
 				: _size({ 8, 8 }),
-				_feedForwardRadius(3), _recurrentRadius(3), _lateralRadius(3), _feedBackRadius(4), _predictiveRadius(4),
+				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.96f),
-				_scActiveRatio(0.05f), _scBoostAlpha(0.01f),
-				_alpha({ 0.01f, 0.001f }), _gamma(0.98f), _lambda({ 0.96f, 0.96f }), _noise(0.4f)
+				_scActiveRatio(0.05f), _scBoostAlpha(0.004f),
+				_alpha({ 0.04f, 0.004f }), _gamma(0.98f), _lambda({ 0.96f, 0.96f }), _noise(0.003f)
 			{}
 		};
 
@@ -122,7 +122,7 @@ namespace neo {
 		\brief Initialize defaults
 		*/
 		AgentSPG()
-			: _whiteningKernelRadius(2),
+			: _whiteningKernelRadius(1),
 			_whiteningIntensity(1024.0f)
 		{}
 
