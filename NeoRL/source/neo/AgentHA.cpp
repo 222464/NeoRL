@@ -182,9 +182,16 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 
 	cs.getQueue().enqueueFillImage(_action, cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
 	cs.getQueue().enqueueFillImage(_actionExploratory[_back], cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
+
+	_inputWhitener.create(cs, program, _inputSize, CL_R, CL_FLOAT);
+	_actionWhitener.create(cs, program, _actionSize, CL_R, CL_FLOAT);
 }
 
 void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn) {
+	// Whiten input
+	_inputWhitener.filter(cs, input, _whiteningKernelRadius, _whiteningIntensity);
+	_actionWhitener.filter(cs, getExploratoryAction(), _whiteningKernelRadius, _whiteningIntensity);
+
 	// Feed forward
 	for (int l = 0; l < _layers.size(); l++) {
 		{
@@ -199,8 +206,8 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			else {
 				visibleStates.resize(2);
 
-				visibleStates[0] = input;
-				visibleStates[1] = getExploratoryAction();
+				visibleStates[0] = _inputWhitener.getResult();
+				visibleStates[1] = _actionWhitener.getResult();
 				//visibleStates[2] = _layers[l]._sc.getHiddenStates()[_back];
 			}
 

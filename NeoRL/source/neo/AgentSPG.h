@@ -1,7 +1,8 @@
 #pragma once
 
 #include "ComparisonSparseCoder.h"
-#include "Predictor.h"
+#include "PredictorSwarm.h"
+#include "ImageWhitener.h"
 
 namespace neo {
 	/*!
@@ -34,17 +35,14 @@ namespace neo {
 			cl_float _scBoostAlpha;
 			//!@}
 
-			/*!
-			\brief Predictor parameters
-			*/
-			cl_float _predWeightAlpha;
-
 			//!@{
 			/*!
 			\brief RL
 			*/
+			cl_float2 _alpha;
 			cl_float _gamma;
-			cl_float _lambda;
+			cl_float2 _lambda;
+			cl_float _noise;
 			//!@}
 
 			/*!
@@ -53,10 +51,9 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.0005f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.04f), _scBoostAlpha(0.001f),
-				_predWeightAlpha(0.01f),
-				_gamma(0.95f), _lambda(0.92f)
+				_scWeightAlpha(0.00001f), _scWeightRecurrentAlpha(0.00001f), _scWeightLambda(0.95f),
+				_scActiveRatio(0.04f), _scBoostAlpha(0.002f),
+				_alpha({ 0.02f, 0.002f }), _gamma(0.98f), _lambda({ 0.96f, 0.96f }), _noise(0.05f)
 			{}
 		};
 
@@ -69,7 +66,7 @@ namespace neo {
 			\brief Sparse coder and predictor
 			*/
 			ComparisonSparseCoder _sc;
-			Predictor _pred;
+			PredictorSwarm _pred;
 			//!@}
 
 			/*!
@@ -89,31 +86,6 @@ namespace neo {
 		*/
 		cl_int2 _actionSize;
 
-		/*!
-		\brief Store q size
-		*/
-		cl_int2 _qSize;
-
-		/*!
-		\brief Random offsets for Q value input
-		*/
-		cl::Image2D _qOffsets;
-
-		/*!
-		\brief Q Values
-		*/
-		cl::Image2D _qValues;
-
-		/*!
-		\brief Store action (from reconstruction)
-		*/
-		cl::Image2D _action;
-
-		/*!
-		\brief Store exploratory action
-		*/
-		cl::Image2D _exploratoryAction;
-
 		//!@{
 		/*!
 		\brief Layers and descs
@@ -127,38 +99,31 @@ namespace neo {
 		\brief Kernels for hierarchy
 		*/
 		cl::Kernel _predictionRewardKernel;
-		cl::Kernel _explorationKernel;
-		cl::Kernel _setQKernel;
-		cl::Kernel _getQKernel;
 		//!@}
 
 		//!@{
 		/*!
-		\brief Q and Action prediction layers
+		\brief Input whiteners
 		*/
-		Predictor _qPred;
-		Predictor _actionPred;
+		ImageWhitener _inputWhitener;
+		ImageWhitener _actionWhitener;
 		//!@}
 
-		/*!
-		\brief RL
-		*/
-		float _prevValue;
-
 	public:
+		//!@{
 		/*!
-		\brief Exploration
+		\brief Whitening parameters
 		*/
-		cl_float _expPert;
-		cl_float _expBreak;
+		cl_int _whiteningKernelRadius;
+		cl_float _whiteningIntensity;
+		//!@}
 
 		/*!
 		\brief Initialize defaults
 		*/
 		AgentSPG()
-			: _prevValue(0.0f),
-			_expPert(0.01f),
-			_expBreak(0.005f)
+			: _whiteningKernelRadius(1),
+			_whiteningIntensity(1024.0f)
 		{}
 
 		/*!
@@ -166,7 +131,7 @@ namespace neo {
 		Requires the compute system, program with the NeoRL kernels, and initialization information.
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			cl_int2 inputSize, cl_int2 actionSize, cl_int2 qSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
+			cl_int2 inputSize, cl_int2 actionSize, const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange,
 			std::mt19937 &rng);
 
@@ -215,7 +180,7 @@ namespace neo {
 		\brief Get exploratory action
 		*/
 		const cl::Image2D &getExploratoryAction() const {
-			return _exploratoryAction;
+			return _layers.front()._pred.getHiddenStates()[_back];
 		}
 	};
 }

@@ -9,7 +9,7 @@
 #include <system/ComputeProgram.h>
 
 #include <neo/AgentHA.h>
-#include <neo/ImageWhitener.h>
+#include <neo/AgentSPG.h>
 #include <deep/SDRRL.h>
 
 #include <time.h>
@@ -37,7 +37,7 @@ float magnitude(const sf::Vector2f &v) {
 }
 
 float rayCast(const sf::Image &mask, const sf::Vector2f &start, const sf::Vector2f &end) {
-	const float castIncrement = 1.0f;
+	const float castIncrement = 2.0f;
 
 	sf::Vector2f point = start;
 
@@ -100,22 +100,18 @@ int main() {
 	int inWidth = 8;
 	int inHeight = 8;
 
-	neo::ImageWhitener iw;
-
-	iw.create(cs, prog, { inWidth, inHeight }, CL_R, CL_FLOAT);
-
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(3);
+	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 22, 22 };
 	layerDescs[1]._size = { 18, 18 };
 	layerDescs[2]._size = { 14, 14 };
 
-	neo::AgentHA agent;
+	neo::AgentSPG agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 12, layerDescs, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, layerDescs, { -0.01f, 0.01f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	std::vector<float> input(inWidth * inHeight, 0.0f);
@@ -450,13 +446,16 @@ int main() {
 		//for (int i = 0; i < action.size(); i++)
 		//	action[i] = agent2.getAction(i);
 
-		cs.getQueue().enqueueWriteImage(inputImage, CL_FALSE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
+		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		iw.filter(cs, inputImage, 2);
+		agent.simStep(cs, reset ? -1.0f : 0.03f * reward, inputImage, generator);
 
-		agent.simStep(cs, reset ? -1.0f : 0.1f * reward, iw.getResult(), generator);
+		std::vector<float> actionTemp(action.size() * 2);
 
-		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
+		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
+
+		for (int i = 0; i < action.size(); i++)
+			action[i] = actionTemp[i * 2 + 0] * 2.0f - 1.0f;
 
 		// Dummy agent
 		/*float angle = std::acos(std::min(1.0f, std::max(-1.0f, trackPerp.x * carDir.x + trackPerp.y * carDir.y)));

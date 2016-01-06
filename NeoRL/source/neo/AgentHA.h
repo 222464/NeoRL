@@ -3,6 +3,7 @@
 #include "ComparisonSparseCoder.h"
 #include "Predictor.h"
 #include "PredictorSwarm.h"
+#include "ImageWhitener.h"
 
 //#define USE_DETERMINISTIC_POLICY_GRADIENT
 
@@ -61,11 +62,11 @@ namespace neo {
 			*/
 			LayerDesc()
 				: _size({ 8, 8 }),
-				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.02f), _scBoostAlpha(0.05f),
-				_predWeightAlpha(0.001f), _predWeightLambda(0.93f),
-				_qAlpha(0.01f), _qBiasAlpha(0.005f), _qLambda(0.93f), _qRadius(6), _qReluLeak(0.01f)
+				_feedForwardRadius(5), _recurrentRadius(0), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
+				_scWeightAlpha(0.0002f), _scWeightRecurrentAlpha(0.0002f), _scWeightLambda(0.96f),
+				_scActiveRatio(0.04f), _scBoostAlpha(0.1f),
+				_predWeightAlpha(0.001f), _predWeightLambda(0.96f),
+				_qAlpha(0.01f), _qBiasAlpha(0.005f), _qLambda(0.96f), _qRadius(6), _qReluLeak(0.01f)
 			{}
 		};
 
@@ -160,6 +161,12 @@ namespace neo {
 		DoubleBuffer2D _actionExploratory;
 		//!@}
 
+		/*!
+		\brief Input whiteners
+		*/
+		ImageWhitener _inputWhitener;
+		ImageWhitener _actionWhitener;
+
 	public:
 		//!@{
 		/*!
@@ -192,15 +199,25 @@ namespace neo {
 		cl_float _predActionWeightLambda;
 		//!@}
 
+		//!@{
+		/*!
+		\brief Whitening parameters
+		*/
+		cl_int _whiteningKernelRadius;
+		cl_float _whiteningIntensity;
+		//!@}
+
 		/*!
 		\brief Initialize defaults
 		*/
 		AgentHA()
 			: _prevValue(0.0f),
-			_qLastSize({ 8, 8 }), _qGamma(0.95f),
-			_qLastAlpha(0.01f), _qLastBiasAlpha(0.005f), _qLastLambda(0.93f), _qLastRadius(6),
+			_qLastSize({ 8, 8 }), _qGamma(0.98f),
+			_qLastAlpha(0.01f), _qLastBiasAlpha(0.005f), _qLastLambda(0.96f), _qLastRadius(6),
 			_actionImprovementAlpha(0.5f), _actionImprovementIterations(1), _expPert(0.05f), _expBreak(0.01f),
-			_predActionWeightAlpha(0.001f), _predActionWeightLambda(0.95f)
+			_predActionWeightAlpha(0.001f), _predActionWeightLambda(0.95f),
+			_whiteningKernelRadius(1),
+			_whiteningIntensity(1024.0f)
 		{}
 
 		/*!
