@@ -9,6 +9,7 @@
 #include <system/ComputeProgram.h>
 
 #include <neo/AgentHA.h>
+#include <neo/ImageWhitener.h>
 #include <deep/SDRRL.h>
 
 #include <time.h>
@@ -98,6 +99,10 @@ int main() {
 
 	int inWidth = 8;
 	int inHeight = 8;
+
+	neo::ImageWhitener iw;
+
+	iw.create(cs, prog, { inWidth, inHeight }, CL_R, CL_FLOAT);
 
 	int aWidth = 2;
 	int aHeight = 2;
@@ -447,7 +452,9 @@ int main() {
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_FALSE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.1f * reward, inputImage, generator);
+		iw.filter(cs, inputImage, 2);
+
+		agent.simStep(cs, reset ? -1.0f : 0.1f * reward, iw.getResult(), generator);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 

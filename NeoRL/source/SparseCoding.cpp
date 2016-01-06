@@ -59,7 +59,7 @@ int main() {
 
 	sf::Image sampleImage;
 
-	sampleImage.loadFromFile("testIm.jpg");
+	sampleImage.loadFromFile("testIm.png");
 
 	neo::ImageWhitener whitener;
 	whitener.create(cs, prog, cl_int2{ static_cast<cl_int>(sampleImage.getSize().x), static_cast<cl_int>(sampleImage.getSize().y) }, CL_RGBA, CL_FLOAT);
@@ -84,12 +84,12 @@ int main() {
 
 	cs.getQueue().enqueueWriteImage(sourceImage, CL_TRUE, { 0, 0, 0 }, { sampleImage.getSize().x, sampleImage.getSize().y, 1 }, 0, 0, colors.data());
 
-	whitener.filter(cs, sourceImage, 1, 1000.0f);
+	whitener.filter(cs, sourceImage, 2, 1000.0f);
 
 	cs.getQueue().enqueueReadImage(whitener.getResult(), CL_TRUE, { 0, 0, 0 }, { sampleImage.getSize().x, sampleImage.getSize().y, 1 }, 0, 0, colors.data());
 
-	sf::Image saveImg;
-	saveImg.create(sampleImage.getSize().x, sampleImage.getSize().y);
+	sf::Image whitenedImage;
+	whitenedImage.create(sampleImage.getSize().x, sampleImage.getSize().y);
 
 	for (int x = 0; x < sampleImage.getSize().x; x++)
 		for (int y = 0; y < sampleImage.getSize().y; y++) {
@@ -101,14 +101,14 @@ int main() {
 			c.g = (rgb.y * 0.5f + 0.5f) * 255.0f;
 			c.b = (rgb.z * 0.5f + 0.5f) * 255.0f;
 
-			saveImg.setPixel(x, y, c);
+			whitenedImage.setPixel(x, y, c);
 		}
 
-	saveImg.saveToFile("whitenedTestImg.png");
+	whitenedImage.saveToFile("whitenedTestImg.png");
 
 	sf::Texture sampleTexture;
 
-	sampleTexture.loadFromImage(sampleImage);
+	sampleTexture.loadFromImage(whitenedImage);
 
 	sf::Image reconstructionImage;
 	reconstructionImage.loadFromFile("resources/noreconstruction.png");
@@ -163,7 +163,7 @@ int main() {
 					int tx = sampleX + x;
 					int ty = sampleY + y;
 
-					inputf[x + y * sampleWidth] = sampleImage.getPixel(tx, ty).r / 255.0f;// +noiseDist(generator);
+					inputf[x + y * sampleWidth] = whitenedImage.getPixel(tx, ty).r / 255.0f;// +noiseDist(generator);
 				}
 
 			// Normalize

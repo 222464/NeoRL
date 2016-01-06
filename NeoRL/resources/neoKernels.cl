@@ -1454,7 +1454,7 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 
 	float state = read_imagef(hiddenStates, position).x;
 
-	float reward = pred * state + (1.0f - pred) * (1.0f - state) * activeRatio;
+	float reward = 1.0f - (pred * state + (1.0f - pred) * (1.0f - state) * activeRatio);
 
 	write_imagef(rewards, position, (float4)(reward));
 }
