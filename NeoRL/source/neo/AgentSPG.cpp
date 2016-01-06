@@ -158,9 +158,9 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 		}
 
 		if (l == 0)
-			_layers[l]._pred.activate(cs, visibleStates, _layerDescs[l]._noise, 1.0f, 0.0f, rng);
+			_layers[l]._pred.activate(cs, visibleStates, _layerDescs[l]._noise, false, rng);
 		else
-			_layers[l]._pred.activate(cs, visibleStates, _layerDescs[l]._noise, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, rng);
+			_layers[l]._pred.activateInhibit(cs, visibleStates, _layerDescs[l]._noise, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, rng);
 	}
 
 	if (learn) {

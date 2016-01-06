@@ -91,6 +91,7 @@ namespace neo {
 		*/
 		cl::Kernel _activateKernel;
 		cl::Kernel _solveHiddenKernel;
+		cl::Kernel _solveHiddenThresholdKernel;
 		cl::Kernel _inhibitKernel;
 		cl::Kernel _learnWeightsTracesKernel;
 		//!@}
@@ -109,7 +110,8 @@ namespace neo {
 		\brief Activate predictor
 		Specify a non-one active ratio and non-negative-one inhibition radius to inhibit the result
 		*/
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float noise, float activeRatio, int inhibitionRadius, std::mt19937 &rng);
+		void activateInhibit(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float noise, float activeRatio, int inhibitionRadius, std::mt19937 &rng);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float noise, bool threshold, std::mt19937 &rng);
 		//!@}
 
 		//!@{

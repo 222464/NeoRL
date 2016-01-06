@@ -61,11 +61,12 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 	// Create kernels
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivateSwarm");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHiddenSwarm");
+	_solveHiddenThresholdKernel = cl::Kernel(program.getProgram(), "predSolveHiddenThresholdSwarm");
 	_inhibitKernel = cl::Kernel(program.getProgram(), "predInhibitSwarm");
 	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarm");
 }
 
-void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float noise, float activeRatio, int inhibitionRadius, std::mt19937 &rng) {
+void PredictorSwarm::activateInhibit(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float noise, float activeRatio, int inhibitionRadius, std::mt19937 &rng) {
 	// Start by clearing summation buffer
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -116,7 +117,7 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 
 	if (activeRatio != 1.0f && inhibitionRadius != 0) {
 		cs.getQueue().enqueueCopyImage(_hiddenStates[_front], _inhibitionTemp, { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 });
-	
+
 		int argIndex = 0;
 
 		_inhibitKernel.setArg(argIndex++, _inhibitionTemp);
@@ -126,6 +127,73 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 		_inhibitKernel.setArg(argIndex++, activeRatio);
 
 		cs.getQueue().enqueueNDRangeKernel(_inhibitKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+	}
+
+	// Swap hidden state buffers
+	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
+	std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
+}
+
+void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float noise, bool threshold, std::mt19937 &rng) {
+	// Start by clearing summation buffer
+	{
+		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
+
+		cs.getQueue().enqueueFillImage(_hiddenSummationTemp[_back], zeroColor, zeroOrigin, hiddenRegion);
+	}
+
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		int argIndex = 0;
+
+		_activateKernel.setArg(argIndex++, visibleStates[vli]);
+		_activateKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+		_activateKernel.setArg(argIndex++, _hiddenSummationTemp[_front]);
+		_activateKernel.setArg(argIndex++, vl._weights[_back]);
+		_activateKernel.setArg(argIndex++, vld._size);
+		_activateKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_activateKernel.setArg(argIndex++, vld._radius);
+
+		cs.getQueue().enqueueNDRangeKernel(_activateKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+		// Swap buffers
+		std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
+	}
+
+	std::uniform_int_distribution<int> seedDist(0, 999);
+
+	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
+
+	if (threshold) {
+		int argIndex = 0;
+
+		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenActivations[_back]);
+		_solveHiddenThresholdKernel.setArg(argIndex++, _hiddenActivations[_front]);
+		_solveHiddenThresholdKernel.setArg(argIndex++, noise);
+		_solveHiddenThresholdKernel.setArg(argIndex++, seed);
+
+		cs.getQueue().enqueueNDRangeKernel(_solveHiddenThresholdKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+	}
+	else {
+		int argIndex = 0;
+
+		_solveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_back]);
+		_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_front]);
+		_solveHiddenKernel.setArg(argIndex++, noise);
+		_solveHiddenKernel.setArg(argIndex++, seed);
+
+		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 
 	// Swap hidden state buffers
