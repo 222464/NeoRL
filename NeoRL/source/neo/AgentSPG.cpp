@@ -36,7 +36,7 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 			scDescs[1]._useTraces = true;
 		}
 		else {
-			scDescs.resize(3);
+			scDescs.resize(2);
 
 			scDescs[0]._size = _inputSize;
 			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
@@ -52,12 +52,12 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 			scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
 			scDescs[1]._useTraces = true;
 
-			scDescs[2]._size = _layerDescs[l]._size;
+			/*scDescs[2]._size = _layerDescs[l]._size;
 			scDescs[2]._radius = _layerDescs[l]._recurrentRadius;
 			scDescs[2]._ignoreMiddle = true;
 			scDescs[2]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
 			scDescs[2]._weightLambda = _layerDescs[l]._scWeightLambda;
-			scDescs[2]._useTraces = true;
+			scDescs[2]._useTraces = true;*/
 		}
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
@@ -116,11 +116,11 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 			else {
-				visibleStates.resize(3);
+				visibleStates.resize(2);
 
 				visibleStates[0] = _inputWhitener.getResult();
 				visibleStates[1] = _actionWhitener.getResult();
-				visibleStates[2] = _layers[l]._sc.getHiddenStates()[_front];
+				//visibleStates[2] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
