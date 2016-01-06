@@ -1446,7 +1446,7 @@ void kernel swarmQLearnHiddenBiasesTraces(read_only image2d_t hiddenTD, read_onl
 // ----------------------------------------- Predictive Hierarchy -----------------------------------------
 
 void kernel phPredictionReward(read_only image2d_t predictions, read_only image2d_t hiddenStates,
-	write_only image2d_t rewards)
+	write_only image2d_t rewards, float activeRatio)
 {
 	int2 position = (int2)(get_global_id(0), get_global_id(1));
 	
@@ -1454,7 +1454,7 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 
 	float state = read_imagef(hiddenStates, position).x;
 
-	float reward = pred * state;//((1.0f - pred) * state + pred * (1.0f - state));
+	float reward = pred * state + (1.0f - pred) * (1.0f - state) * activeRatio;
 
 	write_imagef(rewards, position, (float4)(reward));
 }
