@@ -37,7 +37,7 @@ float magnitude(const sf::Vector2f &v) {
 }
 
 float rayCast(const sf::Image &mask, const sf::Vector2f &start, const sf::Vector2f &end) {
-	const float castIncrement = 3.0f;
+	const float castIncrement = 1.0f;
 
 	sf::Vector2f point = start;
 
@@ -324,7 +324,7 @@ int main() {
 		std::vector<float> sensors(16);
 
 		const float sensorAngle = 0.2f;
-		const float sensorRange = 40.0f;
+		const float sensorRange = 60.0f;
 
 		for (int s = 0; s < sensors.size(); s++) {
 			float d = sensorAngle * (s - sensors.size() * 0.5f) + car._rotation;

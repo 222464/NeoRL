@@ -1454,7 +1454,7 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 
 	float state = read_imagef(hiddenStates, position).x;
 
-	float reward = 1.0f - (pred * state + (1.0f - pred) * (1.0f - state) * activeRatio);
+	float reward = 1.0f;// - (pred * state + (1.0f - pred) * (1.0f - state) * activeRatio);
 
 	write_imagef(rewards, position, (float4)(reward));
 }
@@ -1543,7 +1543,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = (sum > 0.0f ? 1.0f : 0.0f) * hiddenState;
+	float state = relu(sum, reluLeak) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
@@ -1618,7 +1618,7 @@ void kernel qBackward(read_only image2d_t hiddenStates, read_only image2d_t qSta
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float error = sum * qState;//relud(qState, reluLeak);
+	float error = sum * relud(qState, reluLeak) * hiddenState;
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1661,7 +1661,7 @@ void kernel qLastBackward(read_only image2d_t hiddenStates, read_only image2d_t 
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float error = sum * qState;//relud(qState, reluLeak);
+	float error = sum * relud(qState, reluLeak) * hiddenState;
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1794,7 +1794,7 @@ void kernel qActionUpdate(read_only image2d_t actionsPrev, read_only image2d_t e
 
 	float error = read_imagef(errors, position).x;
 
-	float action = fmin(1.0f, fmax(-1.0f, actionPrev + alpha * (error > 0.0f ? 1.0f : -1.0f)));
+	float action = fmin(1.0f, fmax(-1.0f, actionPrev + alpha * error));
 
 	write_imagef(actions, position, (float4)(action));
 }
