@@ -9,6 +9,7 @@
 #include <SFML/Graphics.hpp>
 
 #include <neo/ComparisonSparseCoder.h>
+#include <neo/ImageWhitener.h>
 
 #include <time.h>
 #include <iostream>
@@ -58,7 +59,52 @@ int main() {
 
 	sf::Image sampleImage;
 
-	sampleImage.loadFromFile("testIm_converted.png");
+	sampleImage.loadFromFile("testIm.jpg");
+
+	neo::ImageWhitener whitener;
+	whitener.create(cs, prog, cl_int2{ static_cast<cl_int>(sampleImage.getSize().x), static_cast<cl_int>(sampleImage.getSize().y) }, CL_RGBA, CL_FLOAT);
+
+	cl::Image2D sourceImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_RGBA, CL_FLOAT), sampleImage.getSize().x, sampleImage.getSize().y);
+
+	std::vector<cl_float4> colors(sampleImage.getSize().x * sampleImage.getSize().y);
+
+	for (int x = 0; x < sampleImage.getSize().x; x++)
+		for (int y = 0; y < sampleImage.getSize().y; y++) {
+			sf::Color c = sampleImage.getPixel(x, y);
+
+			cl_float4 rgb;
+
+			rgb.x = c.r / 255.0f;
+			rgb.y = c.g / 255.0f;
+			rgb.z = c.b / 255.0f;
+			rgb.w = 1.0f;
+
+			colors[x + y * sampleImage.getSize().x] = rgb;
+		}
+
+	cs.getQueue().enqueueWriteImage(sourceImage, CL_TRUE, { 0, 0, 0 }, { sampleImage.getSize().x, sampleImage.getSize().y, 1 }, 0, 0, colors.data());
+
+	whitener.filter(cs, sourceImage, 1, 1000.0f);
+
+	cs.getQueue().enqueueReadImage(whitener.getResult(), CL_TRUE, { 0, 0, 0 }, { sampleImage.getSize().x, sampleImage.getSize().y, 1 }, 0, 0, colors.data());
+
+	sf::Image saveImg;
+	saveImg.create(sampleImage.getSize().x, sampleImage.getSize().y);
+
+	for (int x = 0; x < sampleImage.getSize().x; x++)
+		for (int y = 0; y < sampleImage.getSize().y; y++) {
+			cl_float4 rgb = colors[x + y * sampleImage.getSize().x];
+
+			sf::Color c;
+
+			c.r = (rgb.x * 0.5f + 0.5f) * 255.0f;
+			c.g = (rgb.y * 0.5f + 0.5f) * 255.0f;
+			c.b = (rgb.z * 0.5f + 0.5f) * 255.0f;
+
+			saveImg.setPixel(x, y, c);
+		}
+
+	saveImg.saveToFile("whitenedTestImg.png");
 
 	sf::Texture sampleTexture;
 

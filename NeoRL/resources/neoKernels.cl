@@ -1798,3 +1798,66 @@ void kernel qActionUpdate(read_only image2d_t actionsPrev, read_only image2d_t e
 
 	write_imagef(actions, position, (float4)(action));
 }
+
+// ----------------------------------------- Preprocessing -----------------------------------------
+
+void kernel whiten(read_only image2d_t input, write_only image2d_t result, int2 imageSize, int kernelRadius, float intensity) {
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float4 currentColor = read_imagef(input, position);
+
+	float4 center = currentColor;
+
+	float count = 0.0f;
+
+	for (int dx = -kernelRadius; dx <= kernelRadius; dx++)
+		for (int dy = -kernelRadius; dy <= kernelRadius; dy++) {
+			if (dx == 0 && dy == 0)
+				continue;
+			
+			int2 otherPosition = position + (int2)(dx, dy);
+
+			if (inBounds0(otherPosition, imageSize)) {
+				float4 otherColor = read_imagef(input, otherPosition);
+
+				center += otherColor;
+
+				count++;
+			}
+		}
+
+	center /= count + 1.0f;
+
+	float4 centeredCurrentColor = currentColor - center;
+
+	float4 covariances = (float4)(0.0f);
+
+	for (int dx = -kernelRadius; dx <= kernelRadius; dx++)
+		for (int dy = -kernelRadius; dy <= kernelRadius; dy++) {
+			if (dx == 0 && dy == 0)
+				continue;
+			
+			int2 otherPosition = position + (int2)(dx, dy);
+
+			if (inBounds0(otherPosition, imageSize)) {
+				float4 otherColor = read_imagef(input, otherPosition);
+
+				float4 centeredOtherColor = otherColor - center;
+
+				covariances += centeredOtherColor * centeredCurrentColor;
+			}
+		}
+
+	covariances /= fmax(1.0f, count);
+
+	float4 centeredCurrentColorSigns = (float4)(centeredCurrentColor.x > 0.0f ? 1.0f : -1.0f,
+		centeredCurrentColor.y > 0.0f ? 1.0f : -1.0f,
+		centeredCurrentColor.z > 0.0f ? 1.0f : -1.0f,
+		centeredCurrentColor.w > 0.0f ? 1.0f : -1.0f);
+
+	// Modify color
+	float4 whitenedColor = fmin(1.0, fmax(-1.0, (centeredCurrentColor > 0.0f ? (float4)(1.0f) : (float4)(-1.0f)) * (1.0f - exp(-fabs(intensity * covariances)))));
+
+	write_imagef(result, position, whitenedColor);
+}
+
