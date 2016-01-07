@@ -153,7 +153,6 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 
 				cl_int radius = std::max(static_cast<int>(std::ceil(visibleToHidden.x * (_layerDescs[l]._predictiveRadius + 0.5f))), static_cast<int>(std::ceil(visibleToHidden.y * (_layerDescs[l]._predictiveRadius + 0.5f))));
 
-
 				int argIndex = 0;
 
 				_predictionRewardPropagationKernel.setArg(argIndex++, _layers[l - 1]._predReward);
