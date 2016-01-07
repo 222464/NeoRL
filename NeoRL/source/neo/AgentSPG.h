@@ -52,8 +52,8 @@ namespace neo {
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.96f),
-				_scActiveRatio(0.05f), _scBoostAlpha(0.004f),
-				_alpha({ 0.04f, 0.004f }), _gamma(0.98f), _lambda({ 0.96f, 0.96f }), _noise(0.003f)
+				_scActiveRatio(0.05f), _scBoostAlpha(0.002f),
+				_alpha({ 0.05f, 0.002f }), _gamma(0.98f), _lambda({ 0.96f, 0.96f }), _noise(0.003f)
 			{}
 		};
 
@@ -69,10 +69,13 @@ namespace neo {
 			PredictorSwarm _pred;
 			//!@}
 
+			//!@{
 			/*!
-			\brief Rewards for sparse coder
+			\brief For prediction reward determination
 			*/
-			cl::Image2D _reward;
+			cl::Image2D _predReward;
+			cl::Image2D _propagatedPredReward;
+			//!@}
 		};
 
 	private:
@@ -99,6 +102,7 @@ namespace neo {
 		\brief Kernels for hierarchy
 		*/
 		cl::Kernel _predictionRewardKernel;
+		cl::Kernel _predictionRewardPropagationKernel;
 		//!@}
 
 		//!@{
