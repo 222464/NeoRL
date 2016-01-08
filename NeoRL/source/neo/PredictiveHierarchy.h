@@ -122,7 +122,7 @@ namespace neo {
 		Requires the compute system, program with the NeoRL kernels, and initialization information.
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			cl_int2 inputSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
+			cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange,
 			std::mt19937 &rng);
 

@@ -3,7 +3,7 @@
 using namespace neo;
 
 void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-	cl_int2 inputSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
+	cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
 	cl_float2 initWeightRange,
 	std::mt19937 &rng)
 {
@@ -51,7 +51,10 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 		}
 
-		_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, false, rng);
+		if (l == 0)
+			_layers[l]._pred.createRandom(cs, program, predDescs, _inputSize, initWeightRange, false, rng);
+		else
+			_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l - 1]._size, initWeightRange, false, rng);
 
 		// Create baselines
 		_layers[l]._predReward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
@@ -89,6 +92,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
+
 			// Get reward
 			if (l < _layers.size() - 1) {
 				int argIndex = 0;

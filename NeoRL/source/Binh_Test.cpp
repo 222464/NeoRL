@@ -30,7 +30,7 @@ int main()
 
 	std::vector<float> inputBuffer(3 * 3, 0.0f);
 
-	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 8, 8);
+	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 3, 3);
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
@@ -40,7 +40,7 @@ int main()
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 3, 3 }, 8, layerDescs, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { 3, 3 }, layerDescs, { -0.01f, 0.01f }, generator);
 	//std::ifstream is("binh_save.neo");
 
 	//ph.readFromStream(cs, prog, is);
@@ -126,7 +126,7 @@ int main()
 			// z - index of PQRSTU: P=1, Q=2, R= 3, S=4, T=5, U=6
 			float value = y*4;	// without amplifying the amplitude, it is very difficult to make a sequence pattern QRST
 #else
-			float value = std::sin(0.164f * 3.141596f * index * anomalyFreq + anomalyPhase);
+			float value = std::sin(0.164f * 3.141596f * index * anomalyFreq + anomalyPhase) + 0.7f * std::sin(0.12352f * 3.141596f * index * anomalyFreq + anomalyPhase + 0.2154f) + 0.5f * std::sin(0.0612f * 3.141596f * index * anomalyFreq + anomalyPhase - 0.2112f);
 #endif
 
 			inputBuffer[0] = value;
@@ -159,7 +159,7 @@ int main()
 					maxIndex = i;
 
 			float v = (maxIndex / 64.0f - 0.5f) / 0.5f / 0.5f;*/
-			float v = res[0];
+			float v = (res[0] + (1.0f - res[1]) + res[2] / 2.0f + (1.0f - res[3]) / 2.0f) / 4.0f;
 
 			/*std::vector<float> sdr(64);
 
