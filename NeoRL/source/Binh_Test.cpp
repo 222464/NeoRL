@@ -35,8 +35,8 @@ int main()
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 32, 32 };
-	layerDescs[1]._size = { 32, 32 };
-	layerDescs[2]._size = { 32, 32 };
+	layerDescs[1]._size = { 24, 24 };
+	layerDescs[2]._size = { 16, 16 };
 
 	neo::PredictiveHierarchy ph;
 
@@ -126,7 +126,7 @@ int main()
 			// z - index of PQRSTU: P=1, Q=2, R= 3, S=4, T=5, U=6
 			float value = y*4;	// without amplifying the amplitude, it is very difficult to make a sequence pattern QRST
 #else
-			float value = anomalyOffset + anomalyAmpl*std::sin(0.25f * 3.141596f * index * anomalyFreq + anomalyPhase) + 0.5f * std::sin(0.164f * 3.141596f * index * anomalyFreq + anomalyPhase);
+			float value = std::sin(0.164f * 3.141596f * index * anomalyFreq + anomalyPhase);
 #endif
 
 			inputBuffer.clear();
@@ -140,7 +140,7 @@ int main()
 
 			std::vector<float> res(64);
 
-			cs.getQueue().enqueueReadImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, res.data());
+			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, res.data());
 
 			int maxIndex = 0;
 
