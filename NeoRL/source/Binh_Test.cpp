@@ -28,19 +28,19 @@ int main()
 
 	// --------------------------- Create the Sparse Coder ---------------------------
 
-	std::vector<float> inputBuffer(8 * 8, 0.0f);
+	std::vector<float> inputBuffer(3 * 3, 0.0f);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 8, 8);
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 32, 32 };
-	layerDescs[1]._size = { 24, 24 };
+	layerDescs[0]._size = { 16, 16 };
+	layerDescs[1]._size = { 16, 16 };
 	layerDescs[2]._size = { 16, 16 };
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 8, 8 }, 12, layerDescs, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { 3, 3 }, 8, layerDescs, { -0.01f, 0.01f }, generator);
 	//std::ifstream is("binh_save.neo");
 
 	//ph.readFromStream(cs, prog, is);
@@ -129,26 +129,37 @@ int main()
 			float value = std::sin(0.164f * 3.141596f * index * anomalyFreq + anomalyPhase);
 #endif
 
-			inputBuffer.clear();
-			inputBuffer.assign(8 * 8, 0.0f);
+			inputBuffer[0] = value;
+			inputBuffer[1] = 1.0f - value;
+			inputBuffer[2] = 2.0f * value;
+			inputBuffer[3] = 1.0f - 2.0f * value;
+			inputBuffer[4] = value * value;
+			inputBuffer[5] = 1.0f - value * value;
+			inputBuffer[6] = value * value * value;
+			inputBuffer[7] = 1.0f - value * value * value;
+			inputBuffer[8] = value * value * value * value;
 
-			inputBuffer[static_cast<int>(64.0f * (0.5f * value * 0.5f + 0.5f))] = 1.0f;
+			//inputBuffer.clear();
+			//inputBuffer.assign(2 * 2, 0.0f);
 
-			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, inputBuffer.data());
+			//inputBuffer[static_cast<int>(64.0f * (0.5f * value * 0.5f + 0.5f))] = 1.0f;
+
+			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 3, 3, 1 }, 0, 0, inputBuffer.data());
 
 			ph.simStep(cs, inputImage);
 
-			std::vector<float> res(64);
+			std::vector<float> res(3 * 3);
 
-			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, res.data());
+			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 3, 3, 1 }, 0, 0, res.data());
 
-			int maxIndex = 0;
+			/*int maxIndex = 0;
 
 			for (int i = 1; i < 64; i++)
 				if (res[i] > res[maxIndex])
 					maxIndex = i;
 
-			float v = (maxIndex / 64.0f - 0.5f) / 0.5f / 0.5f;
+			float v = (maxIndex / 64.0f - 0.5f) / 0.5f / 0.5f;*/
+			float v = res[0];
 
 			/*std::vector<float> sdr(64);
 
