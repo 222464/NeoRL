@@ -2,6 +2,7 @@
 
 #include "ComparisonSparseCoder.h"
 #include "Predictor.h"
+#include "ImageWhitener.h"
 
 namespace neo {
 	/*!
@@ -46,7 +47,7 @@ namespace neo {
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.1f), _scBoostAlpha(0.0001f),
+				_scActiveRatio(0.02f), _scBoostAlpha(0.01f),
 				_predWeightAlpha(0.01f)
 			{}
 		};
@@ -63,15 +64,13 @@ namespace neo {
 			Predictor _pred;
 			//!@}
 
+			//!@{
 			/*!
-			\brief Rewards for sparse coder
+			\brief For prediction reward determination
 			*/
-			cl::Image2D _reward;
-
-			/*!
-			\brief Previous hidden states
-			*/
-			cl::Image2D _scHiddenStatesPrev;
+			cl::Image2D _predReward;
+			cl::Image2D _propagatedPredReward;
+			//!@}
 		};
 
 	private:
@@ -88,27 +87,34 @@ namespace neo {
 		std::vector<LayerDesc> _layerDescs;
 		//!@}
 
+		//!@{
 		/*!
-		\brief Kernels for reward
+		\brief Kernels for hierarchy
 		*/
 		cl::Kernel _predictionRewardKernel;
+		cl::Kernel _predictionRewardPropagationKernel;
+		//!@}
 
 		/*!
-		\brief Predictor (first layer)
+		\brief Input whiteners
 		*/
-		Predictor _firstLayerPred;
+		ImageWhitener _inputWhitener;
 
 	public:
+		//!@{
 		/*!
-		\brief Learning rate for first layer predictor
+		\brief Whitening parameters
 		*/
-		cl_float _firstLayerPredWeightAlpha;
+		cl_int _whiteningKernelRadius;
+		cl_float _whiteningIntensity;
+		//!@}
 
 		/*!
 		\brief Initialize defaults
 		*/
 		PredictiveHierarchy()
-			: _firstLayerPredWeightAlpha(0.01f)
+			: _whiteningKernelRadius(1),
+			_whiteningIntensity(1024.0f)
 		{}
 
 		/*!
@@ -162,10 +168,10 @@ namespace neo {
 		}
 
 		/*!
-		\brief Get first layer predictor (contains predictions for input)
+		\brief Get the prediction
 		*/
-		const Predictor &getFirstLayerPred() const {
-			return _firstLayerPred;
+		const cl::Image2D &getPrediction() const {
+			return _layers.front()._pred.getHiddenStates()[_back];
 		}
 	};
 }

@@ -182,7 +182,7 @@ int main() {
 
 		ph.simStep(cs, inputImage, !modeGenerate);
 
-		cs.getQueue().enqueueReadImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inputsRoot), static_cast<cl::size_type>(inputsRoot), 1 }, 0, 0, pred.data());
+		cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inputsRoot), static_cast<cl::size_type>(inputsRoot), 1 }, 0, 0, pred.data());
 
 		int predIndex = 0;
 

@@ -299,7 +299,7 @@ int main() {
 
 			ph.simStep(cs, inputImage);
 
-			cs.getQueue().enqueueReadImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 64, 64, 1 }, 0, 0, prediction.data());
+			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 64, 64, 1 }, 0, 0, prediction.data());
 
 			// Show prediction
 			for (int x = 0; x < rt.getSize().x; x++)
