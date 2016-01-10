@@ -62,13 +62,13 @@ void ifft(CArray& x) {
 	x /= x.size();
 }
 
-const int aeSamplesSize = 1024;
+const int aeSamplesSize = 4096;
 const float sampleScalar = 1.0f / std::pow(2.0f, 15.0f);
 const float sampleScalarInv = 1.0f / sampleScalar;
-const int reconStride = 512;
+const int reconStride = 2048;
 const float sampleCurvePower = 1.0f;
 const float sampleCurvePowerInv = 1.0f / sampleCurvePower;
-const int trainStride = 512;
+const int trainStride = 2048;
 
 float compress(float x) {
 	return x * sampleScalar;// (x > 0 ? 1 : -1) * std::pow(std::abs(x) * sampleScalar, sampleCurvePower);
@@ -116,9 +116,9 @@ int main() {
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 8, 8 };
-	layerDescs[1]._size = { 8, 8 };
-	layerDescs[2]._size = { 8, 8 };
+	layerDescs[0]._size = { 32, 32 };
+	layerDescs[1]._size = { 32, 32 };
+	layerDescs[2]._size = { 32, 32 };
 
 	neo::PredictiveHierarchy ph;
 
@@ -128,13 +128,13 @@ int main() {
 
 	sf::SoundBuffer buffer;
 
-	buffer.loadFromFile("testSound2.wav");
+	buffer.loadFromFile("testSound4.wav");
 
 	std::cout << "Training on sound..." << std::endl;
 
 	int featuresCount = static_cast<int>(std::floor(buffer.getSampleCount() / static_cast<float>(trainStride)));
 	
-	for (int t = 0; t < 1; t++) {
+	for (int t = 0; t < 15; t++) {
 		for (int s = 0; s < featuresCount; s++) {
 			// Extract features
 			int start = s * trainStride;
@@ -148,7 +148,7 @@ int main() {
 					fftBuffer[i] = 0.0f;
 			}
 
-			fft(fftBuffer);
+			//fft(fftBuffer);
 
 			for (int i = 0; i < aeSamplesSize; i++)
 				visibleStates[i] = fftBuffer[i].real();
@@ -170,7 +170,7 @@ int main() {
 	std::cout << "Generating extra..." << std::endl;
 
 	// Extend song
-	int extraFeatures = 2000;
+	int extraFeatures = 1200;
 
 	std::vector<float> extraSamplesf((extraFeatures + 1) * trainStride, 0.0f);
 	std::vector<float> extraSamplesSums((extraFeatures + 1) * trainStride, 0.0f);
@@ -189,7 +189,7 @@ int main() {
 					fftBuffer[i] = 0.0f;
 			}
 
-			fft(fftBuffer);
+			//fft(fftBuffer);
 
 			for (int i = 0; i < aeSamplesSize; i++)
 				visibleStates[i] = fftBuffer[i].real();
@@ -198,7 +198,7 @@ int main() {
 		}
 		else {
 			for (int i = 0; i < aeSamplesSize; i++)
-				visibleStates[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, pred[i])) + noiseDist(generator) * 0.05f));
+				visibleStates[i] = std::min(1.0f, std::max(-1.0f, std::min(1.0f, std::max(-1.0f, pred[i])) + noiseDist(generator) * 0.3f));
 
 			cs.getQueue().enqueueWriteImage(input, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(dimV), static_cast<cl::size_type>(dimV), 1 }, 0, 0, visibleStates.data());
 		}
@@ -210,7 +210,7 @@ int main() {
 		for (int i = 0; i < aeSamplesSize; i++)
 			fftBuffer[i] = Complex(pred[i], 0.0f);
 
-		ifft(fftBuffer);
+		//ifft(fftBuffer);
 
 		int start = s * trainStride;
 
