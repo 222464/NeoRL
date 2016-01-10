@@ -931,7 +931,7 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 
 	float s = sum.x > 0.5f ? 1.0f : 0.0f;
 
-	float2 state = (float2)(randFloat(&seedValue) < noise ? 1.0f - s : s, sum.y);
+	float2 state = (float2)(s, sum.y); //randFloat(&seedValue) < noise ? 1.0f - s : s
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s, sum.y, 0.0f, 0.0f));
@@ -1498,7 +1498,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
-	float sum = 0.0f;//read_imagef(qBiases, hiddenPosition).x;
+	float sum = read_imagef(qBiases, hiddenPosition).x;
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
@@ -1521,7 +1521,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = (sum >= 0.0f ? 1.0f : 0.0f) * hiddenState;
+	float state = relu(sum, reluLeak) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
@@ -1596,7 +1596,7 @@ void kernel qBackward(read_only image2d_t hiddenStates, read_only image2d_t qSta
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float error = sum * qState;//relud(qState, reluLeak) * hiddenState;
+	float error = sum * relud(qState, reluLeak) * hiddenState;
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1639,7 +1639,7 @@ void kernel qLastBackward(read_only image2d_t hiddenStates, read_only image2d_t 
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float error = sum * qState;//relud(qState, reluLeak) * hiddenState;
+	float error = sum * relud(qState, reluLeak) * hiddenState;
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1772,7 +1772,7 @@ void kernel qActionUpdate(read_only image2d_t actionsPrev, read_only image2d_t e
 
 	float error = read_imagef(errors, position).x;
 
-	float action = fmin(1.0f, fmax(-1.0f, actionPrev + alpha * error));
+	float action = fmin(1.0f, fmax(-1.0f, actionPrev + alpha * (error > 0.0f ? 1.0f : -1.0f)));
 
 	write_imagef(actions, position, (float4)(action));
 }
