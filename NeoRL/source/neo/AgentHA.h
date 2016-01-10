@@ -92,10 +92,13 @@ namespace neo {
 			cl::Image2D _qErrors;
 			//!@}
 
+			//!@{
 			/*!
-			\brief Rewards for sparse coder
+			\brief For prediction reward determination
 			*/
-			cl::Image2D _reward;
+			cl::Image2D _predReward;
+			cl::Image2D _propagatedPredReward;
+			//!@}
 		};
 
 	private:
@@ -108,11 +111,6 @@ namespace neo {
 		\brief Store action size
 		*/
 		cl_int2 _actionSize;
-
-		/*!
-		\brief Predictor for actions
-		*/
-		Predictor _actionPred;
 
 		//!@{
 		/*!
@@ -127,6 +125,7 @@ namespace neo {
 		\brief Kernels for hierarchy
 		*/
 		cl::Kernel _predictionRewardKernel;
+		cl::Kernel _predictionRewardPropagationKernel;
 
 		cl::Kernel _qForwardKernel;
 		cl::Kernel _qLastForwardKernel;

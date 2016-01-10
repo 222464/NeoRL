@@ -86,9 +86,15 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			}
 
 #ifdef USE_DETERMINISTIC_POLICY_GRADIENT
-			_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, false, rng);
+			if (l == 0)
+				_layers[l]._pred.createRandom(cs, program, predDescs, _actionSize, initWeightRange, false, rng);
+			else
+				_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l - 1]._size, initWeightRange, false, rng);
 #else
-			_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, true, rng);
+			if (l == 0)
+				_layers[l]._pred.createRandom(cs, program, predDescs, _actionSize, initWeightRange, true, rng);
+			else
+				_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l - 1]._size, initWeightRange, true, rng);
 #endif
 		}
 
@@ -114,30 +120,18 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 		}
 
 		// Create baselines
-		_layers[l]._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
+		_layers[l]._predReward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
+		_layers[l]._propagatedPredReward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
 
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
 
-		cs.getQueue().enqueueFillImage(_layers[l]._reward, zeroColor, zeroOrigin, layerRegion);
+		cs.getQueue().enqueueFillImage(_layers[l]._predReward, zeroColor, zeroOrigin, layerRegion);
+		cs.getQueue().enqueueFillImage(_layers[l]._propagatedPredReward, zeroColor, zeroOrigin, layerRegion);
 
 		_layers[l]._qErrors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
-	}
-
-	// Action predictor
-	{
-		std::vector<Predictor::VisibleLayerDesc> predDescs(1);
-
-		predDescs[0]._size = _layerDescs.front()._size;
-		predDescs[0]._radius = firstLayerFeedBackRadius;
-
-#ifdef USE_DETERMINISTIC_POLICY_GRADIENT
-		_actionPred.createRandom(cs, program, predDescs, _actionSize, initWeightRange, false, rng);
-#else
-		_actionPred.createRandom(cs, program, predDescs, _actionSize, initWeightRange, true, rng);
-#endif
 	}
 
 	// Last Q
@@ -162,6 +156,7 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	}
 
 	_predictionRewardKernel = cl::Kernel(program.getProgram(), "phPredictionReward");
+	_predictionRewardPropagationKernel = cl::Kernel(program.getProgram(), "phPredictionRewardPropagation");
 
 	_qForwardKernel = cl::Kernel(program.getProgram(), "qForward");
 	_qLastForwardKernel = cl::Kernel(program.getProgram(), "qLastForward");
@@ -214,19 +209,47 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
 			// Get reward
-			{
+			if (l < _layers.size() - 1) {
 				int argIndex = 0;
 
-				_predictionRewardKernel.setArg(argIndex++, _layers[l]._pred.getHiddenStates()[_back]);
+				_predictionRewardKernel.setArg(argIndex++, _layers[l + 1]._pred.getHiddenStates()[_back]);
 				_predictionRewardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
-				_predictionRewardKernel.setArg(argIndex++, _layers[l]._reward);
+				_predictionRewardKernel.setArg(argIndex++, _layers[l]._predReward);
 				_predictionRewardKernel.setArg(argIndex++, _layerDescs[l]._scActiveRatio);
 
 				cs.getQueue().enqueueNDRangeKernel(_predictionRewardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
 			}
 
-			if (learn)
-				_layers[l]._sc.learn(cs, _layers[l]._reward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+			// Propagate reward
+			if (l != 0) {
+				// Propagate to first target
+				cl_float2 hiddenToVisible = cl_float2{ static_cast<float>(_layerDescs[l - 1]._size.x) / static_cast<float>(_layerDescs[l]._size.x),
+					static_cast<float>(_layerDescs[l - 1]._size.y) / static_cast<float>(_layerDescs[l]._size.y)
+				};
+
+				cl_float2 visibleToHidden = cl_float2{ static_cast<float>(_layerDescs[l]._size.x) / static_cast<float>(_layerDescs[l - 1]._size.x),
+					static_cast<float>(_layerDescs[l]._size.y) / static_cast<float>(_layerDescs[l - 1]._size.y)
+				};
+
+				cl_int radius = std::max(static_cast<int>(std::ceil(visibleToHidden.x * (_layerDescs[l]._predictiveRadius + 0.5f))), static_cast<int>(std::ceil(visibleToHidden.y * (_layerDescs[l]._predictiveRadius + 0.5f))));
+
+				int argIndex = 0;
+
+				_predictionRewardPropagationKernel.setArg(argIndex++, _layers[l - 1]._predReward);
+				_predictionRewardPropagationKernel.setArg(argIndex++, _layers[l]._propagatedPredReward);
+				_predictionRewardPropagationKernel.setArg(argIndex++, hiddenToVisible);
+				_predictionRewardPropagationKernel.setArg(argIndex++, _layerDescs[l - 1]._size);
+				_predictionRewardPropagationKernel.setArg(argIndex++, radius);
+
+				cs.getQueue().enqueueNDRangeKernel(_predictionRewardPropagationKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+			}
+
+			if (learn) {
+				if (l == 0)
+					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+				else
+					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+			}
 		}
 	}
 
@@ -248,17 +271,8 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 		_layers[l]._pred.activate(cs, visibleStates, true);
 	}
 
-	// Find action
-	{
-		std::vector<cl::Image2D> visibleStates(1);
-
-		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
-
-		_actionPred.activate(cs, visibleStates, false);
-	}
-
 	// Copy prediction as starting action
-	cs.getQueue().enqueueCopyImage(_actionPred.getHiddenStates()[_back], _action, { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
+	cs.getQueue().enqueueCopyImage(_layers.front()._pred.getHiddenStates()[_back], _action, { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 });
 
 #ifdef USE_DETERMINISTIC_POLICY_GRADIENT
 	// Find best Q
@@ -693,16 +707,10 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
-			_layers[l]._pred.learn(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
-		}
-	
-		// Action predictor
-		{
-			std::vector<cl::Image2D> visibleStates(1);
-
-			visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
-
-			_actionPred.learnCurrent(cs, _action, visibleStates, _predActionWeightAlpha);
+			if (l == 0)
+				_layers[l]._pred.learn(cs, _action, visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+			else
+				_layers[l]._pred.learn(cs, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 		}
 	}
 #else
@@ -722,16 +730,10 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
-			_layers[l]._pred.learn(cs, (tdError > 0.0f ? 1.0f : 0.0f), _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
-		}
-
-		// Action predictor
-		{
-			std::vector<cl::Image2D> visibleStatesPrev(1);
-
-			visibleStatesPrev[0] = _layers.front()._pred.getHiddenStates()[_front];
-
-			_actionPred.learn(cs, (tdError > 0.0f ? 1.0f : 0.0f), _actionExploratory[_back], visibleStatesPrev, _predActionWeightAlpha, _predActionWeightLambda);
+			if (l == 0)
+				_layers[l]._pred.learn(cs, (tdError > 0.0f ? 1.0f : 0.0f), _actionExploratory[_front], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+			else
+				_layers[l]._pred.learn(cs, (tdError > 0.0f ? 1.0f : 0.0f), _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 		}
 	}
 #endif
@@ -781,7 +783,7 @@ void AgentHA::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 		{
 			std::vector<cl_float> rewards(ld._size.x * ld._size.y);
 
-			cs.getQueue().enqueueReadImage(l._reward, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, rewards.data());
+			//cs.getQueue().enqueueReadImage(l._reward, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, rewards.data());
 
 			for (int ri = 0; ri < rewards.size(); ri++)
 				os << rewards[ri] << " ";
@@ -811,7 +813,7 @@ void AgentHA::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 		//is >> ld._scWeightAlpha >> ld._scWeightRecurrentAlpha >> ld._scWeightLambda >> ld._scActiveRatio >> ld._scBoostAlpha;
 		//is >> ld._predWeightAlpha;
 
-		l._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
+		//l._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
 
 		//l._sc.readFromStream(cs, program, is);
 		//l._pred.readFromStream(cs, program, is);
@@ -823,7 +825,7 @@ void AgentHA::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 			for (int ri = 0; ri < rewards.size(); ri++)
 				is >> rewards[ri];
 
-			cs.getQueue().enqueueWriteImage(l._reward, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, rewards.data());
+			//cs.getQueue().enqueueWriteImage(l._reward, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(ld._size.x), static_cast<cl::size_type>(ld._size.y), 1 }, 0, 0, rewards.data());
 		}
 	}
 
