@@ -101,10 +101,12 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 	_actionWhitener.create(cs, program, _actionSize, CL_R, CL_FLOAT);
 }
 
-void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn) {
+void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, const cl::Image2D &targetActions, std::mt19937 &rng, bool learn, bool useInputWhitener, bool binaryOutput) {
 	// Whiten input
-	_inputWhitener.filter(cs, input, _whiteningKernelRadius, _whiteningIntensity);
-	_actionWhitener.filter(cs, getExploratoryAction(), _whiteningKernelRadius, _whiteningIntensity);
+	if (useInputWhitener)
+		_inputWhitener.filter(cs, input, _whiteningKernelRadius, _whiteningIntensity);
+	
+	_actionWhitener.filter(cs, targetActions, _whiteningKernelRadius, _whiteningIntensity);
 
 	// Feed forward
 	for (int l = 0; l < _layers.size(); l++) {
@@ -120,7 +122,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			else {
 				visibleStates.resize(2);
 
-				visibleStates[0] = _inputWhitener.getResult();
+				visibleStates[0] = useInputWhitener ? _inputWhitener.getResult() : input;
 				visibleStates[1] = _actionWhitener.getResult();
 				//visibleStates[2] = _layers[l]._sc.getHiddenStates()[_front];
 			}
@@ -188,7 +190,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 		}
 
 		if (l == 0)
-			_layers[l]._pred.activate(cs, visibleStates, _layerDescs[l]._noise, false, rng);
+			_layers[l]._pred.activate(cs, visibleStates, _layerDescs[l]._noise, binaryOutput, rng);
 		else
 			_layers[l]._pred.activateInhibit(cs, visibleStates, 0.0f, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, rng);
 	}
@@ -210,7 +212,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			}
 
 			if (l == 0)
-				_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers.front()._pred.getHiddenStates()[_front], visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda);
+				_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, targetActions, visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda);
 			else
 				_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda);
 		}

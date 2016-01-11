@@ -8,7 +8,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 
-#include <neo/ComparisonSparseCoder.h>
+#include <neo/SparseCoder.h>
 #include <neo/ImageWhitener.h>
 
 #include <time.h>
@@ -30,11 +30,11 @@ int main() {
 
 	prog.loadFromFile("resources/neoKernels.cl", cs);
 
-	const int sampleWidth = 16;
-	const int sampleHeight = 16;
-	const int codeWidth = 30;
-	const int codeHeight = 30;
-	const int stepsPerFrame = 5;
+	const int sampleWidth = 12;
+	const int sampleHeight = 12;
+	const int codeWidth = 20;
+	const int codeHeight = 20;
+	const int stepsPerFrame = 4;
 
 	// --------------------------- Create the Sparse Coder ---------------------------
 
@@ -44,16 +44,16 @@ int main() {
 
 	cs.getQueue().enqueueFillImage(rewardImage, cl_float4 { 1.0f, 1.0f, 1.0f, 1.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(codeWidth), static_cast<cl::size_type>(codeHeight), 1 });
 
-	neo::ComparisonSparseCoder sparseCoder;
+	neo::SparseCoder sparseCoder;
 
-	std::vector<neo::ComparisonSparseCoder::VisibleLayerDesc> layerDescs(1);
+	std::vector<neo::SparseCoder::VisibleLayerDesc> layerDescs(1);
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 6;
 	layerDescs[0]._useTraces = false;
-	layerDescs[0]._weightAlpha = 0.1f;
+	layerDescs[0]._weightAlpha = 0.001f;
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.5f, 0.5f }, generator);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 
@@ -166,21 +166,14 @@ int main() {
 					inputf[x + y * sampleWidth] = whitenedImage.getPixel(tx, ty).r / 255.0f * 2.0f - 1.0f;// +noiseDist(generator);
 				}
 
-			// Normalize
-			float average = 0.5f;
-
-			for (int i = 0; i < inputf.size(); i++) {
-				inputf[i] -= average;
-			}
-
 			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
 			cl::array<cl::size_type, 3> region = { sampleWidth, sampleHeight, 1 };
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.02f);
+			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 17, 0.1f);
 
-			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.01f, 0.02f);
+			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.01f, 0.002f, 0.1f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
@@ -217,7 +210,7 @@ int main() {
 			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
 			cl::array<cl::size_type, 3> region = { sparseCoder.getHiddenSize().x, sparseCoder.getHiddenSize().y, wSize };
 
-			cs.getQueue().enqueueReadImage(sparseCoder.getVisibleLayer(0)._weightsForward[neo::_back], CL_TRUE, origin, region, 0, 0, weights.data());
+			cs.getQueue().enqueueReadImage(sparseCoder.getVisibleLayer(0)._weights[neo::_back], CL_TRUE, origin, region, 0, 0, weights.data());
 		}
 
 		float minWeight = 9999.0f;

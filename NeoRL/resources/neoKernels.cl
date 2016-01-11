@@ -303,7 +303,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				
-				float weightForward = weightForwardPrev + weightAlpha * state * (visibleState - activation * weightForwardPrev);
+				float weightForward = weightForwardPrev + weightAlpha * state * visibleError;//(visibleState - activation * weightForwardPrev);
 	
 				write_imagef(weightsForwardFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weightForward));
 			}
@@ -339,7 +339,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				
-				float2 weightForward = (float2)(weightForwardPrev.x + reward * weightForwardPrev.y, weightForwardPrev.y * weightLambda + weightAlpha * state * (visibleState - activation * weightForwardPrev.x));
+				float2 weightForward = (float2)(weightForwardPrev.x + reward * weightForwardPrev.y, weightForwardPrev.y * weightLambda + weightAlpha * state * visibleError);//(visibleState - activation * weightForwardPrev.x));
 	
 				write_imagef(weightsForwardFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weightForward, 0.0f, 0.0f));
 			}
@@ -612,7 +612,7 @@ void kernel scLearnThresholds(read_only image2d_t hiddenThresholdsBack, write_on
 	write_imagef(hiddenThresholdsFront, hiddenPosition, (float4)(threshold));
 }
 
-void kernel scLearnSparseCoderWeights(read_only image2d_t reconstructionError,
+void kernel scLearnSparseCoderWeights(read_only image2d_t visibleStates,
 	read_only image2d_t hiddenStates, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha)
 {
@@ -634,16 +634,16 @@ void kernel scLearnSparseCoderWeights(read_only image2d_t reconstructionError,
 
 				float weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
-				float error = read_imagef(reconstructionError, visiblePosition).x;
+				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float weight = weightPrev + weightAlpha * state * (error - state * weightPrev);
+				float weight = weightPrev + weightAlpha * state * (visibleState - state * weightPrev);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
 		}
 }
 
-void kernel scLearnSparseCoderWeightsTraces(read_only image2d_t reconstructionError,
+void kernel scLearnSparseCoderWeightsTraces(read_only image2d_t visibleStates,
 	read_only image2d_t hiddenStates, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
 	read_only image2d_t rewards,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightTraceLambda)
@@ -668,9 +668,9 @@ void kernel scLearnSparseCoderWeightsTraces(read_only image2d_t reconstructionEr
 
 				float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
 
-				float error = read_imagef(reconstructionError, visiblePosition).x;
+				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightTraceLambda + weightAlpha * state * (error - state * weightPrev.x));
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightTraceLambda + weightAlpha * state * (visibleState - state * weightPrev.x));
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -923,7 +923,7 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 
 	float s = sum.x > 0.5f ? 1.0f : 0.0f;
 
-	float2 state = (float2)(s, sum.y); //randFloat(&seedValue) < noise ? 1.0f - s : s
+	float2 state = (float2)(randFloat(&seedValue) < noise ? 1.0f - s : s, sum.y);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
 	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s, sum.y, 0.0f, 0.0f));
@@ -945,7 +945,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 
 	float predError = target - predActPrev;
 
-	float tdError = reward + gamma * state.y - predPrev.y;
+	float delta = reward - state.y;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -965,8 +965,8 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 				float newYTrace = weightPrev.y * weightLambda.x + predError * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
-						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * delta * newYTrace, newYTrace,
+						weightPrev.z + weightAlpha.y * delta * newWTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}
@@ -1513,7 +1513,7 @@ void kernel qForward(read_only image2d_t hiddenStates, read_only image3d_t qWeig
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
-	float state = relu(sum, reluLeak) * hiddenState;
+	float state = sigmoid(sum) * hiddenState;
 	
 	write_imagef(qStatesFront, hiddenPosition, (float4)(state));
 }
@@ -1582,13 +1582,13 @@ void kernel qBackward(read_only image2d_t hiddenStates, read_only image2d_t qSta
 			}
 		}
 
-	//sum = sum > 0.0f ? 1.0f : -1.0f;
+	sum = sum > 0.0f ? 1.0f : -1.0f;
 
 	float qState = read_imagef(qStates, visiblePosition).x;
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float error = sum * relud(qState, reluLeak) * hiddenState;
+	float error = sum * qState * (1.0f - qState);// * hiddenState;
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1625,13 +1625,13 @@ void kernel qLastBackward(read_only image2d_t hiddenStates, read_only image2d_t 
 			}
 		}
 
-	//sum = sum > 0.0f ? 1.0f : -1.0f;
+	sum = sum > 0.0f ? 1.0f : -1.0f;
 
 	float qState = read_imagef(qStates, visiblePosition).x;
 
 	float hiddenState = read_imagef(hiddenStates, visiblePosition).x;
 
-	float error = sum * relud(qState, reluLeak) * hiddenState;
+	float error = sum * qState * (1.0f - qState);// * hiddenState;
 
 	write_imagef(qErrors, visiblePosition, (float4)(error));
 }
@@ -1826,7 +1826,7 @@ void kernel whiten(read_only image2d_t input, write_only image2d_t result, int2 
 		centeredCurrentColor.w > 0.0f ? 1.0f : -1.0f);
 
 	// Modify color
-	float4 whitenedColor = fmin(1.0f, fmax(-1.0f, (centeredCurrentColor > 0.0f ? (float4)(1.0f) : (float4)(-1.0f)) * (1.0f - exp(-fabs(intensity * covariances))))) * 0.5f + 0.5f;
+	float4 whitenedColor = fmin(1.0f, fmax(-1.0f, (centeredCurrentColor > 0.0f ? (float4)(1.0f) : (float4)(-1.0f)) * (1.0f - exp(-fabs(intensity * covariances)))));
 
 	write_imagef(result, position, whitenedColor);
 }

@@ -82,7 +82,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_gpu);
+	cs.create(sys::ComputeSystem::_cpu);
 
 	sys::ComputeProgram prog;
 
@@ -100,28 +100,29 @@ int main() {
 	int inWidth = 8;
 	int inHeight = 8;
 
-	int aWidth = 2;
-	int aHeight = 2;
+	int aWidth = 4;
+	int aHeight = 4;
 
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 22, 22 };
-	layerDescs[1]._size = { 18, 18 };
-	layerDescs[2]._size = { 14, 14 };
+	layerDescs[0]._size = { 8, 8 };
+	layerDescs[1]._size = { 8, 8 };
+	layerDescs[2]._size = { 8, 8 };
 
 	neo::AgentSPG agent;
 
 	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, layerDescs, { -0.05f, 0.05f }, generator);
 
-	agent._whiteningKernelRadius = 5;
+	agent._whiteningKernelRadius = 3;
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
+	cl::Image2D actionImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), aWidth, aHeight);
 	std::vector<float> input(inWidth * inHeight, 0.0f);
 	std::vector<float> action(aWidth * aHeight, 0.0f);
 
 	deep::SDRRL agent2;
 
-	agent2.createRandom(64, 4, 32, -0.01f, 0.01f, 0.01f, 0.05f, 0.1f, generator);
+	agent2.createRandom(64, 16, 32, -0.01f, 0.01f, 0.01f, 0.05f, 0.1f, generator);
 
 	// Dummy agent
 	int cells = 128;
@@ -230,14 +231,36 @@ int main() {
 		else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 			action[1] = -1.0f;*/
 
+		// Organize action
+		float center = 0.0f;
+		float div = 0.0f;
+
+		for (int i = 0; i < aWidth * aHeight; i++) {
+			center += action[i] * static_cast<float>(i) / static_cast<float>(aWidth * aHeight);
+			div += action[i];
+		}
+
+		float ratio = center / std::max(0.001f, div);
+
+		float steer = ratio * 2.0f - 1.0f;
+
+		action.clear();
+		action.assign(aWidth * aHeight, 0.0f);
+
+		// Exploration
+		if (dist01(generator) < 0.08f)
+			ratio = dist01(generator) * 0.9999f;
+
+		action[static_cast<int>(ratio * aWidth * aHeight)] = 1.0f;
+
 		// Physics update
 		sf::Vector2f prevPosition = car._position;
 
 		car._position += sf::Vector2f(std::cos(car._rotation), std::sin(car._rotation)) * car._speed;
 		car._speed *= 0.95f;
 
-		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel * (action[0] * 0.5f + 0.5f)));// * (action[0] * 0.5f + 0.5f)
-		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, 0.7f * (action[1] + action[2] * 0.5f))) * spinRate, 3.141596f * 2.0f);
+		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel));// * (action[0] * 0.5f + 0.5f)
+		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, steer * 1.2f)) * spinRate, 3.141596f * 2.0f);
 
 		sf::Color curColor = collisionImg.getPixel(car._position.x, car._position.y);
 
@@ -428,37 +451,79 @@ int main() {
 				xOffset += img.getSize().x * scale;
 			}
 
-			std::vector<cl_float> whiteningData(inWidth * inHeight);
+			{
+				std::vector<cl_float> whiteningData(inWidth * inHeight);
 
-			cs.getQueue().enqueueReadImage(agent.getInputWhitener().getResult(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, whiteningData.data());
+				cs.getQueue().enqueueReadImage(agent.getInputWhitener().getResult(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, whiteningData.data());
 
-			sf::Image whitenedImage;
-			whitenedImage.create(inWidth, inHeight);
+				sf::Image whitenedImage;
+				whitenedImage.create(inWidth, inHeight);
 
-			for (int x = 0; x < whitenedImage.getSize().x; x++)
-				for (int y = 0; y < whitenedImage.getSize().y; y++) {
-					cl_float grey = whiteningData[x + y * whitenedImage.getSize().x];
+				for (int x = 0; x < whitenedImage.getSize().x; x++)
+					for (int y = 0; y < whitenedImage.getSize().y; y++) {
+						cl_float grey = whiteningData[x + y * whitenedImage.getSize().x];
 
-					sf::Color c;
+						sf::Color c;
 
-					c.r = c.g = c.b = grey * 255.0f;
-			
-					whitenedImage.setPixel(x, y, c);
-				}
+						c.r = c.g = c.b = grey * 255.0f;
 
-			
-			whitenedTex.loadFromImage(whitenedImage);
+						whitenedImage.setPixel(x, y, c);
+					}
 
-			sf::Sprite s;
 
-			s.setTexture(whitenedTex);
-			s.setScale(4.0f, 4.0f);
+				whitenedTex.loadFromImage(whitenedImage);
 
-			window.setView(window.getDefaultView());
+				sf::Sprite s;
 
-			window.draw(s);
+				s.setTexture(whitenedTex);
+				s.setScale(4.0f, 4.0f);
 
-			window.setView(view);
+				window.setView(window.getDefaultView());
+
+				window.draw(s);
+
+				window.setView(view);
+			}
+
+			{
+				std::vector<cl_float> whiteningData(aWidth * aHeight);
+
+				std::vector<float> actionTemp(action.size() * 2);
+
+				cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
+
+				for (int i = 0; i < whiteningData.size(); i++)
+					whiteningData[i] = actionTemp[i * 2 + 0];
+
+				sf::Image whitenedImage;
+				whitenedImage.create(aWidth, aHeight);
+
+				for (int x = 0; x < whitenedImage.getSize().x; x++)
+					for (int y = 0; y < whitenedImage.getSize().y; y++) {
+						cl_float grey = whiteningData[x + y * whitenedImage.getSize().x];
+
+						sf::Color c;
+
+						c.r = c.g = c.b = grey * 255.0f;
+
+						whitenedImage.setPixel(x, y, c);
+					}
+
+
+				whitenedTex.loadFromImage(whitenedImage);
+
+				sf::Sprite s;
+
+				s.setTexture(whitenedTex);
+				s.setScale(4.0f, 4.0f);
+				s.setPosition(4.0f * inWidth, 0.0f);
+
+				window.setView(window.getDefaultView());
+
+				window.draw(s);
+
+				window.setView(view);
+			}
 
 			window.display();
 		}
@@ -482,15 +547,16 @@ int main() {
 		//	action[i] = agent2.getAction(i);
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
+		cs.getQueue().enqueueWriteImage(actionImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.03f * reward, inputImage, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.03f * reward, inputImage, actionImage, generator, true, true, true);
 
 		std::vector<float> actionTemp(action.size() * 2);
 
 		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
 
 		for (int i = 0; i < action.size(); i++)
-			action[i] = actionTemp[i * 2 + 0] * 2.0f - 1.0f;
+			action[i] = actionTemp[i * 2 + 0];
 
 		// Dummy agent
 		/*float angle = std::acos(std::min(1.0f, std::max(-1.0f, trackPerp.x * carDir.x + trackPerp.y * carDir.y)));

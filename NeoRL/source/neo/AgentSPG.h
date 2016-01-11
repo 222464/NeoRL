@@ -51,9 +51,9 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scWeightAlpha(0.0001f), _scWeightRecurrentAlpha(0.0001f), _scWeightLambda(0.96f),
-				_scActiveRatio(0.05f), _scBoostAlpha(0.002f),
-				_alpha({ 0.05f, 0.002f }), _gamma(0.98f), _lambda({ 0.96f, 0.96f }), _noise(0.003f)
+				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.96f),
+				_scActiveRatio(0.05f), _scBoostAlpha(0.01f),
+				_alpha({ 0.1f, 0.01f }), _gamma(0.98f), _lambda({ 0.96f, 0.96f }), _noise(0.003f)
 			{}
 		};
 
@@ -139,10 +139,16 @@ namespace neo {
 			cl_float2 initWeightRange,
 			std::mt19937 &rng);
 
+		//!@{
 		/*!
 		\brief Simulation step of hierarchy
 		*/
-		void simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn = true);
+		void simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, std::mt19937 &rng, bool learn = true, bool useInputWhitener = true, bool binaryOutput = false) {
+			simStep(cs, reward, input, _layers.front()._pred.getHiddenStates()[_front], rng, learn, useInputWhitener, binaryOutput);
+		}
+
+		void simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, const cl::Image2D &targetActions, std::mt19937 &rng, bool learn = true, bool useInputWhitener = true, bool binaryOutput = false);
+		//!@}
 
 		/*!
 		\brief Clear working memory

@@ -5,7 +5,7 @@
 using namespace neo;
 
 void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-	cl_int2 inputSize, cl_int2 actionSize, cl_int firstLayerFeedBackRadius, const std::vector<LayerDesc> &layerDescs,
+	cl_int2 inputSize, cl_int2 actionSize, const std::vector<LayerDesc> &layerDescs,
 	cl_float2 initWeightRange,
 	std::mt19937 &rng)
 {
@@ -693,24 +693,40 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 #ifdef USE_DETERMINISTIC_POLICY_GRADIENT
 	if (learn) {
 		for (int l = _layers.size() - 1; l >= 0; l--) {
-			std::vector<cl::Image2D> visibleStatesPrev;
+			if (l == 0) {
+				std::vector<cl::Image2D> visibleStates;
 
-			if (l < _layers.size() - 1) {
-				visibleStatesPrev.resize(2);
+				if (l < _layers.size() - 1) {
+					visibleStates.resize(2);
 
-				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
-				visibleStatesPrev[1] = _layers[l + 1]._pred.getHiddenStates()[_front];
+					visibleStates[0] = _layers[l]._sc.getHiddenStates()[_front];
+					visibleStates[1] = _layers[l + 1]._pred.getHiddenStates()[_front];
+				}
+				else {
+					visibleStates.resize(1);
+
+					visibleStates[0] = _layers[l]._sc.getHiddenStates()[_front];
+				}
+
+				_layers[l]._pred.learnCurrent(cs, _action, visibleStates, _layerDescs[l]._predWeightAlpha);
 			}
 			else {
-				visibleStatesPrev.resize(1);
+				std::vector<cl::Image2D> visibleStatesPrev;
 
-				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
-			}
+				if (l < _layers.size() - 1) {
+					visibleStatesPrev.resize(2);
 
-			if (l == 0)
-				_layers[l]._pred.learn(cs, _action, visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
-			else
+					visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+					visibleStatesPrev[1] = _layers[l + 1]._pred.getHiddenStates()[_front];
+				}
+				else {
+					visibleStatesPrev.resize(1);
+
+					visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+				}
+
 				_layers[l]._pred.learn(cs, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+			}
 		}
 	}
 #else

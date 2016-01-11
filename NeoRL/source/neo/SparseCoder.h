@@ -56,11 +56,6 @@ namespace neo {
 		*/
 		struct VisibleLayer {
 			/*!
-			\brief Reconstruction error
-			*/
-			cl::Image2D _reconstructionError;
-
-			/*!
 			\brief Weights
 			*/
 			DoubleBuffer3D _weights;
@@ -122,7 +117,6 @@ namespace neo {
 		/*!
 		\brief Kernels
 		*/
-		cl::Kernel _reconstructVisibleErrorKernel;
 		cl::Kernel _reconstructVisibleKernel;
 		cl::Kernel _activateFromReconstructionErrorKernel;
 		cl::Kernel _solveHiddenKernel;
@@ -131,11 +125,6 @@ namespace neo {
 		cl::Kernel _learnWeightsTracesKernel;
 		cl::Kernel _learnWeightsLateralKernel;
 		//!@}
-
-		/*!
-		\brief Reconstruct and find error to inputs
-		*/
-		void reconstructError(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates);
 
 	public:
 		/*!
@@ -156,8 +145,8 @@ namespace neo {
 		/*!
 		\brief Learn functions, with and without eligibility traces/rewards
 		*/
-		void learn(sys::ComputeSystem &cs, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
-		void learn(sys::ComputeSystem &cs, const cl::Image2D &rewards, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
+		void learn(sys::ComputeSystem &cs, const cl::Image2D &rewards, const std::vector<cl::Image2D> &visibleStates, float weightLateralAlpha, float thresholdAlpha, float activeRatio);
 		//!@}
 
 		/*!
