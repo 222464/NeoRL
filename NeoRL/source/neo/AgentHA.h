@@ -275,5 +275,19 @@ namespace neo {
 		const cl::Image2D &getExploratoryAction() const {
 			return _actionExploratory[_back];
 		}
+
+		/*!
+		\brief Get input whitener
+		*/
+		const ImageWhitener &getInputWhitener() const {
+			return _inputWhitener;
+		}
+
+		/*!
+		\brief Get action whitener
+		*/
+		const ImageWhitener &getActionWhitener() const {
+			return _actionWhitener;
+		}
 	};
 }

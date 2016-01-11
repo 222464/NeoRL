@@ -154,8 +154,6 @@ void kernel cscActivate(read_only image2d_t visibleStates,
 
 	float subSum = 0.0f;
 
-	float counter = 0.0f;
-
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
 			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
@@ -170,8 +168,6 @@ void kernel cscActivate(read_only image2d_t visibleStates,
 				float state = read_imagef(visibleStates, visiblePosition).x;
 
 				subSum += state * weight;
-
-				counter++;
 			}
 		}
 
@@ -191,8 +187,6 @@ void kernel cscActivateIgnoreMiddle(read_only image2d_t visibleStates,
 
 	float subSum = 0.0f;
 
-	float counter = 0.0f;
-
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
 			if (dx == 0 && dy == 0)
@@ -210,8 +204,6 @@ void kernel cscActivateIgnoreMiddle(read_only image2d_t visibleStates,
 				float state = read_imagef(visibleStates, visiblePosition).x;
 
 				subSum += state * weight;
-
-				counter++;
 			}
 		}
 
@@ -1834,7 +1826,7 @@ void kernel whiten(read_only image2d_t input, write_only image2d_t result, int2 
 		centeredCurrentColor.w > 0.0f ? 1.0f : -1.0f);
 
 	// Modify color
-	float4 whitenedColor = fmin(1.0, fmax(-1.0, (centeredCurrentColor > 0.0f ? (float4)(1.0f) : (float4)(-1.0f)) * (1.0f - exp(-fabs(intensity * covariances)))));
+	float4 whitenedColor = fmin(1.0f, fmax(-1.0f, (centeredCurrentColor > 0.0f ? (float4)(1.0f) : (float4)(-1.0f)) * (1.0f - exp(-fabs(intensity * covariances))))) * 0.5f + 0.5f;
 
 	write_imagef(result, position, whitenedColor);
 }

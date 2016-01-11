@@ -173,5 +173,12 @@ namespace neo {
 		const cl::Image2D &getPrediction() const {
 			return _layers.front()._pred.getHiddenStates()[_back];
 		}
+
+		/*!
+		\brief Get input whitener
+		*/
+		const ImageWhitener &getInputWhitener() const {
+			return _inputWhitener;
+		}
 	};
 }

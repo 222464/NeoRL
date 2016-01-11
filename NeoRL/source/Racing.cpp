@@ -113,6 +113,8 @@ int main() {
 
 	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, layerDescs, { -0.05f, 0.05f }, generator);
 
+	agent._whiteningKernelRadius = 5;
+
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	std::vector<float> input(inWidth * inHeight, 0.0f);
 	std::vector<float> action(aWidth * aHeight, 0.0f);
@@ -188,6 +190,8 @@ int main() {
 	view.zoom(0.5f);
 
 	window.setView(view);
+
+	sf::Texture whitenedTex;
 
 	do {
 		clock.restart();
@@ -424,6 +428,37 @@ int main() {
 				xOffset += img.getSize().x * scale;
 			}
 
+			std::vector<cl_float> whiteningData(inWidth * inHeight);
+
+			cs.getQueue().enqueueReadImage(agent.getInputWhitener().getResult(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, whiteningData.data());
+
+			sf::Image whitenedImage;
+			whitenedImage.create(inWidth, inHeight);
+
+			for (int x = 0; x < whitenedImage.getSize().x; x++)
+				for (int y = 0; y < whitenedImage.getSize().y; y++) {
+					cl_float grey = whiteningData[x + y * whitenedImage.getSize().x];
+
+					sf::Color c;
+
+					c.r = c.g = c.b = grey * 255.0f;
+			
+					whitenedImage.setPixel(x, y, c);
+				}
+
+			
+			whitenedTex.loadFromImage(whitenedImage);
+
+			sf::Sprite s;
+
+			s.setTexture(whitenedTex);
+			s.setScale(4.0f, 4.0f);
+
+			window.setView(window.getDefaultView());
+
+			window.draw(s);
+
+			window.setView(view);
 
 			window.display();
 		}

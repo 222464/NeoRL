@@ -51,7 +51,7 @@ int main() {
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 6;
 	layerDescs[0]._useTraces = false;
-	layerDescs[0]._weightAlpha = 0.01f;
+	layerDescs[0]._weightAlpha = 0.1f;
 
 	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.5f, 0.5f }, generator);
 
@@ -163,7 +163,7 @@ int main() {
 					int tx = sampleX + x;
 					int ty = sampleY + y;
 
-					inputf[x + y * sampleWidth] = whitenedImage.getPixel(tx, ty).r / 255.0f;// +noiseDist(generator);
+					inputf[x + y * sampleWidth] = whitenedImage.getPixel(tx, ty).r / 255.0f * 2.0f - 1.0f;// +noiseDist(generator);
 				}
 
 			// Normalize
