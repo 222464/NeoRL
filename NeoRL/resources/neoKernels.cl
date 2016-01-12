@@ -931,7 +931,7 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 
 void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, read_only image2d_t targets,
 	read_only image2d_t predictionStates, read_only image2d_t predictionActivationsPrev, read_only image2d_t predictionStatesPrev, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
-	int2 visibleSize, float2 hiddenToVisible, int radius, float2 weightAlpha, float2 weightLambda, float reward, float gamma)
+	int2 visibleSize, float2 hiddenToVisible, int radius, float2 weightAlpha, float2 weightLambda, float reward, float gamma, float reg)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
@@ -945,7 +945,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 
 	float predError = target - predActPrev;
 
-	float tdError = reward + gamma * state.y - predPrev.y;
+	float tdError = reward - predPrev.y;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -960,13 +960,13 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 
 				float statePrev = read_imagef(visibleStatesPrev, visiblePosition).x;
 
-				//float oneMinusStatePrev = 1.0f - statePrev;
+				float clear = 1.0f - statePrev;
 
-				float newYTrace = weightPrev.y * weightLambda.x + predError * statePrev;
-				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
+				float newYTrace = weightPrev.y * weightLambda.x * clear + predError * statePrev;
+				float newWTrace = weightPrev.w * weightLambda.y * clear + statePrev;
 
 				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
-						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
+						weightPrev.z + weightAlpha.y * tdError * statePrev, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}

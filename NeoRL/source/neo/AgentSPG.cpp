@@ -190,9 +190,9 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 		}
 
 		if (l == 0)
-			_layers[l]._pred.activate(cs, visibleStates, _layerDescs[l]._noise, binaryOutput, rng);
+			_layers[l]._pred.activate(cs, visibleStates, _layerDescs[l]._noise, binaryOutput,  rng);
 		else
-			_layers[l]._pred.activateInhibit(cs, visibleStates, 0.0f, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, rng);
+			_layers[l]._pred.activateInhibit(cs, visibleStates, _layerDescs[l]._noise, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, rng);
 	}
 
 	if (learn) {
@@ -212,9 +212,9 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			}
 
 			if (l == 0)
-				_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, targetActions, visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda);
+				_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, targetActions, visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda, _layerDescs[l]._reg);
 			else
-				_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda);
+				_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda, _layerDescs[l]._reg);
 		}
 	}
 }

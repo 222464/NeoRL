@@ -201,7 +201,7 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 	std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
 }
 
-void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda) {
+void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, cl_float reg) {
 	// Learn weights
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 		VisibleLayer &vl = _visibleLayers[vli];
@@ -223,6 +223,7 @@ void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, co
 		_learnWeightsTracesKernel.setArg(argIndex++, weightLambda);
 		_learnWeightsTracesKernel.setArg(argIndex++, reward);
 		_learnWeightsTracesKernel.setArg(argIndex++, gamma);
+		_learnWeightsTracesKernel.setArg(argIndex++, reg);
 
 		cs.getQueue().enqueueNDRangeKernel(_learnWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
