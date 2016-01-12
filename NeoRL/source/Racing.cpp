@@ -105,9 +105,9 @@ int main() {
 
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 8, 8 };
-	layerDescs[1]._size = { 8, 8 };
-	layerDescs[2]._size = { 8, 8 };
+	layerDescs[0]._size = { 16, 16 };
+	layerDescs[1]._size = { 16, 16 };
+	layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentSPG agent;
 
@@ -251,7 +251,7 @@ int main() {
 		action.assign(aWidth * aHeight, 0.0f);
 
 		// Exploration
-		if (dist01(generator) < 0.02f)
+		if (dist01(generator) < 0.1f)
 			ratio = dist01(generator) * 0.9999f;
 
 		float steer = ratio * 2.0f - 1.0f;
@@ -562,7 +562,7 @@ int main() {
 
 		for (int i = 0; i < action.size(); i++)
 			action[i] = actionTemp[i * 2 + 0];
-		std::cout << actionTemp[0] << std::endl;
+		std::cout << actionTemp[1] << std::endl;
 		// Dummy agent
 		/*float angle = std::acos(std::min(1.0f, std::max(-1.0f, trackPerp.x * carDir.x + trackPerp.y * carDir.y)));
 
