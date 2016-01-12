@@ -119,7 +119,7 @@ namespace neo {
 		/*!
 		\brief Learn with RL + prediction error
 		*/
-		void learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, cl_float reg);
+		void learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, bool inhibited);
 		//!@}
 
 		/*!

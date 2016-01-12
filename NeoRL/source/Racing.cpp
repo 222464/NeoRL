@@ -554,7 +554,7 @@ int main() {
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 		cs.getQueue().enqueueWriteImage(actionImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.2f * reward, inputImage, actionImage, generator, true, true, true);
+		agent.simStep(cs, reset ? -1.0f : 0.03f * reward, inputImage, actionImage, generator, true, true, true);
 
 		std::vector<float> actionTemp(action.size() * 2);
 
@@ -562,7 +562,7 @@ int main() {
 
 		for (int i = 0; i < action.size(); i++)
 			action[i] = actionTemp[i * 2 + 0];
-		std::cout << actionTemp[1] << std::endl;
+		std::cout << actionTemp[0] << std::endl;
 		// Dummy agent
 		/*float angle = std::acos(std::min(1.0f, std::max(-1.0f, trackPerp.x * carDir.x + trackPerp.y * carDir.y)));
 
