@@ -111,18 +111,18 @@ int main() {
 	prsdr.createRandom(7, 7, 8, inputTypes, layerDescs, -0.01f, 0.01f, 0.01f, 0.05f, 0.5f, generator);
 	*/
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentSPG::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
 	layerDescs[1]._size = { 16, 16 };
 	//layerDescs[2]._size = { 16, 16 };
 
-	neo::AgentHA agent;
+	neo::AgentSPG agent;
 
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
 
-	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 8, layerDescs, { -0.5f, 0.5f }, generator);
+	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, layerDescs, { -0.5f, 0.5f }, generator);
 	
 	std::vector<int> actionIndices;
 
@@ -132,7 +132,7 @@ int main() {
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 5, 5);
 	std::vector<float> inputs(25, 0.0f);
 
-	std::vector<float> actions(16, 0.0f);
+	std::vector<float> actions(32, 0.0f);
 
 
 	// ---------------------------- Game Loop -----------------------------
@@ -211,7 +211,7 @@ int main() {
 			std::vector<float> finalActions(16);
 
 			for (int i = 0; i < finalActions.size(); i++)
-				finalActions[i] = actions[i] * 0.5f + 0.5f;
+				finalActions[i] = actions[i * 2 + 0] * 0.5f + 0.5f;
 
 			//std::cout << std::endl;
 
@@ -340,7 +340,7 @@ int main() {
 			float xOffset = 0.0f;
 			float scale = 4.0f;
 
-			for (int l = 0; l < layerDescs.size() - 1; l++) {
+			for (int l = 0; l < layerDescs.size(); l++) {
 				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
 				cs.getQueue().enqueueReadImage(agent.getLayer(l)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
@@ -353,7 +353,7 @@ int main() {
 					for (int y = 0; y < img.getSize().y; y++) {
 						sf::Color c = sf::Color::White;
 
-						c.r = c.b = c.g = 255.0f * sigmoid(1.0f * data[(x + y * img.getSize().x)]);
+						c.r = c.b = c.g = 255.0f * data[(x + y * img.getSize().x)];
 
 						img.setPixel(x, y, c);
 					}
