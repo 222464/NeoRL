@@ -3,7 +3,7 @@
 using namespace neo;
 
 void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-	cl_int2 inputSize, cl_int2 actionSize, const std::vector<LayerDesc> &layerDescs,
+	cl_int2 inputSize, cl_int2 actionSize, cl_int actionPredRadius, const std::vector<LayerDesc> &layerDescs,
 	cl_float2 initWeightRange,
 	std::mt19937 &rng)
 {
@@ -94,6 +94,15 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 		cs.getQueue().enqueueFillImage(_layers[l]._propagatedPredReward, zeroColor, zeroOrigin, layerRegion);
 	}
 
+	{
+		std::vector<Predictor::VisibleLayerDesc> predDescs(1);
+
+		predDescs[0]._size = _layerDescs.front()._size;
+		predDescs[0]._radius = actionPredRadius;
+
+		_actionPred.createRandom(cs, program, predDescs, _actionSize, initWeightRange, false, rng);
+	}
+
 	_predictionRewardKernel = cl::Kernel(program.getProgram(), "phPredictionReward");
 	_predictionRewardPropagationKernel = cl::Kernel(program.getProgram(), "phPredictionRewardPropagation");
 
@@ -101,12 +110,12 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 	_actionWhitener.create(cs, program, _actionSize, CL_R, CL_FLOAT);
 }
 
-void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, const cl::Image2D &targetActions, std::mt19937 &rng, bool learn, bool useInputWhitener, bool binaryOutput) {
+void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &input, const cl::Image2D &actionTaken, std::mt19937 &rng, bool learn, bool useInputWhitener, bool binaryOutput) {
 	// Whiten input
 	if (useInputWhitener)
 		_inputWhitener.filter(cs, input, _whiteningKernelRadius, _whiteningIntensity);
 	
-	_actionWhitener.filter(cs, targetActions, _whiteningKernelRadius, _whiteningIntensity);
+	_actionWhitener.filter(cs, actionTaken, _whiteningKernelRadius, _whiteningIntensity);
 
 	// Feed forward
 	for (int l = 0; l < _layers.size(); l++) {
@@ -189,10 +198,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		if (l == 0)
-			_layers[l]._pred.activate(cs, visibleStates, _layerDescs[l]._noise, binaryOutput, rng);
-		else
-			_layers[l]._pred.activateInhibit(cs, visibleStates, _layerDescs[l]._noise, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, rng);
+		_layers[l]._pred.activateInhibit(cs, visibleStates, _layerDescs[l]._noise, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, rng);
 	}
 
 	if (learn) {
@@ -211,11 +217,28 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
-			if (l == 0)
-				_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, targetActions, visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda, false);
-			else
-				_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda, true);
+			_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda, true);
 		}
+	}
+
+	// Train to reconstruct
+	{
+		std::vector<cl::Image2D> visibleStates(1);
+
+		visibleStates[0] = _layers.front()._sc.getHiddenStates()[_back];
+
+		_actionPred.activate(cs, visibleStates, false);
+
+		_actionPred.learnCurrent(cs, actionTaken, visibleStates, _actionPredAlpha);
+	}
+
+	// Find action
+	{
+		std::vector<cl::Image2D> visibleStates(1);
+
+		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
+
+		_actionPred.activate(cs, visibleStates, false);
 	}
 }
 

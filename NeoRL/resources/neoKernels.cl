@@ -902,7 +902,7 @@ void kernel predSolveHiddenSwarm(read_only image2d_t hiddenSummationTemp,
 	
 	float2 sum = read_imagef(hiddenSummationTemp, hiddenPosition).xy;
 
-	float s = sigmoid(sum.x);
+	float s = sum.x;
 
 	float2 state = (float2)(randFloat(&seedValue) < noise ? randFloat(&seedValue) : s, sum.y);
 	
@@ -921,14 +921,12 @@ void kernel predSolveHiddenThresholdSwarm(read_only image2d_t hiddenSummationTem
 	
 	float2 sum = read_imagef(hiddenSummationTemp, hiddenPosition).xy;
 
-	float s = sigmoid(sum.x);
-
-	float st = s > 0.5f ? 1.0f : 0.0f;
+	float st = sum.x > 0.5f ? 1.0f : 0.0f;
 
 	float2 state = (float2)(randFloat(&seedValue) < noise ? 1.0f - st : st, sum.y);
 	
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state, 0.0f, 0.0f));
-	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(s, sum.y, 0.0f, 0.0f));
+	write_imagef(hiddenActivationsFront, hiddenPosition, (float4)(st, sum.y, 0.0f, 0.0f));
 }
 
 void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, read_only image2d_t targets,
@@ -1009,10 +1007,10 @@ void kernel predLearnWeightsTracesSwarmInhibited(read_only image2d_t visibleStat
 
 				//float clear = 1.0f - statePrev;
 
-				float newYTrace = weightPrev.y * weightLambda.x + target * (statePrev - weightPrev.x);
+				float newYTrace = weightPrev.y * weightLambda.x + target * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * (newYTrace - weightPrev.x), newYTrace,
 						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
