@@ -60,6 +60,7 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenActivations;
+		DoubleBuffer2D _hiddenBiases;
 		//!@}
 
 		/*!
@@ -93,6 +94,7 @@ namespace neo {
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _solveHiddenThresholdKernel;
 		cl::Kernel _inhibitKernel;
+		cl::Kernel _learnBiasesKernel;
 		cl::Kernel _learnWeightsTracesKernel;
 		cl::Kernel _learnWeightsTracesInhibitedKernel;
 		//!@}
@@ -118,8 +120,9 @@ namespace neo {
 		//!@{
 		/*!
 		\brief Learn with RL + prediction error
+		If active ratio is not 1, assume inhibition
 		*/
-		void learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, bool inhibited);
+		void learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, cl_float biasAlpha, cl_float activeRatio);
 		//!@}
 
 		/*!

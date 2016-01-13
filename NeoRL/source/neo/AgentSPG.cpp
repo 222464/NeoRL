@@ -217,7 +217,7 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
-			_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda, true);
+			_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 		}
 	}
 

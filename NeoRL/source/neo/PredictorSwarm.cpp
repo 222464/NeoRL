@@ -51,6 +51,10 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 
 	_hiddenActivations = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
 
+	_hiddenBiases = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
+
+	cs.getQueue().enqueueFillImage(_hiddenBiases[_back], zeroColor, zeroOrigin, hiddenRegion);
+
 	_hiddenSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
 
 	_inhibitionTemp = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_RG, CL_FLOAT), _hiddenSize.x, _hiddenSize.y);
@@ -63,6 +67,7 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHiddenSwarm");
 	_solveHiddenThresholdKernel = cl::Kernel(program.getProgram(), "predSolveHiddenThresholdSwarm");
 	_inhibitKernel = cl::Kernel(program.getProgram(), "predInhibitSwarm");
+	_learnBiasesKernel = cl::Kernel(program.getProgram(), "predLearnBiasesSwarm");
 	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarm");
 	_learnWeightsTracesInhibitedKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarmInhibited");
 }
@@ -75,7 +80,7 @@ void PredictorSwarm::activateInhibit(sys::ComputeSystem &cs, const std::vector<c
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
-		cs.getQueue().enqueueFillImage(_hiddenSummationTemp[_back], zeroColor, zeroOrigin, hiddenRegion);
+		cs.getQueue().enqueueCopyImage(_hiddenBiases[_back], _hiddenSummationTemp[_back], zeroOrigin, zeroOrigin, hiddenRegion);
 	}
 
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -202,8 +207,21 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 	std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
 }
 
-void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, bool inhibited) {
-	if (inhibited) {
+void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, cl_float biasAlpha, cl_float activeRatio) {
+	if (activeRatio != 1.0f) {
+		// Learn biases
+		{
+			int argIndex = 0;
+
+			_learnBiasesKernel.setArg(argIndex++, _hiddenStates[_back]);
+			_learnBiasesKernel.setArg(argIndex++, _hiddenBiases[_back]);
+			_learnBiasesKernel.setArg(argIndex++, _hiddenBiases[_front]);
+			_learnBiasesKernel.setArg(argIndex++, biasAlpha);
+			_learnBiasesKernel.setArg(argIndex++, activeRatio);
+
+			cs.getQueue().enqueueNDRangeKernel(_learnBiasesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		}
+
 		// Learn weights
 		for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 			VisibleLayer &vl = _visibleLayers[vli];
