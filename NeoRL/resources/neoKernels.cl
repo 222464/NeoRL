@@ -1024,7 +1024,7 @@ void kernel predLearnWeightsTracesSwarmInhibited(read_only image2d_t visibleStat
 				float newYTrace = weightPrev.y * weightLambda.x + target * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * (newYTrace - predActPrev * weightPrev.x), newYTrace,
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * fmax(0.0f, tdError) * (newYTrace - weightPrev.x), newYTrace,
 						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);

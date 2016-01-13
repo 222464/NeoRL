@@ -122,7 +122,7 @@ int main() {
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
 
-	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, layerDescs, { -0.5f, 0.5f }, generator);
+	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 12, layerDescs, { -0.5f, 0.5f }, generator);
 	
 	std::vector<int> actionIndices;
 
@@ -130,9 +130,12 @@ int main() {
 		actionIndices.push_back(inputCount + i);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 5, 5);
+	
+	cl::Image2D exploratoryActionImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 4, 4);
+
 	std::vector<float> inputs(25, 0.0f);
 
-	std::vector<float> actions(32, 0.0f);
+	std::vector<float> actions(16, 0.0f);
 
 
 	// ---------------------------- Game Loop -----------------------------
@@ -198,24 +201,35 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 5, 5, 1 }, 0, 0, inputs.data());
 			
+			cs.getQueue().enqueueWriteImage(exploratoryActionImage, CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
+
 			avgReward = (1.0f - 0.001f) * avgReward + 0.001f * reward;
 
 			std::cout << avgReward << std::endl;
 
-			agent.simStep(cs, reward * 10.0f, inputImage, generator);
+			agent.simStep(cs, reward * 10.0f, exploratoryActionImage, inputImage, generator);
 
-			cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
+			cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
 
 			cs.getQueue().finish();
 
-			std::vector<float> finalActions(16);
-
-			for (int i = 0; i < finalActions.size(); i++)
-				finalActions[i] = actions[i * 2 + 0] * 0.5f + 0.5f;
-
 			//std::cout << std::endl;
+			// Exploration
+			std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
 
-			runner0.motorUpdate(finalActions, 12.0f);
+			for (int i = 0; i < actions.size(); i++) {
+				if (dist01(generator) < 0.05f)
+					actions[i] = dist01(generator) * 2.0f - 1.0f;
+				else
+					actions[i] = std::min(1.0f, std::max(-1.0f, actions[i]));
+			}
+
+			std::vector<float> rescaledActions = actions;
+
+			for (int i = 0; i < rescaledActions.size(); i++)
+				rescaledActions[i] = rescaledActions[i] * 0.5f + 0.5f;
+
+			runner0.motorUpdate(rescaledActions, 12.0f);
 
 			// Keep upright
 			if (std::abs(runner0._pBody->GetAngle()) > maxRunnerBodyAngle)
