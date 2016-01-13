@@ -139,7 +139,7 @@ namespace neo {
 		AgentSPG()
 			: _whiteningKernelRadius(1),
 			_whiteningIntensity(1024.0f),
-			_actionPredAlpha(0.2f)
+			_actionPredAlpha(0.1f)
 		{}
 
 		/*!

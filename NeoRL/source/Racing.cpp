@@ -236,8 +236,8 @@ int main() {
 		float div = 0.0f;
 
 		for (int i = 0; i < aWidth * aHeight; i++) {
-			center += (action[i] > 0.5f ? 1.0f : 0.0f) *static_cast<float>(i) / static_cast<float>(aWidth * aHeight);
-			div += (action[i] > 0.5f ? 1.0f : 0.0f);
+			center += std::min(1.0f, std::max(0.0f, action[i])) * static_cast<float>(i) / static_cast<float>(aWidth * aHeight - 1);
+			div += std::min(1.0f, std::max(0.0f, action[i]));
 		}
 
 		float ratio;
@@ -245,7 +245,7 @@ int main() {
 		if (div == 0.0f)
 			ratio = 0.5f;
 		else
-			ratio = center / std::max(0.001f, div);
+			ratio = center / std::max(0.00001f, div);
 
 		action.clear();
 		action.assign(aWidth * aHeight, 0.0f);
@@ -500,7 +500,7 @@ int main() {
 
 				for (int x = 0; x < whitenedImage.getSize().x; x++)
 					for (int y = 0; y < whitenedImage.getSize().y; y++) {
-						cl_float grey = whiteningData[x + y * whitenedImage.getSize().x];
+						cl_float grey = std::min(1.0f, std::max(0.0f, whiteningData[x + y * whitenedImage.getSize().x]));
 
 						sf::Color c;
 
