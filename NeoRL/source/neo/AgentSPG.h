@@ -54,7 +54,7 @@ namespace neo {
 				_feedForwardRadius(5), _recurrentRadius(0), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.96f),
 				_scActiveRatio(0.02f), _scBoostAlpha(0.01f),
-				_alpha({ 0.1f, 0.1f }), _gamma(0.98f), _lambda({ 0.96f, 0.96f }), _noise(0.0f)
+				_alpha({ 0.01f, 0.001f }), _gamma(0.98f), _lambda({ 0.96f, 0.96f }), _noise(0.0f)
 			{}
 		};
 
