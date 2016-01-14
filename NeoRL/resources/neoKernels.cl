@@ -974,9 +974,9 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 	float predActPrev = read_imagef(predictionActivationsPrev, hiddenPosition).x;
 	float2 predPrev = read_imagef(predictionStatesPrev, hiddenPosition).xy;
 
-	//float predError = target - predActPrev;
+	float predError = target - predPrev.x;
 
-	float tdError = reward + gamma * state.y - predPrev.y;
+	float tdError = reward - predPrev.y;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -994,11 +994,11 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 
 				//float clear = 1.0f - statePrev;
 
-				float newYTrace = weightPrev.y * weightLambda.x + (target - predPrev.x) * statePrev;
+				float newYTrace = weightPrev.y * weightLambda.x + target * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? 1.0f : 0.0f) * newYTrace, newYTrace,
-						weightPrev.z + weightAlpha.y * tdError * newWTrace, newWTrace);
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError * newYTrace + predError * statePrev), newYTrace,
+						weightPrev.z + weightAlpha.y * tdError * statePrev, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}
