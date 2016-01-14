@@ -87,7 +87,7 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenBiases;
-		cl::Image2D _learnStates;
+		DoubleBuffer2D _learnStates;
 		//!@}
 
 		/*!

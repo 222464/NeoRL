@@ -294,7 +294,7 @@ void kernel cscLearnHiddenBiases(read_only image2d_t biasesBack, write_only imag
 }
 
 void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only image2d_t visibleErrors,
-	read_only image2d_t hiddenStates, read_only image2d_t hiddenActivations, 
+	read_only image2d_t hiddenStates, read_only image2d_t hiddenStatesPrev, read_only image2d_t hiddenActivations, 
 	read_only image3d_t weightsForwardBack, write_only image3d_t weightsForwardFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha)
 {
@@ -304,6 +304,10 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
+	float statePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
+
+	float learn = state * (1.0f - statePrev);
+
 	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
 
 	for (int dx = -radius; dx <= radius; dx++)
@@ -320,7 +324,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				
-				float weightForward = weightForwardPrev + weightAlpha * state * (visibleState - activation * weightForwardPrev);
+				float weightForward = weightForwardPrev + weightAlpha * learn * (visibleState - activation * weightForwardPrev);
 	
 				write_imagef(weightsForwardFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weightForward));
 			}
@@ -328,7 +332,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 }
 
 void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only image2d_t visibleStates, read_only image2d_t visibleErrors, 
-	read_only image2d_t hiddenStates, read_only image2d_t hiddenActivations, 
+	read_only image2d_t hiddenStates, read_only image2d_t hiddenStatesPrev, read_only image2d_t hiddenActivations, 
 	read_only image3d_t weightsForwardBack, write_only image3d_t weightsForwardFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda)
 {
@@ -340,6 +344,10 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 	float reward = read_imagef(rewards, hiddenPosition).x;
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
+	float statePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
+
+	float learn = state * (1.0f - statePrev);
+
 	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
 	
 	for (int dx = -radius; dx <= radius; dx++)
@@ -356,7 +364,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 				float visibleError = read_imagef(visibleErrors, visiblePosition).x;
 				
-				float2 weightForward = (float2)(weightForwardPrev.x + reward * weightForwardPrev.y, weightForwardPrev.y * weightLambda + weightAlpha * state * (visibleState - activation * weightForwardPrev.x));
+				float2 weightForward = (float2)(weightForwardPrev.x + reward * weightForwardPrev.y, weightForwardPrev.y * weightLambda + weightAlpha * learn * (visibleState - activation * weightForwardPrev.x));
 	
 				write_imagef(weightsForwardFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weightForward, 0.0f, 0.0f));
 			}
@@ -994,10 +1002,10 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 
 				//float clear = 1.0f - statePrev;
 
-				float newYTrace = weightPrev.y * weightLambda.x + target * statePrev;
-				float newWTrace = weightPrev.w * weightLambda.y + statePrev;
+				float newYTrace = weightPrev.y * weightLambda.x + (target - predPrev.x) * statePrev;
+				float newWTrace = weightPrev.w * weightLambda.y + (0.0f - predPrev.x) * statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError * newYTrace + predError * statePrev), newYTrace,
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? tdError * newYTrace : -tdError * newWTrace), newYTrace,
 						weightPrev.z + weightAlpha.y * tdError * statePrev, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
