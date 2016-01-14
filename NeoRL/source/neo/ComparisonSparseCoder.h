@@ -87,6 +87,7 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenBiases;
+		cl::Image2D _learnStates;
 		//!@}
 
 		/*!
@@ -121,6 +122,7 @@ namespace neo {
 		cl::Kernel _activateKernel;
 		cl::Kernel _activateIgnoreMiddleKernel;
 		cl::Kernel _solveHiddenKernel;
+		cl::Kernel _solveLearnKernel;
 		cl::Kernel _learnHiddenBiasesKernel;
 		cl::Kernel _learnHiddenWeightsKernel;
 		cl::Kernel _learnHiddenWeightsTracesKernel;

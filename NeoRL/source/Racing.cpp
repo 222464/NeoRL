@@ -106,12 +106,13 @@ int main() {
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 16, 16 };
+	layerDescs[0]._scWeightAlpha = 0.1f;
 	layerDescs[1]._size = { 16, 16 };
 	layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentSPG agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.05f, 0.05f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.5f, 0.5f }, generator);
 
 	agent._whiteningKernelRadius = 3;
 
@@ -236,7 +237,7 @@ int main() {
 		float div = 0.0f;
 
 		for (int i = 0; i < aWidth * aHeight; i++) {
-			center += std::min(1.0f, std::max(0.0f, action[i])) * static_cast<float>(i) / static_cast<float>(aWidth * aHeight - 1);
+			center += std::min(1.0f, std::max(0.0f, action[i])) * static_cast<float>(i) / static_cast<float>(aWidth * aHeight);
 			div += std::min(1.0f, std::max(0.0f, action[i]));
 		}
 
@@ -251,7 +252,7 @@ int main() {
 		action.assign(aWidth * aHeight, 0.0f);
 
 		// Exploration
-		if (dist01(generator) < 0.1f)
+		if (dist01(generator) < 0.03f)
 			ratio = dist01(generator) * 0.9999f;
 
 		float steer = ratio * 2.0f - 1.0f;
@@ -420,40 +421,80 @@ int main() {
 			//foregroundS.setColor(sf::Color::Red);
 			window.draw(foregroundS);
 
-			float xOffset = 0.0f;
-			float scale = 2.0f;
+			{
+				float xOffset = 0.0f;
+				float scale = 2.0f;
 
-			for (int l = 0; l < layerDescs.size(); l++) {
-				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y * 2);
+				for (int l = 0; l < layerDescs.size(); l++) {
+					std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y * 2);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+					cs.getQueue().enqueueReadImage(agent.getLayer(l)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
-				sf::Image img;
+					sf::Image img;
 
-				img.create(layerDescs[l]._size.x, layerDescs[l]._size.y);
+					img.create(layerDescs[l]._size.x, layerDescs[l]._size.y);
 
-				for (int x = 0; x < img.getSize().x; x++)
-					for (int y = 0; y < img.getSize().y; y++) {
-						sf::Color c = sf::Color::White;
+					for (int x = 0; x < img.getSize().x; x++)
+						for (int y = 0; y < img.getSize().y; y++) {
+							sf::Color c = sf::Color::White;
 
-						c.r = c.b = c.g = 255.0f * std::min(1.0f, std::max(0.0f, data[(x + y * img.getSize().x) * 2 + 0]));
+							c.r = c.b = c.g = 255.0f * std::min(1.0f, std::max(0.0f, data[(x + y * img.getSize().x) * 2 + 0]));
 
-						img.setPixel(x, y, c);
-					}
+							img.setPixel(x, y, c);
+						}
 
-				layerTextures[l].loadFromImage(img);
+					layerTextures[l].loadFromImage(img);
 
-				sf::Sprite s;
+					sf::Sprite s;
 
-				s.setTexture(layerTextures[l]);
+					s.setTexture(layerTextures[l]);
 
-				s.setPosition(xOffset, window.getSize().y * 0.5f - img.getSize().y * scale);
+					s.setPosition(xOffset, window.getSize().y * 0.5f - img.getSize().y * scale);
 
-				s.setScale(scale, scale);
+					s.setScale(scale, scale);
 
-				window.draw(s);
+					window.draw(s);
 
-				xOffset += img.getSize().x * scale;
+					xOffset += img.getSize().x * scale;
+				}
+			}
+
+			{
+				float xOffset = 0.0f;
+				float scale = 2.0f;
+
+				for (int l = 0; l < layerDescs.size(); l++) {
+					std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
+
+					cs.getQueue().enqueueReadImage(agent.getLayer(l)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+
+					sf::Image img;
+
+					img.create(layerDescs[l]._size.x, layerDescs[l]._size.y);
+
+					for (int x = 0; x < img.getSize().x; x++)
+						for (int y = 0; y < img.getSize().y; y++) {
+							sf::Color c = sf::Color::White;
+
+							c.r = c.b = c.g = 255.0f * std::min(1.0f, std::max(0.0f, data[(x + y * img.getSize().x)]));
+
+							img.setPixel(x, y, c);
+						}
+
+					layerTextures[l].loadFromImage(img);
+
+					sf::Sprite s;
+
+					s.setTexture(layerTextures[l]);
+
+					s.setPosition(xOffset, window.getSize().y * 0.5f - img.getSize().y * scale - 4.0f * 32.0f);
+
+					s.setScale(scale, scale);
+
+					window.draw(s);
+
+					xOffset += img.getSize().x * scale;
+				}
 			}
 
 			{

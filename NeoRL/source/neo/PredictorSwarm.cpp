@@ -67,11 +67,11 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivateSwarm");
 	_inhibitKernel = cl::Kernel(program.getProgram(), "predInhibitSwarm");
 	_learnBiasesKernel = cl::Kernel(program.getProgram(), "predLearnBiasesSwarm");
-	_learnWeightsTracesInhibitedKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarmInhibited");
+	_learnWeightsTracesInhibitedKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarm");
 	_reconstructionErrorKernel = cl::Kernel(program.getProgram(), "predReconstructionErrorSwarm");
 }
 
-void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev, float activeRatio, int inhibitionRadius, std::mt19937 &rng) {
+void PredictorSwarm::activate(sys::ComputeSystem &cs, const cl::Image2D &targets, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev, float activeRatio, int inhibitionRadius, std::mt19937 &rng) {
 	// Start by clearing summation buffer
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -79,7 +79,8 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
-		cs.getQueue().enqueueCopyImage(_hiddenBiases[_back], _hiddenSummationTemp[_back], zeroOrigin, zeroOrigin, hiddenRegion);
+		//cs.getQueue().enqueueCopyImage(_hiddenBiases[_back], _hiddenSummationTemp[_back], zeroOrigin, zeroOrigin, hiddenRegion);
+		cs.getQueue().enqueueFillImage(_hiddenSummationTemp[_back], cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, zeroOrigin, hiddenRegion);
 	}
 
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -121,7 +122,7 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const std::vector<cl::Imag
 
 		int argIndex = 0;
 
-		_reconstructionErrorKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_reconstructionErrorKernel.setArg(argIndex++, targets);
 		_reconstructionErrorKernel.setArg(argIndex++, visibleStatesPrev[vli]);
 		_reconstructionErrorKernel.setArg(argIndex++, vl._reconstructionError);
 		_reconstructionErrorKernel.setArg(argIndex++, vl._weights[_back]);
