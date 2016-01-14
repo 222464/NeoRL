@@ -36,6 +36,11 @@ namespace neo {
 		*/
 		struct VisibleLayer {
 			/*!
+			\brief Reconstruction error
+			*/
+			cl::Image2D _reconstructionError;
+
+			/*!
 			\brief Weights
 			*/
 			DoubleBuffer3D _weights;
@@ -73,11 +78,6 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenSummationTemp;
 
-		/*!
-		\brief Inhibition temporary buffer
-		*/
-		cl::Image2D _inhibitionTemp;
-
 		//!@{
 		/*!
 		\brief Visible layers and descs
@@ -91,12 +91,10 @@ namespace neo {
 		\brief Kernels
 		*/
 		cl::Kernel _activateKernel;
-		cl::Kernel _solveHiddenKernel;
-		cl::Kernel _solveHiddenThresholdKernel;
 		cl::Kernel _inhibitKernel;
 		cl::Kernel _learnBiasesKernel;
-		cl::Kernel _learnWeightsTracesKernel;
 		cl::Kernel _learnWeightsTracesInhibitedKernel;
+		cl::Kernel _reconstructionErrorKernel;
 		//!@}
 
 	public:
@@ -111,16 +109,13 @@ namespace neo {
 		//!@{
 		/*!
 		\brief Activate predictor
-		Specify a non-one active ratio and non-negative-one inhibition radius to inhibit the result
 		*/
-		void activateInhibit(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float noise, float activeRatio, int inhibitionRadius, std::mt19937 &rng);
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float noise, bool threshold, std::mt19937 &rng);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev, float activeRatio, int inhibitionRadius, std::mt19937 &rng);
 		//!@}
 
 		//!@{
 		/*!
-		\brief Learn with RL + prediction error
-		If active ratio is not 1, assume inhibition
+		\brief Learn with RL
 		*/
 		void learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, cl_float biasAlpha, cl_float activeRatio);
 		//!@}

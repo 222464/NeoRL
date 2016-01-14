@@ -198,7 +198,21 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activateInhibit(cs, visibleStates, _layerDescs[l]._noise, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, rng);
+		std::vector<cl::Image2D> visibleStatesPrev;
+
+		if (l < _layers.size() - 1) {
+			visibleStatesPrev.resize(2);
+
+			visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+			visibleStatesPrev[1] = _layers[l + 1]._pred.getHiddenStates()[_front];
+		}
+		else {
+			visibleStatesPrev.resize(1);
+
+			visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
+		}
+
+		_layers[l]._pred.activate(cs, visibleStates, visibleStatesPrev, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, rng);
 	}
 
 	if (learn) {
