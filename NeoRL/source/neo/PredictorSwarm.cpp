@@ -13,7 +13,13 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 	_visibleLayers.resize(_visibleLayerDescs.size());
 
 	cl::Kernel randomUniform2DKernel = cl::Kernel(program.getProgram(), "randomUniform2D");
+	cl::Kernel randomUniform3DKernel = cl::Kernel(program.getProgram(), "randomUniform3D");
 	cl::Kernel randomUniform3DXZKernel = cl::Kernel(program.getProgram(), "randomUniform3DXZ");
+
+	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+	cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
 	// Create layers
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -40,14 +46,13 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 
 		randomUniformXZ(vl._weights[_back], cs, randomUniform3DXZKernel, weightsSize, initWeightRange, rng);
 
+		vl._qTraces = createDoubleBuffer3D(cs, weightsSize, CL_R, CL_FLOAT);
+
+		cs.getQueue().enqueueFillImage(vl._qTraces[_back], zeroColor, zeroOrigin, { static_cast<cl::size_type>(weightsSize.x), static_cast<cl::size_type>(weightsSize.y), static_cast<cl::size_type>(weightsSize.z) });
+
 		// Create images
 		vl._reconstructionError = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
 	}
-
-	cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-	cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
 	// Hidden state data
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
@@ -171,6 +176,8 @@ void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, co
 			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, _hiddenStates[_front]);
 			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._weights[_back]);
 			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._weights[_front]);
+			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._qTraces[_back]);
+			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._qTraces[_front]);
 			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vld._size);
 			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._hiddenToVisible);
 			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vld._radius);
@@ -182,6 +189,7 @@ void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, co
 			cs.getQueue().enqueueNDRangeKernel(_learnWeightsTracesInhibitedKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
 			std::swap(vl._weights[_front], vl._weights[_back]);
+			std::swap(vl._qTraces[_front], vl._qTraces[_back]);
 		}
 	}
 }

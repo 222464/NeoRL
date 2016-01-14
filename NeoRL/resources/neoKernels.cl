@@ -969,7 +969,9 @@ void kernel predLearnBiasesSwarm(read_only image2d_t hiddenStates, read_only ima
 }
 
 void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, read_only image2d_t reconstructionErrorPrev, read_only image2d_t targets,
-	read_only image2d_t predictionStates, read_only image2d_t predictionActivationsPrev, read_only image2d_t predictionStatesPrev, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
+	read_only image2d_t predictionStates, read_only image2d_t predictionActivationsPrev, read_only image2d_t predictionStatesPrev,
+	read_only image3d_t weightsBack, write_only image3d_t weightsFront,
+	read_only image3d_t qTracesBack, write_only image3d_t qTracesFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float2 weightAlpha, float2 weightLambda, float reward, float gamma)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
@@ -984,7 +986,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 
 	float predError = target - predPrev.x;
 
-	float tdError = reward - predPrev.y;
+	float tdError = reward - gamma * state.y - predPrev.y;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -996,6 +998,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 				int wi = offset.y + offset.x * (radius * 2 + 1);
 
 				float4 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0));
+				float qTracePrev = read_imagef(qTracesBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
 				float statePrev = read_imagef(visibleStatesPrev, visiblePosition).x;
 				float errorPrev = read_imagef(reconstructionErrorPrev, visiblePosition).x;
@@ -1003,12 +1006,14 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 				//float clear = 1.0f - statePrev;
 
 				float newYTrace = weightPrev.y * weightLambda.x + (target - predPrev.x) * statePrev;
-				float newWTrace = weightPrev.w * weightLambda.y + ((1.0f - target) - predPrev.x) * statePrev;
+				float newWTrace = weightPrev.w * weightLambda.x + ((1.0f - target) - predPrev.x) * statePrev;
+				float newQTrace = qTracePrev * weightLambda.y + statePrev;
 
 				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? tdError * newYTrace : -tdError * newWTrace), newYTrace,
-						weightPrev.z + weightAlpha.y * tdError * statePrev, newWTrace);
+						weightPrev.z + weightAlpha.y * tdError * newQTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
+				write_imagef(qTracesFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(newQTrace));
 			}
 		}
 }

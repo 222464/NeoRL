@@ -44,6 +44,7 @@ namespace neo {
 			\brief Weights
 			*/
 			DoubleBuffer3D _weights;
+			DoubleBuffer3D _qTraces;
 
 			/*!
 			\brief Transformations
