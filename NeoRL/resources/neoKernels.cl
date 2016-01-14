@@ -969,7 +969,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 
 				//float clear = 1.0f - statePrev;
 
-				float newYTrace = weightPrev.y * weightLambda.x + randError * statePrev;
+				float newYTrace = weightPrev.y * weightLambda.x + (1.0f / noise) * randError * statePrev;
 				float newWTrace = weightPrev.w * weightLambda.x + predError * statePrev;
 				float newQTrace = qTracePrev * weightLambda.y + statePrev;
 
