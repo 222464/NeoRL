@@ -92,7 +92,7 @@ namespace neo {
 		\brief Kernels
 		*/
 		cl::Kernel _activateKernel;
-		cl::Kernel _inhibitKernel;
+		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnBiasesKernel;
 		cl::Kernel _learnWeightsTracesInhibitedKernel;
 		cl::Kernel _reconstructionErrorKernel;
@@ -111,14 +111,14 @@ namespace neo {
 		/*!
 		\brief Activate predictor
 		*/
-		void activate(sys::ComputeSystem &cs, const cl::Image2D &targets, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev, float activeRatio, int inhibitionRadius, std::mt19937 &rng);
+		void activate(sys::ComputeSystem &cs, const cl::Image2D &targets, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev, float activeRatio, int inhibitionRadius, float noise, std::mt19937 &rng);
 		//!@}
 
 		//!@{
 		/*!
 		\brief Learn with RL
 		*/
-		void learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, cl_float biasAlpha, cl_float activeRatio);
+		void learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, cl_float biasAlpha, cl_float activeRatio, float noise);
 		//!@}
 
 		/*!

@@ -252,7 +252,7 @@ int main() {
 		action.assign(aWidth * aHeight, 0.0f);
 
 		// Exploration
-		if (dist01(generator) < 0.03f)
+		if (dist01(generator) < 0.02f)
 			ratio = dist01(generator) * 0.9999f;
 
 		float steer = ratio * 2.0f - 1.0f;

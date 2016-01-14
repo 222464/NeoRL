@@ -70,13 +70,13 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 
 	// Create kernels
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivateSwarm");
-	_inhibitKernel = cl::Kernel(program.getProgram(), "predInhibitSwarm");
+	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHiddenSwarm");
 	_learnBiasesKernel = cl::Kernel(program.getProgram(), "predLearnBiasesSwarm");
 	_learnWeightsTracesInhibitedKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarm");
 	_reconstructionErrorKernel = cl::Kernel(program.getProgram(), "predReconstructionErrorSwarm");
 }
 
-void PredictorSwarm::activate(sys::ComputeSystem &cs, const cl::Image2D &targets, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev, float activeRatio, int inhibitionRadius, std::mt19937 &rng) {
+void PredictorSwarm::activate(sys::ComputeSystem &cs, const cl::Image2D &targets, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev, float activeRatio, int inhibitionRadius, float noise, std::mt19937 &rng) {
 	// Start by clearing summation buffer
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -109,15 +109,22 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const cl::Image2D &targets
 	}
 
 	{
+		std::uniform_int_distribution<int> seedDist(0, 999);
+
+		cl_uint2 seed = { seedDist(rng), seedDist(rng) };
+
 		int argIndex = 0;
 
-		_inhibitKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
-		_inhibitKernel.setArg(argIndex++, _hiddenStates[_front]);
-		_inhibitKernel.setArg(argIndex++, _hiddenSize);
-		_inhibitKernel.setArg(argIndex++, inhibitionRadius);
-		_inhibitKernel.setArg(argIndex++, activeRatio);
+		_solveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_solveHiddenKernel.setArg(argIndex++, _hiddenActivations[_front]);
+		_solveHiddenKernel.setArg(argIndex++, _hiddenSize);
+		_solveHiddenKernel.setArg(argIndex++, inhibitionRadius);
+		_solveHiddenKernel.setArg(argIndex++, activeRatio);
+		_solveHiddenKernel.setArg(argIndex++, noise);
+		_solveHiddenKernel.setArg(argIndex++, seed);
 
-		cs.getQueue().enqueueNDRangeKernel(_inhibitKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 
 	// Reconstruction error
@@ -146,7 +153,7 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const cl::Image2D &targets
 	std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
 }
 
-void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, cl_float biasAlpha, cl_float activeRatio) {
+void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, cl_float biasAlpha, cl_float activeRatio, float noise) {
 	{
 		// Learn biases
 		{
@@ -185,6 +192,8 @@ void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, co
 			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, weightLambda);
 			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, reward);
 			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, gamma);
+			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, activeRatio);
+			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, noise);
 
 			cs.getQueue().enqueueNDRangeKernel(_learnWeightsTracesInhibitedKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
