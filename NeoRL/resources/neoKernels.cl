@@ -947,8 +947,10 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 	float predActPrev = read_imagef(predictionActivationsPrev, hiddenPosition).x;
 	float2 predPrev = read_imagef(predictionStatesPrev, hiddenPosition).xy;
 
-	float randError = predPrev.x - predActPrev;
 	float predError = target - predActPrev;
+	float randError = target - predPrev.x;
+	
+	float correct = target * predActPrev;
 
 	float tdError = reward + gamma * state.y - predPrev.y;
 
@@ -969,11 +971,13 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 
 				//float clear = 1.0f - statePrev;
 
-				float newYTrace = weightPrev.y * weightLambda.x + (1.0f / noise) * randError * statePrev;
-				float newWTrace = weightPrev.w * weightLambda.x + predError * statePrev;
-				float newQTrace = qTracePrev * weightLambda.y + statePrev;
+				float newYTrace = weightPrev.y * weightLambda.x + target * statePrev;
+				float newWTrace = weightPrev.w * weightLambda.x + predPrev.x * statePrev; // Reversal trace
+				float newQTrace = qTracePrev * weightLambda.y + correct * statePrev;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * (tdError > 0.0f ? tdError * newYTrace : -tdError * newWTrace), newYTrace,
+				float change = tdError * newYTrace;
+
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * ((tdError > 0.0f ? tdError * newYTrace : 0.0f) - weightPrev.x), newYTrace,
 						weightPrev.z + weightAlpha.y * tdError * newQTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
