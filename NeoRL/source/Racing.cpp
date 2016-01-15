@@ -121,6 +121,14 @@ int main() {
 	std::vector<float> input(inWidth * inHeight, 0.0f);
 	std::vector<float> action(aWidth * aHeight, 0.0f);
 
+	std::vector<float> actionMults(action.size() - 1);
+	std::vector<float> actionOffsets(action.size() - 1);
+
+	for (int i = 0; i < actionMults.size(); i++) {
+		actionMults[i] = dist01(generator) * 2.0f - 1.0f;
+		actionOffsets[i] = dist01(generator) * 2.0f - 1.0f;
+	}
+
 	deep::SDRRL agent2;
 
 	agent2.createRandom(64, 16, 32, -0.01f, 0.01f, 0.01f, 0.05f, 0.1f, generator);
@@ -233,15 +241,7 @@ int main() {
 			action[1] = -1.0f;*/
 
 		// Organize action
-		float center = 0.0f;
-
-		for (int i = 0; i < aWidth * aHeight; i++) {
-			center += action[i];
-		}
-
-		center /= action.size();
-
-		float ratio = std::min(1.0f, std::max(0.0f, center));
+		float ratio = std::min(1.0f, std::max(0.0f, action[0]));
 
 		// Exploration
 		if (dist01(generator) < 0.05f)
@@ -249,8 +249,11 @@ int main() {
 
 		float steer = ratio * 2.0f - 1.0f;
 
-		action.clear();
-		action.assign(aWidth * aHeight, ratio);
+		action[0] = ratio;
+
+		for (int i = 0; i < actionMults.size(); i++) {
+			action[i + 1] = action[0] * actionMults[i] + actionOffsets[i];
+		}
 
 		// Physics update
 		sf::Vector2f prevPosition = car._position;
