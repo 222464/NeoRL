@@ -234,30 +234,23 @@ int main() {
 
 		// Organize action
 		float center = 0.0f;
-		float div = 0.0f;
 
 		for (int i = 0; i < aWidth * aHeight; i++) {
-			center += std::min(1.0f, std::max(0.0f, action[i])) * static_cast<float>(i) / static_cast<float>(aWidth * aHeight);
-			div += std::min(1.0f, std::max(0.0f, action[i]));
+			center += action[i];
 		}
 
-		float ratio;
-		
-		if (div == 0.0f)
-			ratio = 0.5f;
-		else
-			ratio = center / std::max(0.00001f, div);
+		center /= action.size();
 
-		action.clear();
-		action.assign(aWidth * aHeight, 0.0f);
+		float ratio = std::min(1.0f, std::max(0.0f, center));
 
 		// Exploration
-		if (dist01(generator) < 0.001f)
-			ratio = dist01(generator) * 0.9999f;
+		if (dist01(generator) < 0.05f)
+			ratio = dist01(generator);
 
 		float steer = ratio * 2.0f - 1.0f;
 
-		action[static_cast<int>(ratio * aWidth * aHeight)] = 1.0f;
+		action.clear();
+		action.assign(aWidth * aHeight, ratio);
 
 		// Physics update
 		sf::Vector2f prevPosition = car._position;
@@ -426,44 +419,6 @@ int main() {
 				float scale = 2.0f;
 
 				for (int l = 0; l < layerDescs.size(); l++) {
-					std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y * 2);
-
-					cs.getQueue().enqueueReadImage(agent.getLayer(l)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
-
-					sf::Image img;
-
-					img.create(layerDescs[l]._size.x, layerDescs[l]._size.y);
-
-					for (int x = 0; x < img.getSize().x; x++)
-						for (int y = 0; y < img.getSize().y; y++) {
-							sf::Color c = sf::Color::White;
-
-							c.r = c.b = c.g = 255.0f * std::min(1.0f, std::max(0.0f, data[(x + y * img.getSize().x) * 2 + 0]));
-
-							img.setPixel(x, y, c);
-						}
-
-					layerTextures[l].loadFromImage(img);
-
-					sf::Sprite s;
-
-					s.setTexture(layerTextures[l]);
-
-					s.setPosition(xOffset, window.getSize().y * 0.5f - img.getSize().y * scale);
-
-					s.setScale(scale, scale);
-
-					window.draw(s);
-
-					xOffset += img.getSize().x * scale;
-				}
-			}
-
-			{
-				float xOffset = 0.0f;
-				float scale = 2.0f;
-
-				for (int l = 0; l < layerDescs.size(); l++) {
 					std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
 					cs.getQueue().enqueueReadImage(agent.getLayer(l)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
@@ -531,41 +486,6 @@ int main() {
 				window.setView(view);
 			}
 
-			{
-				std::vector<cl_float> whiteningData(aWidth * aHeight);
-
-				cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, whiteningData.data());
-
-				sf::Image whitenedImage;
-				whitenedImage.create(aWidth, aHeight);
-
-				for (int x = 0; x < whitenedImage.getSize().x; x++)
-					for (int y = 0; y < whitenedImage.getSize().y; y++) {
-						cl_float grey = std::min(1.0f, std::max(0.0f, whiteningData[x + y * whitenedImage.getSize().x]));
-
-						sf::Color c;
-
-						c.r = c.g = c.b = grey * 255.0f;
-
-						whitenedImage.setPixel(x, y, c);
-					}
-
-
-				whitenedTex.loadFromImage(whitenedImage);
-
-				sf::Sprite s;
-
-				s.setTexture(whitenedTex);
-				s.setScale(4.0f, 4.0f);
-				s.setPosition(4.0f * inWidth, 0.0f);
-
-				window.setView(window.getDefaultView());
-
-				window.draw(s);
-
-				window.setView(view);
-			}
-
 			window.display();
 		}
 
@@ -592,7 +512,12 @@ int main() {
 
 		agent.simStep(cs, reset ? -1.0f : 0.03f * reward, inputImage, actionImage, generator);
 
-		cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
+		std::vector<float> actionTemp(action.size() * 2);
+
+		cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
+
+		for (int i = 0; i < action.size(); i++)
+			action[i] = actionTemp[i * 2 + 0];
 
 		// Dummy agent
 		/*float angle = std::acos(std::min(1.0f, std::max(-1.0f, trackPerp.x * carDir.x + trackPerp.y * carDir.y)));

@@ -36,11 +36,6 @@ namespace neo {
 		*/
 		struct VisibleLayer {
 			/*!
-			\brief Reconstruction error
-			*/
-			cl::Image2D _reconstructionError;
-
-			/*!
 			\brief Weights
 			*/
 			DoubleBuffer3D _weights;
@@ -66,7 +61,6 @@ namespace neo {
 		*/
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenActivations;
-		DoubleBuffer2D _hiddenBiases;
 		//!@}
 
 		/*!
@@ -93,7 +87,7 @@ namespace neo {
 		*/
 		cl::Kernel _activateKernel;
 		cl::Kernel _solveHiddenKernel;
-		cl::Kernel _learnBiasesKernel;
+		cl::Kernel _solveHiddenNoInhibitionKernel;
 		cl::Kernel _learnWeightsTracesInhibitedKernel;
 		cl::Kernel _reconstructionErrorKernel;
 		//!@}
@@ -112,6 +106,7 @@ namespace neo {
 		\brief Activate predictor
 		*/
 		void activate(sys::ComputeSystem &cs, const cl::Image2D &targets, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev, float activeRatio, int inhibitionRadius, float noise, std::mt19937 &rng);
+		void activateNoInhibition(sys::ComputeSystem &cs, const cl::Image2D &targets, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev, float activeRatio, int inhibitionRadius, float noise, std::mt19937 &rng);
 		//!@}
 
 		//!@{

@@ -80,7 +80,7 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 		}
 
-		_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l]._size, initWeightRange, rng);
+		_layers[l]._pred.createRandom(cs, program, predDescs, l == 0 ? _actionSize : _layerDescs[l - 1]._size, initWeightRange, rng);
 
 		_layers[l]._predReward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
 		_layers[l]._propagatedPredReward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
@@ -92,15 +92,6 @@ void AgentSPG::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program
 
 		cs.getQueue().enqueueFillImage(_layers[l]._predReward, zeroColor, zeroOrigin, layerRegion);
 		cs.getQueue().enqueueFillImage(_layers[l]._propagatedPredReward, zeroColor, zeroOrigin, layerRegion);
-	}
-
-	{
-		std::vector<Predictor::VisibleLayerDesc> predDescs(1);
-
-		predDescs[0]._size = _layerDescs.front()._size;
-		predDescs[0]._radius = actionPredRadius;
-
-		_actionPred.createRandom(cs, program, predDescs, _actionSize, initWeightRange, false, rng);
 	}
 
 	_predictionRewardKernel = cl::Kernel(program.getProgram(), "phPredictionReward");
@@ -212,7 +203,10 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 			visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 		}
 
-		_layers[l]._pred.activate(cs, _layers[l]._sc.getHiddenStates()[_back], visibleStates, visibleStatesPrev, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, _layerDescs[l]._noise, rng);
+		if (l == 0)
+			_layers[l]._pred.activateNoInhibition(cs, actionTaken, visibleStates, visibleStatesPrev, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, _layerDescs[l]._noise, rng);
+		else
+			_layers[l]._pred.activate(cs, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStates, visibleStatesPrev, _layerDescs[l]._scActiveRatio, _layerDescs[l]._lateralRadius, _layerDescs[l]._noise, rng);
 	}
 
 	if (learn) {
@@ -231,28 +225,8 @@ void AgentSPG::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &
 				visibleStatesPrev[0] = _layers[l]._sc.getHiddenStates()[_front];
 			}
 
-			_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, _layers[l]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio, _layerDescs[l]._noise);
+			_layers[l]._pred.learn(cs, reward, _layerDescs[l]._gamma, l == 0 ? actionTaken : _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._alpha, _layerDescs[l]._lambda, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio, _layerDescs[l]._noise);
 		}
-	}
-
-	// Train to reconstruct
-	{
-		std::vector<cl::Image2D> visibleStates(1);
-
-		visibleStates[0] = _layers.front()._sc.getHiddenStates()[_back];
-
-		_actionPred.activate(cs, visibleStates, false);
-
-		_actionPred.learnCurrent(cs, actionTaken, visibleStates, _actionPredAlpha);
-	}
-
-	// Find action
-	{
-		std::vector<cl::Image2D> visibleStates(1);
-
-		visibleStates[0] = _layers.front()._pred.getHiddenStates()[_back];
-
-		_actionPred.activate(cs, visibleStates, false);
 	}
 }
 

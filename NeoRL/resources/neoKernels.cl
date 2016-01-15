@@ -930,7 +930,7 @@ void kernel predLearnBiasesSwarm(read_only image2d_t hiddenStates, read_only ima
 	write_imagef(hiddenBiasesFront, hiddenPosition, (float4)(bias, 0.0f, 0.0f, 0.0f));
 }
 
-void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, read_only image2d_t reconstructionErrorPrev, read_only image2d_t targets,
+void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, read_only image2d_t targets,
 	read_only image2d_t predictionStates, read_only image2d_t predictionActivationsPrev, read_only image2d_t predictionStatesPrev,
 	read_only image3d_t weightsBack, write_only image3d_t weightsFront,
 	read_only image3d_t qTracesBack, write_only image3d_t qTracesFront,
@@ -947,10 +947,7 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 	float predActPrev = read_imagef(predictionActivationsPrev, hiddenPosition).x;
 	float2 predPrev = read_imagef(predictionStatesPrev, hiddenPosition).xy;
 
-	float predError = target - predActPrev;
-	float randError = target - predPrev.x;
-	
-	float correct = target * predActPrev;
+	float predError = target - predPrev.x;
 
 	float tdError = reward + gamma * state.y - predPrev.y;
 
@@ -967,17 +964,16 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 				float qTracePrev = read_imagef(qTracesBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
 
 				float statePrev = read_imagef(visibleStatesPrev, visiblePosition).x;
-				float errorPrev = read_imagef(reconstructionErrorPrev, visiblePosition).x;
 
 				//float clear = 1.0f - statePrev;
 
-				float newYTrace = weightPrev.y * weightLambda.x + target * statePrev;
-				float newWTrace = weightPrev.w * weightLambda.x + predPrev.x * statePrev; // Reversal trace
-				float newQTrace = qTracePrev * weightLambda.y + correct * statePrev;
+				float newYTrace = weightPrev.y * weightLambda.x + predError * statePrev;
+				float newWTrace = weightPrev.w * weightLambda.x + 0.0f;//predPrev.x * statePrev; // Reversal trace
+				float newQTrace = qTracePrev * weightLambda.y + statePrev;
 
 				float change = tdError * newYTrace;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha.x * ((tdError > 0.0f ? tdError * newYTrace : 0.0f) - weightPrev.x), newYTrace,
+				float4 weight = (float4)(weightPrev.x + weightAlpha.x * fmax(0.0f, tdError) * newYTrace, newYTrace,
 						weightPrev.z + weightAlpha.y * tdError * newQTrace, newWTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
@@ -988,11 +984,8 @@ void kernel predLearnWeightsTracesSwarm(read_only image2d_t visibleStatesPrev, r
 
 void kernel predSolveHiddenSwarm(read_only image2d_t sums,
 	write_only image2d_t states, write_only image2d_t activations,
-	int2 size, int radius, float activeRatio,
-	float noise, uint2 seed)
+	int2 size, int radius, float activeRatio)
 {
-	uint2 seedValue = seed + (uint2)(get_global_id(0) * 122 + 7, get_global_id(1) * 25 + 56) * 23;
-
 	int2 position = (int2)(get_global_id(0), get_global_id(1));
 	
 	float2 sum = read_imagef(sums, position).xy;
@@ -1019,10 +1012,21 @@ void kernel predSolveHiddenSwarm(read_only image2d_t sums,
 
 	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
 
-	float mutated = randFloat(&seedValue) < noise ? 1.0f - state : state;
+	write_imagef(states, position, (float4)(state, sum.y, 0.0f, 0.0f));
+	write_imagef(activations, position, (float4)(sum.x, sum.y, 0.0f, 0.0f));
+}
 
-	write_imagef(states, position, (float4)(mutated, sum.y, 0.0f, 0.0f));
-	write_imagef(activations, position, (float4)(state, sum.y, 0.0f, 0.0f));
+void kernel predSolveHiddenNoInhibitionSwarm(read_only image2d_t sums,
+	write_only image2d_t states, write_only image2d_t activations)
+{
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float2 sum = read_imagef(sums, position).xy;
+
+	float state = sigmoid(sum.x);
+
+	write_imagef(states, position, (float4)(state, sum.y, 0.0f, 0.0f));
+	write_imagef(activations, position, (float4)(sum.x, sum.y, 0.0f, 0.0f));
 }
 
 void kernel predReconstructionErrorSwarm(read_only image2d_t hiddenStates, read_only image2d_t visibleStatesPrev,

@@ -49,19 +49,12 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 		vl._qTraces = createDoubleBuffer3D(cs, weightsSize, CL_R, CL_FLOAT);
 
 		cs.getQueue().enqueueFillImage(vl._qTraces[_back], zeroColor, zeroOrigin, { static_cast<cl::size_type>(weightsSize.x), static_cast<cl::size_type>(weightsSize.y), static_cast<cl::size_type>(weightsSize.z) });
-
-		// Create images
-		vl._reconstructionError = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
 	}
 
 	// Hidden state data
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
 
 	_hiddenActivations = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
-
-	_hiddenBiases = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
-
-	cs.getQueue().enqueueFillImage(_hiddenBiases[_back], zeroColor, zeroOrigin, hiddenRegion);
 
 	_hiddenSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_RG, CL_FLOAT);
 
@@ -71,7 +64,7 @@ void PredictorSwarm::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &p
 	// Create kernels
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivateSwarm");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHiddenSwarm");
-	_learnBiasesKernel = cl::Kernel(program.getProgram(), "predLearnBiasesSwarm");
+	_solveHiddenNoInhibitionKernel = cl::Kernel(program.getProgram(), "predSolveHiddenNoInhibitionSwarm");
 	_learnWeightsTracesInhibitedKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTracesSwarm");
 	_reconstructionErrorKernel = cl::Kernel(program.getProgram(), "predReconstructionErrorSwarm");
 }
@@ -121,31 +114,55 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const cl::Image2D &targets
 		_solveHiddenKernel.setArg(argIndex++, _hiddenSize);
 		_solveHiddenKernel.setArg(argIndex++, inhibitionRadius);
 		_solveHiddenKernel.setArg(argIndex++, activeRatio);
-		_solveHiddenKernel.setArg(argIndex++, noise);
-		_solveHiddenKernel.setArg(argIndex++, seed);
 
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 
-	// Reconstruction error
+	// Swap hidden state buffers
+	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
+	std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
+}
+
+void PredictorSwarm::activateNoInhibition(sys::ComputeSystem &cs, const cl::Image2D &targets, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev, float activeRatio, int inhibitionRadius, float noise, std::mt19937 &rng) {
+	// Start by clearing summation buffer
+	{
+		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
+
+		//cs.getQueue().enqueueCopyImage(_hiddenBiases[_back], _hiddenSummationTemp[_back], zeroOrigin, zeroOrigin, hiddenRegion);
+		cs.getQueue().enqueueFillImage(_hiddenSummationTemp[_back], cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, zeroOrigin, hiddenRegion);
+	}
+
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 		int argIndex = 0;
 
-		_reconstructionErrorKernel.setArg(argIndex++, targets);
-		_reconstructionErrorKernel.setArg(argIndex++, visibleStatesPrev[vli]);
-		_reconstructionErrorKernel.setArg(argIndex++, vl._reconstructionError);
-		_reconstructionErrorKernel.setArg(argIndex++, vl._weights[_back]);
-		_reconstructionErrorKernel.setArg(argIndex++, vld._size);
-		_reconstructionErrorKernel.setArg(argIndex++, _hiddenSize);
-		_reconstructionErrorKernel.setArg(argIndex++, vl._visibleToHidden);
-		_reconstructionErrorKernel.setArg(argIndex++, vl._hiddenToVisible);
-		_reconstructionErrorKernel.setArg(argIndex++, vld._radius);
-		_reconstructionErrorKernel.setArg(argIndex++, vl._reverseRadii);
+		_activateKernel.setArg(argIndex++, visibleStates[vli]);
+		_activateKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+		_activateKernel.setArg(argIndex++, _hiddenSummationTemp[_front]);
+		_activateKernel.setArg(argIndex++, vl._weights[_back]);
+		_activateKernel.setArg(argIndex++, vld._size);
+		_activateKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_activateKernel.setArg(argIndex++, vld._radius);
 
-		cs.getQueue().enqueueNDRangeKernel(_reconstructionErrorKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
+		cs.getQueue().enqueueNDRangeKernel(_activateKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+		// Swap buffers
+		std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
+	}
+
+	{
+		int argIndex = 0;
+
+		_solveHiddenNoInhibitionKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+		_solveHiddenNoInhibitionKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_solveHiddenNoInhibitionKernel.setArg(argIndex++, _hiddenActivations[_front]);
+
+		cs.getQueue().enqueueNDRangeKernel(_solveHiddenNoInhibitionKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 
 	// Swap hidden state buffers
@@ -154,51 +171,35 @@ void PredictorSwarm::activate(sys::ComputeSystem &cs, const cl::Image2D &targets
 }
 
 void PredictorSwarm::learn(sys::ComputeSystem &cs, float reward, float gamma, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, cl_float2 weightAlpha, cl_float2 weightLambda, cl_float biasAlpha, cl_float activeRatio, float noise) {
-	{
-		// Learn biases
-		{
-			int argIndex = 0;
+	// Learn weights
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-			_learnBiasesKernel.setArg(argIndex++, _hiddenStates[_back]);
-			_learnBiasesKernel.setArg(argIndex++, _hiddenBiases[_back]);
-			_learnBiasesKernel.setArg(argIndex++, _hiddenBiases[_front]);
-			_learnBiasesKernel.setArg(argIndex++, biasAlpha);
-			_learnBiasesKernel.setArg(argIndex++, activeRatio);
+		int argIndex = 0;
 
-			cs.getQueue().enqueueNDRangeKernel(_learnBiasesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
-		}
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, visibleStatesPrev[vli]);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, targets);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, _hiddenActivations[_front]);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._weights[_back]);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._weights[_front]);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._qTraces[_back]);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._qTraces[_front]);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vld._size);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vld._radius);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, weightAlpha);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, weightLambda);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, reward);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, gamma);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, activeRatio);
+		_learnWeightsTracesInhibitedKernel.setArg(argIndex++, noise);
 
-		// Learn weights
-		for (int vli = 0; vli < _visibleLayers.size(); vli++) {
-			VisibleLayer &vl = _visibleLayers[vli];
-			VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+		cs.getQueue().enqueueNDRangeKernel(_learnWeightsTracesInhibitedKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
-			int argIndex = 0;
-
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, visibleStatesPrev[vli]);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._reconstructionError);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, targets);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, _hiddenStates[_back]);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, _hiddenActivations[_front]);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, _hiddenStates[_front]);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._weights[_back]);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._weights[_front]);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._qTraces[_back]);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._qTraces[_front]);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vld._size);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vl._hiddenToVisible);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, vld._radius);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, weightAlpha);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, weightLambda);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, reward);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, gamma);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, activeRatio);
-			_learnWeightsTracesInhibitedKernel.setArg(argIndex++, noise);
-
-			cs.getQueue().enqueueNDRangeKernel(_learnWeightsTracesInhibitedKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
-
-			std::swap(vl._weights[_front], vl._weights[_back]);
-			std::swap(vl._qTraces[_front], vl._qTraces[_back]);
-		}
+		std::swap(vl._weights[_front], vl._weights[_back]);
+		std::swap(vl._qTraces[_front], vl._qTraces[_back]);
 	}
 }

@@ -90,11 +90,6 @@ namespace neo {
 		*/
 		cl_int2 _actionSize;
 
-		/*!
-		\brief Reconstructed action storage
-		*/
-		Predictor _actionPred;
-
 		//!@{
 		/*!
 		\brief Layers and descs
@@ -198,7 +193,7 @@ namespace neo {
 		\brief Get exploratory action
 		*/
 		const cl::Image2D &getAction() const {
-			return _actionPred.getHiddenStates()[_back];
+			return _layers.front()._pred.getHiddenStates()[_back];
 		}
 
 		/*!
