@@ -32,23 +32,25 @@ int main() {
 
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 64, 64 };
+	layerDescs[0]._size = { 32, 32 };
+	layerDescs[0]._alpha = { 0.1f, 0.001f };
 	layerDescs[0]._predictiveRadius = 12;
 	layerDescs[0]._feedBackRadius = 12;
-	layerDescs[1]._size = { 48, 48 };
-	layerDescs[2]._size = { 32, 32 };
+	layerDescs[1]._size = { 24, 24 };
+	layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentSPG agent;
 
 	int inWidth = 32;
 	int inHeight = 32;
-	int aWidth = 2;
-	int aHeight = 2;
+	int aWidth = 3;
+	int aHeight = 3;
 	int frameSkip = 3;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, layerDescs, { -0.05f, 0.05f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 12, layerDescs, { -0.05f, 0.05f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
+	cl::Image2D actionImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), aWidth, aHeight);
 
 	sf::VideoMode videoMode(1280, 720);
 
@@ -136,7 +138,8 @@ int main() {
 	float blueReward = 0.0f;
 	float redReward = 0.0f;
 
-	std::vector<float> actionTemp(aWidth * aHeight * 2, 0.0f);
+	std::vector<float> actionTemp(aWidth * aHeight, 0.5f);
+	std::vector<float> actionTemp2(aWidth * aHeight * 2, 0.5f);
 
 	do {
 		sf::Event event;
@@ -293,16 +296,33 @@ int main() {
 			if (skipFrameCounter == 0) {
 				cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, greyData.data());
 
-				agent.simStep(cs, blueReward * 0.01f, inputImage, generator);
+				cs.getQueue().enqueueWriteImage(actionImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, actionTemp.data());
+
+				agent.simStep(cs, blueReward * 0.01f, inputImage, actionImage, generator);
 				
-				cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
+				cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp2.data());
 			
+				for (int i = 0; i < actionTemp.size(); i++) {
+					if (dist01(generator) < 0.1f)
+						actionTemp[i] = dist01(generator);
+					else
+						actionTemp[i] = actionTemp2[i * 2 + 0];
+				}
+
+				actionTemp[2] = actionTemp[0] * 3.0f + 1.0f;
+				actionTemp[3] = actionTemp[0] * -2.0f + 0.4f;
+				actionTemp[4] = actionTemp[0] * 2.0f - 0.4f;
+				actionTemp[5] = actionTemp[0] * -2.0f - 0.4f;
+				actionTemp[6] = actionTemp[1] * -1.5f + 0.2f;
+				actionTemp[7] = actionTemp[1] * 2.1f - 0.4f;
+				actionTemp[8] = actionTemp[1] * -2.0f + 0.4f;
+
 				cs.getQueue().finish();
 			}
 
-			moveLeft = actionTemp[0 * 2 + 0] > 0.5f;
-			moveRight = actionTemp[1 * 2 + 0] > 0.5f;
-			jump = actionTemp[2 * 2 + 0] > 0.5f;
+			moveLeft = actionTemp[0] > 0.75f;
+			moveRight = actionTemp[0] < 0.25f;
+			jump = actionTemp[1] > 0.75f;
 
 			std::cout << blueReward << " " << actionTemp[0 * 2 + 0] << " " << actionTemp[1 * 2 + 0] << std::endl;
 

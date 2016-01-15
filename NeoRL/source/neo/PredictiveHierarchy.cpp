@@ -15,21 +15,35 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	cl_int2 prevLayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(2);
+		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs;
 
-		scDescs[0]._size = prevLayerSize;
-		scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
-		scDescs[0]._ignoreMiddle = false;
-		scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
-		scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
-		scDescs[0]._useTraces = true;
+		if (l == 0) {
+			scDescs.resize(1);
 
-		scDescs[1]._size = _layerDescs[l]._size;
-		scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
-		scDescs[1]._ignoreMiddle = true;
-		scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
-		scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
-		scDescs[1]._useTraces = true;
+			scDescs[0]._size = prevLayerSize;
+			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
+			scDescs[0]._ignoreMiddle = false;
+			scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
+			scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
+			scDescs[0]._useTraces = false;
+		}
+		else {
+			scDescs.resize(2);
+
+			scDescs[0]._size = prevLayerSize;
+			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
+			scDescs[0]._ignoreMiddle = false;
+			scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
+			scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
+			scDescs[0]._useTraces = true;
+
+			scDescs[1]._size = _layerDescs[l]._size;
+			scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
+			scDescs[1]._ignoreMiddle = true;
+			scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
+			scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
+			scDescs[1]._useTraces = true;
+		}
 
 		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
 
@@ -77,19 +91,29 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	_predictionRewardPropagationKernel = cl::Kernel(program.getProgram(), "phPredictionRewardPropagation");
 }
 
-void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn) {
+void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn, bool whiten) {
 	// Whiten input
-	_inputWhitener.filter(cs, input, _whiteningKernelRadius, _whiteningIntensity);
+	if (whiten)
+		_inputWhitener.filter(cs, input, _whiteningKernelRadius, _whiteningIntensity);
 	
 	// Feed forward
-	cl::Image2D prevLayerState = _inputWhitener.getResult();
+	cl::Image2D prevLayerState = whiten ? _inputWhitener.getResult() : input;
 
 	for (int l = 0; l < _layers.size(); l++) {
 		{
-			std::vector<cl::Image2D> visibleStates(2);
+			std::vector<cl::Image2D> visibleStates;
 
-			visibleStates[0] = prevLayerState;
-			visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
+			if (l == 0) {
+				visibleStates.resize(1);
+
+				visibleStates[0] = prevLayerState;
+			}
+			else {
+				visibleStates.resize(2);
+
+				visibleStates[0] = prevLayerState;
+				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
+			}
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 

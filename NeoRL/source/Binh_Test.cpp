@@ -12,8 +12,6 @@
 #include <sstream>
 #include <iostream>
 
-//#define _USE_ECG_DATA
-
 int main()
 {
 	std::mt19937 generator(time(nullptr));
@@ -28,61 +26,56 @@ int main()
 
 	// --------------------------- Create the Sparse Coder ---------------------------
 
-	std::vector<float> inputBuffer(3 * 3, 0.0f);
+	std::vector<float> inputBuffer(2 * 1, 0.0f);
 
-	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 3, 3);
+	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 2, 1);
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 8, 8 };
+	layerDescs[0]._predictiveRadius = 8;
+	layerDescs[0]._feedBackRadius = 8;
+	layerDescs[0]._predWeightAlpha = 0.02f;
 	layerDescs[1]._size = { 8, 8 };
 	layerDescs[2]._size = { 8, 8 };
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 3, 3 }, layerDescs, { -0.01f, 0.01f }, generator);
-	//std::ifstream is("binh_save.neo");
-
-	//ph.readFromStream(cs, prog, is);
-
-#ifdef _USE_ECG_DATA
-	std::ifstream input("e:/ecgsyn.dat");
-	float x, y, z;
-
-#endif
+	ph.createRandom(cs, prog, { 2, 1 }, layerDescs, { -0.01f, 0.01f }, generator);
 
 	sf::RenderWindow renderWindow;
 
-	renderWindow.create(sf::VideoMode(1200, 600), "Reinforcement Learning", sf::Style::Default);
+	renderWindow.create(sf::VideoMode(1200, 600), "Binh's Test", sf::Style::Default);
 
 	renderWindow.setVerticalSyncEnabled(true);
 	renderWindow.setFramerateLimit(60);
 
 	vis::Plot plot;
 	plot._curves.resize(2);
-	plot._curves[0]._shadow = 0.0;	// input
-	plot._curves[1]._shadow = 0.0;	// predict
-
+	plot._curves[0]._shadow = 0.1f;	// input
+	plot._curves[1]._shadow = 0.1f;	// predict
+	
 	sf::RenderTexture plotRT;
 	plotRT.create(1200, 600, false);
+
 	sf::Texture lineGradient;
 	lineGradient.loadFromFile("resources/lineGradient.png");
+
 	sf::Font tickFont;
 	tickFont.loadFromFile("resources/arial.ttf");
 
-	float minReward = -5.0f;
-	float maxReward = +5.0f;
+	float minCurve = -5.0f;
+	float maxCurve = 5.0f;
+
 	plotRT.setActive();
 	plotRT.clear(sf::Color::White);
-	const int plotSampleTicks = 6;
 
-	const int maxBufferSize = 200;
+	const int plotSampleTicks = 1;
+
+	const int maxBufferSize = 50;
+
 	bool quit = false;
 	bool autoplay = false;
-	float anomalyOffset = 0.f;
-	float anomalyFreq = 1.f;
-	float anomalyAmpl = 1.f;
-	float anomalyPhase = 0.f;
 
 	bool sPrev = false;
 
@@ -115,94 +108,58 @@ int main()
 
 		sPrev = sf::Keyboard::isKeyPressed(sf::Keyboard::S);
 
-		if (autoplay || sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-		{
-			++index;
-#ifdef _USE_ECG_DATA
-			if (!input.eof())
-				input >> x >> y >> z;
-			else
-				autoplay = 0;
-			// z - index of PQRSTU: P=1, Q=2, R= 3, S=4, T=5, U=6
-			float value = y*4;	// without amplifying the amplitude, it is very difficult to make a sequence pattern QRST
-#else
-			float value = std::sin(0.164f * 3.141596f * index * anomalyFreq + anomalyPhase) + 0.7f * std::sin(0.12352f * 3.141596f * index * anomalyFreq + anomalyPhase + 0.2154f) + 0.5f * std::sin(0.0612f * 3.141596f * index * anomalyFreq + anomalyPhase - 0.2112f);
-#endif
+		if (autoplay || sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
+			index++;
+
+			float value = index % 5 == 0 ? 1.0f : (index % 3 == 0 ? 1.0f : 0.0f);// std::sin(0.164f * 3.141596f * index + 0.25f);// +0.7f * std::sin(0.12352f * 3.141596f * index * 1.5f + 0.2154f) + 0.5f * std::sin(0.0612f * 3.141596f * index * 3.0f - 0.2112f);
 
 			inputBuffer[0] = value;
 			inputBuffer[1] = 1.0f - value;
-			inputBuffer[2] = 2.0f * value;
-			inputBuffer[3] = 1.0f - 2.0f * value;
-			inputBuffer[4] = value * value;
-			inputBuffer[5] = 1.0f - value * value;
-			inputBuffer[6] = value * value * value;
-			inputBuffer[7] = 1.0f - value * value * value;
-			inputBuffer[8] = value * value * value * value;
 
-			//inputBuffer.clear();
-			//inputBuffer.assign(2 * 2, 0.0f);
+			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, inputBuffer.data());
 
-			//inputBuffer[static_cast<int>(64.0f * (0.5f * value * 0.5f + 0.5f))] = 1.0f;
+			ph.simStep(cs, inputImage, true, false);
 
-			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 3, 3, 1 }, 0, 0, inputBuffer.data());
+			std::vector<float> res(2 * 1);
 
-			ph.simStep(cs, inputImage);
+			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, res.data());
 
-			std::vector<float> res(3 * 3);
+			float v = 0.5f * (res[0] + (1.0f - res[1]));
 
-			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 3, 3, 1 }, 0, 0, res.data());
-
-			/*int maxIndex = 0;
-
-			for (int i = 1; i < 64; i++)
-				if (res[i] > res[maxIndex])
-					maxIndex = i;
-
-			float v = (maxIndex / 64.0f - 0.5f) / 0.5f / 0.5f;*/
-			float v = (res[0] + (1.0f - res[1]) + res[2] / 2.0f + (1.0f - res[3]) / 2.0f) / 4.0f;
-
-			/*std::vector<float> sdr(64);
-
-			cs.getQueue().enqueueReadImage(ph.getLayer(0)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, sdr.data());
-
-			for (int x = 0; x < 8; x++) {
-				for (int y = 0; y < 8; y++)
-					std::cout << sdr[x + y * 8] << " ";
-
-				std::cout << std::endl;
-			}*/
-
-			// plot target data
+			// Plot target data
 			vis::Point p;
 			p._position.x = index;
 			p._position.y = value;
 			p._color = sf::Color::Red;
 			plot._curves[0]._points.push_back(p);
 
-			// plot predicted data
+			// Plot predicted data
 			vis::Point p1;
 			p1._position.x = index;
 			p1._position.y = v;
 			p1._color = sf::Color::Blue;
 			plot._curves[1]._points.push_back(p1);
 
-			if (plot._curves[0]._points.size() > maxBufferSize)
-			{
+			if (plot._curves[0]._points.size() > maxBufferSize) {
 				plot._curves[0]._points.erase(plot._curves[0]._points.begin());
+
 				int firstIndex = 0;
+
 				for (std::vector<vis::Point>::iterator it = plot._curves[0]._points.begin(); it != plot._curves[0]._points.end(); ++it, ++firstIndex)
 					(*it)._position.x = firstIndex;
 
 				plot._curves[1]._points.erase(plot._curves[1]._points.begin());
+
 				firstIndex = 1;
+
 				for (std::vector<vis::Point>::iterator it = plot._curves[1]._points.begin(); it != plot._curves[1]._points.end(); ++it, ++firstIndex)
 					(*it)._position.x = firstIndex;
 			}
 
 			renderWindow.clear();
 
-			plot.draw(plotRT, lineGradient, tickFont, 0.5f, sf::Vector2f(0.0f, plot._curves[0]._points.size()), sf::Vector2f(minReward, maxReward), sf::Vector2f(64.0f, 64.0f), sf::Vector2f(plot._curves[0]._points.size() / 10.0f, (maxReward - minReward) / 10.0f), 2.0f, 4.0f, 2.0f, 6.0f, 2.0f, 4);
-			plot.draw(plotRT, lineGradient, tickFont, 0.5f, sf::Vector2f(0.0f, plot._curves[1]._points.size()), sf::Vector2f(minReward, maxReward), sf::Vector2f(64.0f, 64.0f), sf::Vector2f(plot._curves[1]._points.size() / 10.0f, (maxReward - minReward) / 10.0f), 2.0f, 4.0f, 2.0f, 6.0f, 2.0f, 4);
+			plot.draw(plotRT, lineGradient, tickFont, 0.5f, sf::Vector2f(0.0f, plot._curves[0]._points.size()), sf::Vector2f(minCurve, maxCurve), sf::Vector2f(64.0f, 64.0f), sf::Vector2f(plot._curves[0]._points.size() / 10.0f, (maxCurve - minCurve) / 10.0f), 2.0f, 4.0f, 2.0f, 6.0f, 2.0f, 4);
+			plot.draw(plotRT, lineGradient, tickFont, 0.5f, sf::Vector2f(0.0f, plot._curves[1]._points.size()), sf::Vector2f(minCurve, maxCurve), sf::Vector2f(64.0f, 64.0f), sf::Vector2f(plot._curves[1]._points.size() / 10.0f, (maxCurve - minCurve) / 10.0f), 2.0f, 4.0f, 2.0f, 6.0f, 2.0f, 4);
 
 			plotRT.display();
 

@@ -106,6 +106,7 @@ int main() {
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 16, 16 };
+	layerDescs[0]._alpha = { 0.1f, 0.001f };
 	layerDescs[0]._scWeightAlpha = 0.1f;
 	layerDescs[1]._size = { 16, 16 };
 	layerDescs[2]._size = { 16, 16 };

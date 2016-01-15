@@ -98,14 +98,17 @@ int main() {
 	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 8, 8 };
+	layerDescs[0]._alpha = { 1.0f, 0.01f };
 	layerDescs[1]._size = { 8, 8 };
 	layerDescs[2]._size = { 8, 8 };
 
 	neo::AgentSPG agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, layerDescs, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 12, layerDescs, { -0.01f, 0.01f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
+	cl::Image2D actionTaken = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), aWidth, aHeight);
+
 	std::vector<float> input(inWidth * inHeight, 0.0f);
 	std::vector<float> action(aWidth * aHeight, 0.0f);
 
@@ -216,24 +219,28 @@ int main() {
 		averageReward = (1.0f - averageRewardDecay) * averageReward + averageRewardDecay * reward;
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
+		cs.getQueue().enqueueWriteImage(actionTaken, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
-		agent.simStep(cs, reward, inputImage, generator);
+		agent.simStep(cs, reward, inputImage, actionTaken, generator);
 
 		std::vector<float> actionTemp(action.size() * 2);
 
-		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
+		cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
 
-		float act = 0.0f;
+		action[0] = actionTemp[0];
 
-		for (int i = 0; i < 4; i++) {
-			act += actionTemp[i * 2 + 0] * 2.0f - 1.0f;
+		if (dist01(generator) < 0.05f)
+			action[0] = dist01(generator);
 
-			//std::cout << action[i] << std::endl;
-		}
+		action[1] = actionTemp[0] * 2.1f - 0.24f;
+		action[2] = actionTemp[0] * -0.5f, +0.2f;
+		action[3] = actionTemp[0] - 2.0f;
 
-		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.2f * std::min(1.0f, std::max(-1.0f, act * 0.5f))));
+		float act = action[0] * 2.0f - 1.0f;
 
-		//std::cout << averageReward << std::endl;
+		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.2f * std::min(1.0f, std::max(-1.0f, act))));
+
+		std::cout << act << std::endl;
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
 			window.clear();
