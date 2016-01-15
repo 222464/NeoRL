@@ -135,7 +135,8 @@ int main() {
 
 	std::vector<float> inputs(25, 0.0f);
 
-	std::vector<float> actions(16, 0.0f);
+	std::vector<float> actions(32, 0.5f);
+	std::vector<float> rescaledActions(16, 0.5f);
 
 
 	// ---------------------------- Game Loop -----------------------------
@@ -201,13 +202,13 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 5, 5, 1 }, 0, 0, inputs.data());
 			
-			cs.getQueue().enqueueWriteImage(exploratoryActionImage, CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
+			cs.getQueue().enqueueWriteImage(exploratoryActionImage, CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, rescaledActions.data());
 
 			avgReward = (1.0f - 0.001f) * avgReward + 0.001f * reward;
 
 			std::cout << avgReward << std::endl;
 
-			agent.simStep(cs, reward * 10.0f, exploratoryActionImage, inputImage, generator);
+			agent.simStep(cs, reward * 10.0f, inputImage, exploratoryActionImage, generator);
 
 			cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
 
@@ -219,15 +220,14 @@ int main() {
 
 			for (int i = 0; i < actions.size(); i++) {
 				if (dist01(generator) < 0.05f)
-					actions[i] = dist01(generator) * 2.0f - 1.0f;
+					actions[i] = dist01(generator);
 				else
-					actions[i] = std::min(1.0f, std::max(-1.0f, actions[i]));
+					actions[i] = actions[i];
 			}
 
-			std::vector<float> rescaledActions = actions;
-
+			
 			for (int i = 0; i < rescaledActions.size(); i++)
-				rescaledActions[i] = rescaledActions[i] * 0.5f + 0.5f;
+				rescaledActions[i] = actions[i * 2 + 0];
 
 			runner0.motorUpdate(rescaledActions, 12.0f);
 
