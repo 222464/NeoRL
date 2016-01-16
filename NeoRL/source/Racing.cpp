@@ -10,6 +10,7 @@
 
 #include <neo/AgentHA.h>
 #include <neo/AgentSPG.h>
+#include <neo/AgentPredQ.h>
 #include <deep/SDRRL.h>
 
 #include <time.h>
@@ -103,17 +104,19 @@ int main() {
 	int aWidth = 4;
 	int aHeight = 4;
 
-	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
+	int qWidth = 4;
+	int qHeight = 4;
+
+	std::vector<neo::AgentPredQ::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 16, 16 };
-	layerDescs[0]._alpha = { 0.1f, 0.001f };
 	layerDescs[0]._scWeightAlpha = 0.1f;
 	layerDescs[1]._size = { 16, 16 };
 	layerDescs[2]._size = { 16, 16 };
 
-	neo::AgentSPG agent;
+	neo::AgentPredQ agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 8, layerDescs, { -0.5f, 0.5f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, layerDescs, { -0.5f, 0.5f }, generator);
 
 	agent._whiteningKernelRadius = 3;
 
@@ -514,7 +517,7 @@ int main() {
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 		cs.getQueue().enqueueWriteImage(actionImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
-		agent.simStep(cs, reset ? -1.0f : 0.03f * reward, inputImage, actionImage, generator);
+		agent.simStep(cs, inputImage, actionImage, reset ? -1.0f : 0.03f * reward, generator);
 
 		std::vector<float> actionTemp(action.size() * 2);
 

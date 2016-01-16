@@ -236,14 +236,14 @@ namespace neo {
 		/*!
 		\brief Get aciton whitener
 		*/
-		const ImageWhitener &getInputWhitener() const {
+		const ImageWhitener &getActionWhitener() const {
 			return _actionWhitener;
 		}
 
 		/*!
 		\brief Get Q whitener
 		*/
-		const ImageWhitener &getInputWhitener() const {
+		const ImageWhitener &getQWhitener() const {
 			return _qWhitener;
 		}
 	};

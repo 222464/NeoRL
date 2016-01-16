@@ -325,6 +325,10 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 			_qPred.learnQ(cs, tdError, visibleStatesPrev, _qWeightAlpha, _qWeightLambda);
 		}
 	}
+
+	_prevQ = newQ;
+	_prevTDError = tdError;
+	_prevValue = q;
 }
 
 void AgentPredQ::clearMemory(sys::ComputeSystem &cs) {

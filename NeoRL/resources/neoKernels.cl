@@ -1573,7 +1573,7 @@ void kernel phGetQ(read_only image2d_t qPreds, read_only image2d_t qTransforms, 
 	
 	float pred = read_imagef(qPreds, position).x;
 	
-	float2 trans = read_imagef(qOffsets, position).xy;
+	float2 trans = read_imagef(qTransforms, position).xy;
 	
 	float wQ = (pred - trans.y) / (trans.x == 0.0f ? 1.0f : trans.x);
 
