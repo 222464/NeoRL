@@ -7,7 +7,7 @@
 
 #include <runner/Runner.h>
 
-#include <neo/AgentSwarm.h>
+#include <neo/AgentPredQ.h>
 #include <neo/AgentSPG.h>
 #include <neo/AgentHA.h>
 
@@ -111,19 +111,19 @@ int main() {
 	prsdr.createRandom(7, 7, 8, inputTypes, layerDescs, -0.01f, 0.01f, 0.01f, 0.05f, 0.5f, generator);
 	*/
 
-	std::vector<neo::AgentSPG::LayerDesc> layerDescs(2);
+	std::vector<neo::AgentPredQ::LayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { 16, 16 };
-	layerDescs[0]._alpha = { 0.1f, 0.001f };
+	layerDescs[0]._scWeightAlpha = 0.1f;
 	layerDescs[1]._size = { 16, 16 };
 	//layerDescs[2]._size = { 16, 16 };
 
-	neo::AgentSPG agent;
+	neo::AgentPredQ agent;
 
 	//for (int i = inputCount + outputCount; i < inputCount + outputCount + qCount; i++)
 	//	inputTypes[i] = neo::AgentCACLA::_q;
 
-	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, 12, layerDescs, { -0.5f, 0.5f }, generator);
+	agent.createRandom(cs, prog, { 5, 5 }, { 4, 4 }, { 4, 4 }, layerDescs, { -0.5f, 0.5f }, generator);
 	
 	std::vector<int> actionIndices;
 
@@ -207,9 +207,9 @@ int main() {
 
 			avgReward = (1.0f - 0.001f) * avgReward + 0.001f * reward;
 
-			std::cout << avgReward << std::endl;
+			//std::cout << avgReward << std::endl;
 
-			agent.simStep(cs, reward * 10.0f, inputImage, exploratoryActionImage, generator);
+			agent.simStep(cs, inputImage, exploratoryActionImage, reward * 10.0f, generator);
 
 			cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, actions.data());
 
@@ -228,7 +228,7 @@ int main() {
 
 			
 			for (int i = 0; i < rescaledActions.size(); i++)
-				rescaledActions[i] = actions[i * 2 + 0];
+				rescaledActions[i] = std::min(1.0f, std::max(0.0f, actions[i * 2 + 0]));
 
 			runner0.motorUpdate(rescaledActions, 12.0f);
 

@@ -1,5 +1,7 @@
 #include "AgentPredQ.h"
 
+#include <iostream>
+
 using namespace neo;
 
 void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
@@ -301,9 +303,9 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 			}
 
 			if (l == 0)
-				_layers[l]._pred.learn(cs, tdError, actionTaken, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+				_layers[l]._pred.learn(cs, tdError > 0.0f ? 1.0f : 0.0f, actionTaken, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 			else
-				_layers[l]._pred.learn(cs, tdError, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+				_layers[l]._pred.learn(cs, tdError > 0.0f ? 1.0f : 0.0f, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 		}
 
 		// Q Pred
@@ -325,6 +327,8 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 			_qPred.learnQ(cs, tdError, visibleStatesPrev, _qWeightAlpha, _qWeightLambda);
 		}
 	}
+
+	std::cout << "Q: " << newQ << std::endl;
 
 	_prevQ = newQ;
 	_prevTDError = tdError;
