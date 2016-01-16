@@ -88,6 +88,7 @@ namespace neo {
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnWeightsKernel;
 		cl::Kernel _learnWeightsTracesKernel;
+		cl::Kernel _learnQWeightsTracesKernel;
 		//!@}
 
 		/*!
@@ -116,6 +117,7 @@ namespace neo {
 		*/
 		void learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha);
 		void learn(sys::ComputeSystem &cs, float tdError, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha, float weightLambda);
+		void learnQ(sys::ComputeSystem &cs, float tdError, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha, float weightLambda);
 		void learnCurrent(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha);
 		//!@}
 

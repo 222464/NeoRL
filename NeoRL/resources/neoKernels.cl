@@ -845,6 +845,39 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 		}
 }
 
+void kernel predLearnQWeightsTraces(read_only image2d_t visibleStatesPrev, 
+	read_only image2d_t predictionsPrev, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
+	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda, float tdError)
+{
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
+
+	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
+
+	float alphaError = weightAlpha;
+
+	for (int dx = -radius; dx <= radius; dx++)
+		for (int dy = -radius; dy <= radius; dy++) {
+			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
+
+			if (inBounds0(visiblePosition, visibleSize)) {
+				int2 offset = visiblePosition - fieldLowerBound;
+
+				int wi = offset.y + offset.x * (radius * 2 + 1);
+
+				float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
+
+				float state = read_imagef(visibleStatesPrev, visiblePosition).x;
+
+				float newTrace = weightPrev.y * weightLambda + alphaError * state;
+
+				float2 weight = (float2)(weightPrev.x + tdError * newTrace, newTrace);
+
+				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
+			}
+		}
+}
+
 // ----------------------------------------- Predictor Swarm -----------------------------------------
 
 void kernel predErrorPropagateSwarm(read_only image2d_t targets, read_only image2d_t hiddenStatesPrev,
@@ -1525,24 +1558,24 @@ void kernel phExploration(read_only image2d_t actions,
 	write_imagef(actionsExploratory, position, (float4)(randFloat(&seedValue) < expBreak ? randFloat(&seedValue) * 2.0f - 1.0f : fmin(1.0f, fmax(-1.0f, action + expPert * randNormal(&seedValue)))));
 }
 
-void kernel phSetQ(read_only image2d_t qOffsets, write_only image2d_t qValues, float q) {
+void kernel phSetQ(read_only image2d_t qTransforms, write_only image2d_t qValues, float q) {
 	int2 position = (int2)(get_global_id(0), get_global_id(1));
 	
-	float offset = read_imagef(qOffsets, position).x;
+	float2 trans = read_imagef(qTransforms, position).xy;
 	
-	float wQ = q + offset;
+	float wQ = q * trans.x + trans.y;
 
 	write_imagef(qValues, position, (float4)(wQ));
 }
 
-void kernel phGetQ(read_only image2d_t qPreds, read_only image2d_t qOffsets, write_only image2d_t qValues) {
+void kernel phGetQ(read_only image2d_t qPreds, read_only image2d_t qTransforms, write_only image2d_t qValues) {
 	int2 position = (int2)(get_global_id(0), get_global_id(1));
 	
 	float pred = read_imagef(qPreds, position).x;
 	
-	float offset = read_imagef(qOffsets, position).x;
+	float2 trans = read_imagef(qOffsets, position).xy;
 	
-	float wQ = pred - offset;
+	float wQ = (pred - trans.y) / (trans.x == 0.0f ? 1.0f : trans.x);
 
 	write_imagef(qValues, position, (float4)(wQ));
 }

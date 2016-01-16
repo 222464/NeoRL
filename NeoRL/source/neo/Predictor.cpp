@@ -61,6 +61,7 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHidden");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "predLearnWeights");
 	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTraces");
+	_learnQWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnQWeightsTraces");
 }
 
 void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold) {
@@ -155,6 +156,31 @@ void Predictor::learn(sys::ComputeSystem &cs, float tdError, const cl::Image2D &
 		_learnWeightsTracesKernel.setArg(argIndex++, tdError);
 
 		cs.getQueue().enqueueNDRangeKernel(_learnWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+		std::swap(vl._weights[_front], vl._weights[_back]);
+	}
+}
+
+void Predictor::learnQ(sys::ComputeSystem &cs, float tdError, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha, float weightLambda) {
+	// Learn weights
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		int argIndex = 0;
+
+		_learnQWeightsTracesKernel.setArg(argIndex++, visibleStatesPrev[vli]);
+		_learnQWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_learnQWeightsTracesKernel.setArg(argIndex++, vl._weights[_back]);
+		_learnQWeightsTracesKernel.setArg(argIndex++, vl._weights[_front]);
+		_learnQWeightsTracesKernel.setArg(argIndex++, vld._size);
+		_learnQWeightsTracesKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_learnQWeightsTracesKernel.setArg(argIndex++, vld._radius);
+		_learnQWeightsTracesKernel.setArg(argIndex++, weightAlpha);
+		_learnQWeightsTracesKernel.setArg(argIndex++, weightLambda);
+		_learnQWeightsTracesKernel.setArg(argIndex++, tdError);
+
+		cs.getQueue().enqueueNDRangeKernel(_learnQWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
 		std::swap(vl._weights[_front], vl._weights[_back]);
 	}
