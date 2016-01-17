@@ -81,7 +81,7 @@ void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputePro
 	_forwardErrorKernel = cl::Kernel(program.getProgram(), "cscForwardError");
 }
 
-void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio) {
+void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio, bool bufferSwap) {
 	// Start by clearing summation buffer to biases
 	{
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
@@ -139,7 +139,8 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 	}
 
 	// Swap hidden state buffers
-	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
+	if (bufferSwap)
+		std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 	
 	// Reconstruct (second layer forward + error step)
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {

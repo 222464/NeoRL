@@ -4,11 +4,13 @@
 #include "Predictor.h"
 #include "ImageWhitener.h"
 
+#include <list>
+
 namespace neo {
 	/*!
 	\brief Predictive hierarchy (no RL)
 	*/
-	class AgentPredQ {
+	class AgentER {
 	public:
 		/*!
 		\brief Layer desc
@@ -30,7 +32,6 @@ namespace neo {
 			*/
 			cl_float _scWeightAlpha;
 			cl_float _scWeightRecurrentAlpha;
-			cl_float _scWeightLambda;
 			cl_float _scActiveRatio;
 			cl_float _scBoostAlpha;
 			//!@}
@@ -40,7 +41,6 @@ namespace neo {
 			\brief Predictor parameters
 			*/
 			cl_float _predWeightAlpha;
-			cl_float _predWeightLambda;
 			//!@}
 
 			/*!
@@ -49,9 +49,9 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(0), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.95f),
+				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.001f),
 				_scActiveRatio(0.05f), _scBoostAlpha(0.01f),
-				_predWeightAlpha(0.01f), _predWeightLambda(0.95f)
+				_predWeightAlpha(0.01f)
 			{}
 		};
 
@@ -74,6 +74,28 @@ namespace neo {
 			cl::Image2D _predReward;
 			cl::Image2D _propagatedPredReward;
 			//!@}
+
+			//!@{
+			/*!
+			\brief For replay
+			*/
+			DoubleBuffer2D _scStatesTemp;
+			DoubleBuffer2D _predStatesTemp;
+			//!@}
+		};
+
+		/*!
+		\brief Replay buffer frame
+		*/
+		struct ReplayFrame {
+			std::vector<std::vector<int>> _layerStateBitIndices;
+			std::vector<std::vector<int>> _layerPredBitIndices;
+
+			std::vector<float> _prevExploratoryAction;
+			std::vector<float> _prevBestAction;
+
+			float _q;
+			float _originalQ;
 		};
 
 	private:
@@ -96,6 +118,16 @@ namespace neo {
 		\brief Q Input layer
 		*/
 		cl::Image2D _qInput;
+
+		/*!
+		\brief Q Target layer
+		*/
+		cl::Image2D _qTarget;
+
+		/*!
+		\brief Action target layer
+		*/
+		cl::Image2D _actionTarget;
 
 		/*!
 		\brief Transformation on Q values
@@ -140,6 +172,11 @@ namespace neo {
 		float _prevTDError;
 		//!@}
 
+		/*!
+		\brief Experience replay buffer
+		*/
+		std::list<ReplayFrame> _frames;
+
 	public:
 		//!@{
 		/*!
@@ -156,17 +193,20 @@ namespace neo {
 		cl_float _qGamma;
 		cl_float _qAlpha;
 		cl_float _qWeightAlpha;
-		cl_float _qWeightLambda;
+
+		int _maxReplayFrames;
+		int _replayIterations;
 		//!@}
 
 		/*!
 		\brief Initialize defaults
 		*/
-		AgentPredQ()
+		AgentER()
 			: _whiteningKernelRadius(1),
 			_whiteningIntensity(1024.0f),
 			_qGamma(0.98f), _qAlpha(0.5f),
-			_qWeightAlpha(0.01f), _qWeightLambda(0.95f),
+			_qWeightAlpha(0.01f),
+			_maxReplayFrames(600), _replayIterations(10),
 			_prevValue(0.0f), _prevQ(0.0f), _prevTDError(0.0f)
 		{}
 
@@ -175,7 +215,7 @@ namespace neo {
 		Requires the compute system, program with the NeoRL kernels, and initialization information.
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			cl_int2 inputSize, cl_int2 actionSize, cl_int2 qSize, 
+			cl_int2 inputSize, cl_int2 actionSize, cl_int2 qSize,
 			const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange,
 			std::mt19937 &rng);

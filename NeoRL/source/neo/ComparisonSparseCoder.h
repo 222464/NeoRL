@@ -141,7 +141,7 @@ namespace neo {
 		/*!
 		\brief Activate (find sparse codes)
 		*/
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio, bool bufferSwap = true);
 
 		/*!
 		\brief Reconstruct (find input from sparse codes)

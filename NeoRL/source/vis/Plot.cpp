@@ -168,7 +168,7 @@ void Plot::draw(sf::RenderTarget &target, const sf::Texture &lineGradientTexture
 	{
 		float xDistance = domain.y - domain.x;
 		int xTicks = std::floor(xDistance / tickIncrements.x);
-		float xTickOffset = std::fmod(domain.x, tickIncrements.x);
+		float xTickOffset = 0.0f;// std::fmod(domain.x, tickIncrements.x);
 
 		if (xTickOffset < 0.0f)
 			xTickOffset += tickIncrements.x;
@@ -209,7 +209,7 @@ void Plot::draw(sf::RenderTarget &target, const sf::Texture &lineGradientTexture
 	{
 		float yDistance = range.y - range.x;
 		int yTicks = std::floor(yDistance / tickIncrements.y);
-		float yTickOffset = std::fmod(range.x, tickIncrements.y);
+		float yTickOffset = 0.0f;// std::fmod(range.x, tickIncrements.y);
 
 		if (yTickOffset < 0.0f)
 			yTickOffset += tickIncrements.y;

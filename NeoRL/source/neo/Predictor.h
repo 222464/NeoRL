@@ -109,7 +109,7 @@ namespace neo {
 		/*!
 		\brief Activate predictor
 		*/
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold = true);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold = true, bool bufferSwap = true);
 
 		//!@{
 		/*!

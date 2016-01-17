@@ -159,8 +159,7 @@ int main()
 			renderWindow.clear();
 
 			plot.draw(plotRT, lineGradient, tickFont, 0.5f, sf::Vector2f(0.0f, plot._curves[0]._points.size()), sf::Vector2f(minCurve, maxCurve), sf::Vector2f(64.0f, 64.0f), sf::Vector2f(plot._curves[0]._points.size() / 10.0f, (maxCurve - minCurve) / 10.0f), 2.0f, 4.0f, 2.0f, 6.0f, 2.0f, 4);
-			plot.draw(plotRT, lineGradient, tickFont, 0.5f, sf::Vector2f(0.0f, plot._curves[1]._points.size()), sf::Vector2f(minCurve, maxCurve), sf::Vector2f(64.0f, 64.0f), sf::Vector2f(plot._curves[1]._points.size() / 10.0f, (maxCurve - minCurve) / 10.0f), 2.0f, 4.0f, 2.0f, 6.0f, 2.0f, 4);
-
+	
 			plotRT.display();
 
 			sf::Sprite plotSprite;

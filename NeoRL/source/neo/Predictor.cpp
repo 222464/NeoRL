@@ -64,7 +64,7 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 	_learnQWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnQWeightsTraces");
 }
 
-void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold) {
+void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold, bool bufferSwap) {
 	// Start by clearing summation buffer
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -108,7 +108,8 @@ void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> 
 		cs.getQueue().enqueueCopyImage(_hiddenSummationTemp[_back], _hiddenStates[_front], { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 });
 
 	// Swap hidden state buffers
-	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
+	if (bufferSwap)
+		std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 }
 
 void Predictor::learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha) {

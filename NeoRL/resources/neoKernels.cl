@@ -306,7 +306,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates, read_only i
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	float statePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
 
-	float learn = state * (1.0f - statePrev);
+	float learn = state;// * (1.0f - statePrev);
 
 	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
 
@@ -346,7 +346,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
 	float statePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
 
-	float learn = state * (1.0f - statePrev);
+	float learn = state;// * (1.0f - statePrev);
 
 	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
 	

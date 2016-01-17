@@ -12,6 +12,8 @@
 
 #include <neo/AgentPredQ.h>
 
+#include <vis/Plot.h>
+
 #include <time.h>
 #include <iostream>
 #include <random>
@@ -80,10 +82,33 @@ int main() {
 
 	sf::RenderWindow window;
 
-	window.create(sf::VideoMode(800, 800), "BIDInet", sf::Style::Default);
+	window.create(sf::VideoMode(1600, 800), "BIDInet", sf::Style::Default);
 
 	window.setFramerateLimit(60);
 	window.setVerticalSyncEnabled(true);
+
+	vis::Plot plot;
+	plot._curves.resize(1);
+	plot._curves[0]._shadow = 0.1f;	// input
+
+	sf::RenderTexture plotRT;
+	plotRT.create(800, 800, false);
+
+	sf::Texture lineGradient;
+	lineGradient.loadFromFile("resources/lineGradient.png");
+
+	sf::Font tickFont;
+	tickFont.loadFromFile("resources/arial.ttf");
+
+	float minCurve = -0.1f;
+	float maxCurve = 0.1f;
+
+	plotRT.setActive();
+	plotRT.clear(sf::Color::White);
+
+	const int plotSampleTicks = 1;
+
+	const int maxBufferSize = 200;
 
 	sf::RenderTexture visionRT;
 
@@ -129,6 +154,8 @@ int main() {
 	const float averageRewardDecay = 0.003f;
 
 	int steps = 0;
+
+	int plotTimer = 0;
 
 	do {
 		clock.restart();
@@ -245,6 +272,35 @@ int main() {
 
 		std::cout << act << std::endl;
 
+		// Plot target data
+		if (plotTimer > 60) {
+			plotTimer = 0;
+
+			vis::Point p;
+			p._position.x = steps / 60.0f;
+			p._position.y = averageReward;
+			p._color = sf::Color::Red;
+			plot._curves[0]._points.push_back(p);
+
+			if (plot._curves[0]._points.size() > maxBufferSize) {
+				plot._curves[0]._points.erase(plot._curves[0]._points.begin());
+
+				int firstIndex = 0;
+
+				for (std::vector<vis::Point>::iterator it = plot._curves[0]._points.begin(); it != plot._curves[0]._points.end(); ++it, ++firstIndex)
+					(*it)._position.x = firstIndex;
+			}
+
+			minCurve = std::min(minCurve, averageReward * 1.2f);
+			maxCurve = std::max(maxCurve, averageReward * 1.2f);
+
+			plot.draw(plotRT, lineGradient, tickFont, 0.5f, sf::Vector2f(0.0f, plot._curves[0]._points.size()), sf::Vector2f(minCurve, maxCurve), sf::Vector2f(64.0f, 64.0f), sf::Vector2f(plot._curves[0]._points.size() / 10.0f, (maxCurve - minCurve) / 10.0f), 2.0f, 4.0f, 2.0f, 6.0f, 2.0f, 4);
+		
+			plotRT.display();
+		}
+
+		plotTimer++;
+
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
 			window.clear();
 
@@ -257,6 +313,13 @@ int main() {
 			vis.setScale(4.0f, 4.0f);
 
 			window.draw(vis);
+
+			sf::Sprite ps;
+
+			ps.setTexture(plotRT.getTexture());
+			ps.setPosition(800.0f, 0.0f);
+
+			window.draw(ps);
 
 			/*sf::Image predImg;
 
@@ -287,10 +350,10 @@ int main() {
 			float xOffset = 0.0f;
 			float scale = 4.0f;
 
-			for (int l = 0; l < layerDescs.size() - 1; l++) {
+			for (int l = 0; l < layerDescs.size() - 2; l++) {
 				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l + 1)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 
