@@ -267,6 +267,7 @@ void AgentER::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl
 	frame._q = frame._originalQ = newQ;
 
 	frame._layerStateBitIndices.resize(_layers.size());
+	frame._layerPredBitIndices.resize(_layers.size());
 
 	for (int l = 0; l < _layers.size(); l++) {
 		std::vector<float> state(_layerDescs[l]._size.x * _layerDescs[l]._size.y);
@@ -299,6 +300,9 @@ void AgentER::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl
 	frame._prevExploratoryAction = prevTakenAction;
 	frame._prevBestAction = prevBestAction;
 
+	for (int i = 0; i < prevBestAction.size(); i++)
+		frame._prevBestAction[i] = std::min(1.0f, std::max(-1.0f, prevBestAction[i]));
+
 	_frames.push_front(frame);
 
 	while (_frames.size() > _maxReplayFrames)
@@ -330,16 +334,16 @@ void AgentER::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl
 				std::vector<float> pred(prevLayerSize.x * prevLayerSize.y, 0.0f);
 				std::vector<float> predPrev(prevLayerSize.x * prevLayerSize.y, 0.0f);
 
-				for (int i = 0; i < pFrame->_layerStateBitIndices.size(); i++)
+				for (int i = 0; i < pFrame->_layerStateBitIndices[l].size(); i++)
 					state[pFrame->_layerStateBitIndices[l][i]] = 1.0f;
 
-				for (int i = 0; i < pFramePrev->_layerStateBitIndices.size(); i++)
+				for (int i = 0; i < pFramePrev->_layerStateBitIndices[l].size(); i++)
 					statePrev[pFramePrev->_layerStateBitIndices[l][i]] = 1.0f;
 
-				for (int i = 0; i < pFrame->_layerPredBitIndices.size(); i++)
+				for (int i = 0; i < pFrame->_layerPredBitIndices[l].size(); i++)
 					pred[pFrame->_layerPredBitIndices[l][i]] = 1.0f;
 
-				for (int i = 0; i < pFramePrev->_layerPredBitIndices.size(); i++)
+				for (int i = 0; i < pFramePrev->_layerPredBitIndices[l].size(); i++)
 					predPrev[pFramePrev->_layerPredBitIndices[l][i]] = 1.0f;
 
 				cs.getQueue().enqueueWriteImage(_layers[l]._scStatesTemp[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_layerDescs[l]._size.x), static_cast<cl::size_type>(_layerDescs[l]._size.y), 1 }, 0, 0, state.data());
@@ -357,19 +361,18 @@ void AgentER::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl
 			cs.getQueue().enqueueWriteImage(_actionTarget, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionSize.x), static_cast<cl::size_type>(_actionSize.y), 1 }, 0, 0,
 				(pFrame->_q > pFrame->_originalQ ? pFrame->_prevExploratoryAction.data() : pFrame->_prevBestAction.data()));
 
-			for (int l = _layers.size() - 1; l >= 0; l--) {
+			for (int l = 0; l < _layers.size(); l++) {
 				std::vector<cl::Image2D> visibleStates;
 
-				if (l < _layers.size() - 1) {
+				if (l != 0) {
 					visibleStates.resize(2);
 
-					visibleStates[0] = _layers[l]._scStatesTemp[_back];
-					visibleStates[1] = _layers[l + 1]._predStatesTemp[_back];
-				}
-				else {
-					visibleStates.resize(1);
+					visibleStates[0] = _layers[l - 1]._sc.getHiddenStates()[_back];
+					visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
 
-					visibleStates[0] = _layers[l]._scStatesTemp[_back];
+					_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio, false);
+
+					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 				}
 
 				std::vector<cl::Image2D> visibleStatesPrev;
@@ -386,12 +389,12 @@ void AgentER::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl
 					visibleStatesPrev[0] = _layers[l]._scStatesTemp[_front];
 				}
 
-				if (l == 0)
-					_layers[l]._pred.learn(cs, _actionTarget, visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
-				else
-					_layers[l]._pred.learn(cs, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+				_layers[l]._pred.activate(cs, visibleStatesPrev, l != 0, false);
 
-				_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+				if (l == 0)
+					_layers[l]._pred.learnCurrent(cs, _actionTarget, visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+				else
+					_layers[l]._pred.learnCurrent(cs, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 			}
 
 			// Q Pred
