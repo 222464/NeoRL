@@ -10,7 +10,7 @@
 
 #include <runner/Runner.h>
 
-#include <neo/AgentSPG.h>
+#include <neo/AgentPredQ.h>
 
 #include <time.h>
 #include <iostream>
@@ -95,16 +95,19 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	std::vector<neo::AgentSPG::LayerDesc> layerDescs(3);
+	int qWidth = 2;
+	int qHeight = 2;
 
-	layerDescs[0]._size = { 8, 8 };
-	layerDescs[0]._alpha = { 1.0f, 0.01f };
-	layerDescs[1]._size = { 8, 8 };
-	layerDescs[2]._size = { 8, 8 };
+	std::vector<neo::AgentPredQ::LayerDesc> layerDescs(3);
 
-	neo::AgentSPG agent;
+	layerDescs[0]._size = { 16, 16 };
+	layerDescs[0]._scWeightAlpha = 0.01f;
+	layerDescs[1]._size = { 16, 16 };
+	layerDescs[2]._size = { 16, 16 };
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, 12, layerDescs, { -0.01f, 0.01f }, generator);
+	neo::AgentPredQ agent;
+
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, layerDescs, { -0.01f, 0.01f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	cl::Image2D actionTaken = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), aWidth, aHeight);
@@ -221,20 +224,20 @@ int main() {
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 		cs.getQueue().enqueueWriteImage(actionTaken, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
-		agent.simStep(cs, reward, inputImage, actionTaken, generator);
+		agent.simStep(cs, inputImage, actionTaken, reward, generator);
 
 		std::vector<float> actionTemp(action.size() * 2);
 
 		cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
 
-		action[0] = actionTemp[0];
+		action[0] = std::min(1.0f, std::max(0.0f, actionTemp[0]));
 
 		if (dist01(generator) < 0.05f)
 			action[0] = dist01(generator);
 
-		action[1] = actionTemp[0] * 2.1f - 0.24f;
-		action[2] = actionTemp[0] * -0.5f, +0.2f;
-		action[3] = actionTemp[0] - 2.0f;
+		action[1] = action[0] * 2.1f - 0.24f;
+		action[2] = action[0] * -0.5f, +0.2f;
+		action[3] = action[0] - 2.0f;
 
 		float act = action[0] * 2.0f - 1.0f;
 
