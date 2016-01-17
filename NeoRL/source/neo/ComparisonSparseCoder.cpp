@@ -63,21 +63,17 @@ void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputePro
 
 	_hiddenBiases = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
-	_learnStates = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
-
 	//randomUniform(_hiddenBiases[_back], cs, randomUniform2DKernel, _hiddenSize, initWeightRange, rng);
 	cs.getQueue().enqueueFillImage(_hiddenBiases[_back], zeroColor, zeroOrigin, hiddenRegion);
 
 	_hiddenActivationSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 	
 	cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
-	cs.getQueue().enqueueFillImage(_learnStates[_back], zeroColor, zeroOrigin, hiddenRegion);
 
 	// Create kernels
 	_activateKernel = cl::Kernel(program.getProgram(), "cscActivate");
 	_activateIgnoreMiddleKernel = cl::Kernel(program.getProgram(), "cscActivateIgnoreMiddle");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "cscSolveHidden");
-	_solveLearnKernel = cl::Kernel(program.getProgram(), "cscSolveLearn");
 	_learnHiddenBiasesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenBiases");
 	_learnHiddenWeightsKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeights");
 	_learnHiddenWeightsTracesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsTraces");
@@ -91,7 +87,7 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
-		cs.getQueue().enqueueFillImage(_hiddenActivationSummationTemp[_back], cl_float4 { 0.0f, 0.0f, 0.0f, 0.0f }, zeroOrigin, hiddenRegion);
+		cs.getQueue().enqueueCopyImage(_hiddenBiases[_back], _hiddenActivationSummationTemp[_back], zeroOrigin, zeroOrigin, hiddenRegion);
 	}
 
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -142,24 +138,9 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 
-	// Now find learn states (like hidden states, but with bias applied)
-	{
-		int argIndex = 0;
-
-		_solveLearnKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
-		_solveLearnKernel.setArg(argIndex++, _hiddenBiases[_back]);
-		_solveLearnKernel.setArg(argIndex++, _learnStates[_front]);
-		_solveLearnKernel.setArg(argIndex++, _hiddenSize);
-		_solveLearnKernel.setArg(argIndex++, _lateralRadius);
-		_solveLearnKernel.setArg(argIndex++, activeRatio);
-
-		cs.getQueue().enqueueNDRangeKernel(_solveLearnKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
-	}
-
 	// Swap hidden state buffers
 	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
-	std::swap(_learnStates[_front], _learnStates[_back]);
-
+	
 	// Reconstruct (second layer forward + error step)
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 		VisibleLayer &vl = _visibleLayers[vli];
@@ -229,8 +210,8 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const std::vector<cl::
 
 		_learnHiddenWeightsKernel.setArg(argIndex++, visibleStates[vli]);
 		_learnHiddenWeightsKernel.setArg(argIndex++, vl._reconstructionError);
-		_learnHiddenWeightsKernel.setArg(argIndex++, _learnStates[_back]);
-		_learnHiddenWeightsKernel.setArg(argIndex++, _learnStates[_front]);
+		_learnHiddenWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
+		_learnHiddenWeightsKernel.setArg(argIndex++, _hiddenStates[_front]);
 		_learnHiddenWeightsKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
 		_learnHiddenWeightsKernel.setArg(argIndex++, vl._weightsForward[_back]);
 		_learnHiddenWeightsKernel.setArg(argIndex++, vl._weightsForward[_front]);
@@ -275,8 +256,8 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const cl::Image2D &rew
 			_learnHiddenWeightsTracesKernel.setArg(argIndex++, rewards);
 			_learnHiddenWeightsTracesKernel.setArg(argIndex++, visibleStates[vli]);
 			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vl._reconstructionError);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, _learnStates[_back]);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, _learnStates[_front]);
+			_learnHiddenWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_back]);
+			_learnHiddenWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_front]);
 			_learnHiddenWeightsTracesKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
 			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vl._weightsForward[_back]);
 			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vl._weightsForward[_front]);
@@ -293,8 +274,8 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const cl::Image2D &rew
 
 			_learnHiddenWeightsKernel.setArg(argIndex++, visibleStates[vli]);
 			_learnHiddenWeightsKernel.setArg(argIndex++, vl._reconstructionError);
-			_learnHiddenWeightsKernel.setArg(argIndex++, _learnStates[_back]);
-			_learnHiddenWeightsKernel.setArg(argIndex++, _learnStates[_front]);
+			_learnHiddenWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
+			_learnHiddenWeightsKernel.setArg(argIndex++, _hiddenStates[_front]);
 			_learnHiddenWeightsKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
 			_learnHiddenWeightsKernel.setArg(argIndex++, vl._weightsForward[_back]);
 			_learnHiddenWeightsKernel.setArg(argIndex++, vl._weightsForward[_front]);

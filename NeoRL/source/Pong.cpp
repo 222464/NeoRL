@@ -101,7 +101,7 @@ int main() {
 	std::vector<neo::AgentPredQ::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 16, 16 };
-	layerDescs[0]._scWeightAlpha = 0.01f;
+	layerDescs[0]._scWeightAlpha = 0.001f;
 	layerDescs[1]._size = { 16, 16 };
 	layerDescs[2]._size = { 16, 16 };
 
@@ -226,20 +226,20 @@ int main() {
 
 		agent.simStep(cs, inputImage, actionTaken, reward, generator);
 
-		std::vector<float> actionTemp(action.size() * 2);
+		std::vector<float> actionTemp(action.size());
 
 		cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
 
-		action[0] = std::min(1.0f, std::max(0.0f, actionTemp[0]));
+		action[0] = std::min(1.0f, std::max(-1.0f, actionTemp[0]));
 
 		if (dist01(generator) < 0.05f)
-			action[0] = dist01(generator);
+			action[0] = dist01(generator) * 2.0f - 1.0f;
 
 		action[1] = action[0] * 2.1f - 0.24f;
 		action[2] = action[0] * -0.5f, +0.2f;
 		action[3] = action[0] - 2.0f;
 
-		float act = action[0] * 2.0f - 1.0f;
+		float act = action[0];
 
 		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.2f * std::min(1.0f, std::max(-1.0f, act))));
 
