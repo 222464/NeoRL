@@ -155,9 +155,9 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 
 			if (learn) {
 				if (l == 0)
-					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 				else
-					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 			}
 		}
 
@@ -223,7 +223,7 @@ void PredictiveHierarchy::writeToStream(sys::ComputeSystem &cs, std::ostream &os
 
 		// Desc
 		os << ld._size.x << " " << ld._size.y << " " << ld._feedForwardRadius << " " << ld._recurrentRadius << " " << ld._lateralRadius << " " << ld._feedBackRadius << " " << ld._predictiveRadius << std::endl;
-		os << ld._scWeightAlpha << " " << ld._scWeightRecurrentAlpha << " " << ld._scWeightLambda << " " << ld._scActiveRatio << " " << ld._scBoostAlpha << std::endl;
+		//os << ld._scWeightAlpha << " " << ld._scWeightRecurrentAlpha << " " << ld._scWeightLambda << " " << ld._scActiveRatio << " " << ld._scBoostAlpha << std::endl;
 		os << ld._predWeightAlpha << std::endl;
 
 		//l._sc.writeToStream(cs, os);
@@ -271,7 +271,7 @@ void PredictiveHierarchy::readFromStream(sys::ComputeSystem &cs, sys::ComputePro
 
 		// Desc
 		is >> ld._size.x >> ld._size.y >> ld._feedForwardRadius >> ld._recurrentRadius >> ld._lateralRadius >> ld._feedBackRadius >> ld._predictiveRadius;
-		is >> ld._scWeightAlpha >> ld._scWeightRecurrentAlpha >> ld._scWeightLambda >> ld._scActiveRatio >> ld._scBoostAlpha;
+		//is >> ld._scWeightAlpha >> ld._scWeightRecurrentAlpha >> ld._scWeightLambda >> ld._scActiveRatio >> ld._scBoostAlpha;
 		is >> ld._predWeightAlpha;
 
 		//l._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);

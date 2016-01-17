@@ -7,7 +7,7 @@ using namespace neo;
 void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, cl_int2 actionSize, cl_int2 qSize,
 	const std::vector<LayerDesc> &layerDescs,
-	cl_float2 initWeightRange,
+	cl_float2 initWeightRange, cl_float2 initInhibitionRange, cl_float initThreshold,
 	std::mt19937 &rng)
 {
 	_inputSize = inputSize;
@@ -22,7 +22,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	cl_int2 prevLayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs;
+		std::vector<SparseCoder::VisibleLayerDesc> scDescs;
 
 		if (l == 0) {
 			scDescs.resize(3);
@@ -66,7 +66,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			scDescs[1]._useTraces = true;
 		}
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initInhibitionRange, initThreshold, rng);
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
@@ -184,7 +184,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
 			}
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
 
 			// Get reward
 			if (l < _layers.size() - 1) {
@@ -224,9 +224,9 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 
 			if (learn) {
 				if (l == 0)
-					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 				else
-					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
 			}
 		}
 	}
@@ -352,10 +352,10 @@ void AgentPredQ::writeToStream(sys::ComputeSystem &cs, std::ostream &os) const {
 
 		// Desc
 		os << ld._size.x << " " << ld._size.y << " " << ld._feedForwardRadius << " " << ld._recurrentRadius << " " << ld._lateralRadius << " " << ld._feedBackRadius << " " << ld._predictiveRadius << std::endl;
-		os << ld._scWeightAlpha << " " << ld._scWeightRecurrentAlpha << " " << ld._scWeightLambda << " " << ld._scActiveRatio << " " << ld._scBoostAlpha << std::endl;
+		//os << ld._scWeightAlpha << " " << ld._scWeightRecurrentAlpha << " " << ld._scWeightLambda << " " << ld._scActiveRatio << " " << ld._scBoostAlpha << std::endl;
 		os << ld._predWeightAlpha << std::endl;
 
-		l._sc.writeToStream(cs, os);
+		//l._sc.writeToStream(cs, os);
 		l._pred.writeToStream(cs, os);
 
 		// Layer
@@ -400,14 +400,14 @@ void AgentPredQ::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &pro
 
 		// Desc
 		is >> ld._size.x >> ld._size.y >> ld._feedForwardRadius >> ld._recurrentRadius >> ld._lateralRadius >> ld._feedBackRadius >> ld._predictiveRadius;
-		is >> ld._scWeightAlpha >> ld._scWeightRecurrentAlpha >> ld._scWeightLambda >> ld._scActiveRatio >> ld._scBoostAlpha;
+		//is >> ld._scWeightAlpha >> ld._scWeightRecurrentAlpha >> ld._scWeightLambda >> ld._scActiveRatio >> ld._scBoostAlpha;
 		is >> ld._predWeightAlpha;
 
 		//l._reward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
 
 		//l._scHiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
 
-		l._sc.readFromStream(cs, program, is);
+		//l._sc.readFromStream(cs, program, is);
 		l._pred.readFromStream(cs, program, is);
 
 		// Layer

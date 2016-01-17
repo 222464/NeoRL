@@ -35,7 +35,7 @@ namespace neo {
 			cl_float _scWeightRecurrentAlpha;
 			cl_float _scWeightLambda;
 			cl_float _scActiveRatio;
-			cl_float _scBoostAlpha;
+			cl_float _scThresholdAlpha;
 			//!@}
 
 			/*!
@@ -51,7 +51,7 @@ namespace neo {
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_scIterations(17), _scLeak(0.1f),
 				_scWeightAlpha(0.001f), _scWeightLateralAlpha(0.05f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.05f), _scBoostAlpha(0.01f),
+				_scActiveRatio(0.05f), _scThresholdAlpha(0.01f),
 				_predWeightAlpha(0.1f)
 			{}
 		};
