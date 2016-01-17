@@ -18,7 +18,7 @@ int main()
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_gpu);
+	cs.create(sys::ComputeSystem::_cpu);
 
 	sys::ComputeProgram prog;
 
@@ -35,13 +35,14 @@ int main()
 	layerDescs[0]._size = { 8, 8 };
 	layerDescs[0]._predictiveRadius = 8;
 	layerDescs[0]._feedBackRadius = 8;
-	layerDescs[0]._predWeightAlpha = 0.02f;
+	layerDescs[0]._scWeightAlpha = 0.01f;
+	layerDescs[0]._predWeightAlpha = 0.01f;
 	layerDescs[1]._size = { 8, 8 };
 	layerDescs[2]._size = { 8, 8 };
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 2, 1 }, layerDescs, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { 2, 1 }, layerDescs, { -0.2f, 0.2f }, { 0.01f, 0.05f }, 0.1f, generator);
 
 	sf::RenderWindow renderWindow;
 
@@ -69,8 +70,6 @@ int main()
 
 	plotRT.setActive();
 	plotRT.clear(sf::Color::White);
-
-	const int plotSampleTicks = 1;
 
 	const int maxBufferSize = 50;
 
@@ -124,7 +123,7 @@ int main()
 
 			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, res.data());
 
-			float v = 0.5f * (res[0] + (1.0f - res[1]));
+			float v = res[0];// 0.5f * (res[0] + (1.0f - res[1]));
 
 			// Plot target data
 			vis::Point p;
@@ -150,7 +149,7 @@ int main()
 
 				plot._curves[1]._points.erase(plot._curves[1]._points.begin());
 
-				firstIndex = 1;
+				firstIndex = 0;
 
 				for (std::vector<vis::Point>::iterator it = plot._curves[1]._points.begin(); it != plot._curves[1]._points.end(); ++it, ++firstIndex)
 					(*it)._position.x = firstIndex;
@@ -167,6 +166,18 @@ int main()
 
 			renderWindow.draw(plotSprite);
 			renderWindow.display();
+
+			std::vector<float> data(64);
+
+			cs.getQueue().enqueueReadImage(ph.getLayer(0)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, data.data());
+
+			for (int x = 0; x < 8; x++) {
+
+				for (int y = 0; y < 8; y++)
+					std::cout << data[x + y * 8] << " ";
+
+				std::cout << std::endl;
+			}
 		}
 	} while (!quit);
 

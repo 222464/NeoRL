@@ -45,7 +45,7 @@ namespace neo {
 			\brief Initialize defaults
 			*/
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.0001f), _weightLambda(0.97f),
+				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.0001f), _weightLambda(0.95f),
 				_ignoreMiddle(false), _useTraces(false)
 			{}
 		};
@@ -54,11 +54,6 @@ namespace neo {
 		\brief Visible layer
 		*/
 		struct VisibleLayer {
-			/*!
-			\brief Reconstruction error
-			*/
-			cl::Image2D _reconstructionError;
-
 			//!@{
 			/*!
 			\brief Weights
@@ -125,7 +120,6 @@ namespace neo {
 		cl::Kernel _learnHiddenWeightsKernel;
 		cl::Kernel _learnHiddenWeightsTracesKernel;
 		cl::Kernel _forwardKernel;
-		cl::Kernel _forwardErrorKernel;
 		//!@}
 
 	public:

@@ -8,7 +8,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 
-#include <neo/ComparisonSparseCoder.h>
+#include <neo/SparseCoder.h>
 #include <neo/ImageWhitener.h>
 
 #include <time.h>
@@ -44,16 +44,22 @@ int main() {
 
 	cs.getQueue().enqueueFillImage(rewardImage, cl_float4 { 1.0f, 1.0f, 1.0f, 1.0f }, { 0, 0, 0 }, { static_cast<cl::size_type>(codeWidth), static_cast<cl::size_type>(codeHeight), 1 });
 
-	neo::ComparisonSparseCoder sparseCoder;
+	neo::SparseCoder sparseCoder;
 
-	std::vector<neo::ComparisonSparseCoder::VisibleLayerDesc> layerDescs(1);
+	std::vector<neo::SparseCoder::VisibleLayerDesc> layerDescs(2);
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 6;
 	layerDescs[0]._useTraces = false;
 	layerDescs[0]._weightAlpha = 0.01f;
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, generator);
+	layerDescs[1]._size = { codeWidth, codeHeight };
+	layerDescs[1]._radius = 6;
+	layerDescs[1]._useTraces = false;
+	layerDescs[1]._weightAlpha = 0.01f;
+	layerDescs[1]._ignoreMiddle = true;
+
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 
@@ -171,9 +177,11 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, origin, region, 0, 0, inputf.data());
 
-			sparseCoder.activate(cs, std::vector<cl::Image2D>(1, inputImage), 0.02f);
+			std::vector<cl::Image2D> visibleStates = { inputImage, sparseCoder.getHiddenStates()[neo::_back] };
 
-			sparseCoder.learn(cs, rewardImage, std::vector<cl::Image2D>(1, inputImage), 0.02f, 0.02f);
+			sparseCoder.activate(cs, visibleStates, 17, 0.1f);
+
+			sparseCoder.learn(cs, rewardImage, visibleStates, 0.02f, 0.02f, 0.02f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
@@ -210,7 +218,7 @@ int main() {
 			cl::array<cl::size_type, 3> origin = { 0, 0, 0 };
 			cl::array<cl::size_type, 3> region = { sparseCoder.getHiddenSize().x, sparseCoder.getHiddenSize().y, wSize };
 
-			cs.getQueue().enqueueReadImage(sparseCoder.getVisibleLayer(0)._weightsForward[neo::_back], CL_TRUE, origin, region, 0, 0, weights.data());
+			cs.getQueue().enqueueReadImage(sparseCoder.getVisibleLayer(0)._weights[neo::_back], CL_TRUE, origin, region, 0, 0, weights.data());
 		}
 
 		float minWeight = 9999.0f;

@@ -76,7 +76,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			predDescs[0]._size = _layerDescs[l]._size;
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 
-			predDescs[1]._size = _layerDescs[l + 1]._size;
+			predDescs[1]._size = _layerDescs[l]._size;
 			predDescs[1]._radius = _layerDescs[l]._feedBackRadius;
 		}
 		else {

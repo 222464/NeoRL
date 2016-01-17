@@ -99,7 +99,6 @@ void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> 
 		int argIndex = 0;
 
 		_solveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
-		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_back]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
 	
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
@@ -108,8 +107,7 @@ void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> 
 		cs.getQueue().enqueueCopyImage(_hiddenSummationTemp[_back], _hiddenStates[_front], { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 });
 
 	// Swap hidden state buffers
-	if (bufferSwap)
-		std::swap(_hiddenStates[_front], _hiddenStates[_back]);
+	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 }
 
 void Predictor::learn(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha) {
@@ -187,7 +185,7 @@ void Predictor::learnQ(sys::ComputeSystem &cs, float tdError, std::vector<cl::Im
 	}
 }
 
-void Predictor::learnCurrent(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStatesPrev, float weightAlpha) {
+void Predictor::learnCurrent(sys::ComputeSystem &cs, const cl::Image2D &targets, std::vector<cl::Image2D> &visibleStates, float weightAlpha) {
 	// Learn weights
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
 		VisibleLayer &vl = _visibleLayers[vli];
@@ -195,7 +193,7 @@ void Predictor::learnCurrent(sys::ComputeSystem &cs, const cl::Image2D &targets,
 
 		int argIndex = 0;
 
-		_learnWeightsKernel.setArg(argIndex++, visibleStatesPrev[vli]);
+		_learnWeightsKernel.setArg(argIndex++, visibleStates[vli]);
 		_learnWeightsKernel.setArg(argIndex++, targets);
 		_learnWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
 		_learnWeightsKernel.setArg(argIndex++, vl._weights[_back]);

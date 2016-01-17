@@ -48,10 +48,10 @@ namespace neo {
 			*/
 			LayerDesc()
 				: _size({ 8, 8 }),
-				_feedForwardRadius(5), _recurrentRadius(0), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
+				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.95f),
 				_scActiveRatio(0.05f), _scBoostAlpha(0.01f),
-				_predWeightAlpha(0.01f), _predWeightLambda(0.95f)
+				_predWeightAlpha(0.001f), _predWeightLambda(0.95f)
 			{}
 		};
 
@@ -166,7 +166,7 @@ namespace neo {
 			: _whiteningKernelRadius(1),
 			_whiteningIntensity(1024.0f),
 			_qGamma(0.98f), _qAlpha(0.5f),
-			_qWeightAlpha(0.01f), _qWeightLambda(0.95f),
+			_qWeightAlpha(0.001f), _qWeightLambda(0.95f),
 			_prevValue(0.0f), _prevQ(0.0f), _prevTDError(0.0f)
 		{}
 

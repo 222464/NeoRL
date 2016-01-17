@@ -413,7 +413,9 @@ void AgentER::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl
 					visibleStatesPrev[0] = _layers[0]._sc.getHiddenStates()[_front];
 				}
 
-				_qPred.learn(cs, _qTarget, visibleStatesPrev, _qWeightAlpha);
+				_qPred.activate(cs, visibleStatesPrev, false, false);
+
+				_qPred.learnCurrent(cs, _qTarget, visibleStatesPrev, _qWeightAlpha);
 			}
 		}
 	}

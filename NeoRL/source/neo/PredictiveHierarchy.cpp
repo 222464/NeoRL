@@ -4,7 +4,7 @@ using namespace neo;
 
 void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
-	cl_float2 initWeightRange,
+	cl_float2 initWeightRange, cl_float2 initInhibitionRange, cl_float initThreshold,
 	std::mt19937 &rng)
 {
 	_inputSize = inputSize;
@@ -15,7 +15,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	cl_int2 prevLayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs;
+		std::vector<SparseCoder::VisibleLayerDesc> scDescs;
 
 		if (l == 0) {
 			scDescs.resize(1);
@@ -45,7 +45,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			scDescs[1]._useTraces = true;
 		}
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initInhibitionRange, initThreshold, rng);
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
@@ -55,7 +55,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			predDescs[0]._size = _layerDescs[l]._size;
 			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
 
-			predDescs[1]._size = _layerDescs[l + 1]._size;
+			predDescs[1]._size = _layerDescs[l]._size;
 			predDescs[1]._radius = _layerDescs[l]._feedBackRadius;
 		}
 		else {
@@ -115,7 +115,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
 			}
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
 
 			// Get reward
 			if (l < _layers.size() - 1) {
@@ -155,9 +155,9 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 
 			if (learn) {
 				if (l == 0)
-					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 				else
-					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
+					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 			}
 		}
 
@@ -226,7 +226,7 @@ void PredictiveHierarchy::writeToStream(sys::ComputeSystem &cs, std::ostream &os
 		os << ld._scWeightAlpha << " " << ld._scWeightRecurrentAlpha << " " << ld._scWeightLambda << " " << ld._scActiveRatio << " " << ld._scBoostAlpha << std::endl;
 		os << ld._predWeightAlpha << std::endl;
 
-		l._sc.writeToStream(cs, os);
+		//l._sc.writeToStream(cs, os);
 		l._pred.writeToStream(cs, os);
 
 		// Layer
@@ -278,7 +278,7 @@ void PredictiveHierarchy::readFromStream(sys::ComputeSystem &cs, sys::ComputePro
 
 		//l._scHiddenStatesPrev = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), ld._size.x, ld._size.y);
 
-		l._sc.readFromStream(cs, program, is);
+		//l._sc.readFromStream(cs, program, is);
 		l._pred.readFromStream(cs, program, is);
 
 		// Layer
