@@ -58,6 +58,11 @@ namespace neo {
 			//!@}
 
 			/*!
+			\brief Prediction reward parameters
+			*/
+			cl_float _predRewardBaselineDecay;
+
+			/*!
 			\brief Initialize defaults
 			*/
 			LayerDesc()
@@ -66,7 +71,8 @@ namespace neo {
 				_scWeightAlpha(0.01f), _scWeightRecurrentAlpha(0.01f), _scWeightLambda(0.96f),
 				_scActiveRatio(0.04f), _scBoostAlpha(0.01f),
 				_predWeightAlpha(0.01f), _predWeightLambda(0.96f),
-				_qAlpha(0.01f), _qBiasAlpha(0.005f), _qLambda(0.96f), _qRadius(6), _qReluLeak(0.01f)
+				_qAlpha(0.01f), _qBiasAlpha(0.005f), _qLambda(0.96f), _qRadius(6), _qReluLeak(0.01f),
+				_predRewardBaselineDecay(0.01f)
 			{}
 		};
 
@@ -96,6 +102,7 @@ namespace neo {
 			/*!
 			\brief For prediction reward determination
 			*/
+			DoubleBuffer2D _predRewardBaselines;
 			cl::Image2D _predReward;
 			cl::Image2D _propagatedPredReward;
 			//!@}

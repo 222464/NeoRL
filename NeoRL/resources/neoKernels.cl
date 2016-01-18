@@ -684,7 +684,7 @@ void kernel predActivate(read_only image2d_t visibleStates,
 	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum));
 }
 
-void kernel predSolveHidden(read_only image2d_t hiddenSummationTemp,
+void kernel predSolveHiddenBinary(read_only image2d_t hiddenSummationTemp,
 	write_only image2d_t hiddenStatesFront) 
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
@@ -692,6 +692,16 @@ void kernel predSolveHidden(read_only image2d_t hiddenSummationTemp,
 	float sum = read_imagef(hiddenSummationTemp, hiddenPosition).x;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(sum > 0.5f ? 1.0f : 0.0f));
+}
+
+void kernel predSolveHiddenTanH(read_only image2d_t hiddenSummationTemp,
+	write_only image2d_t hiddenStatesFront) 
+{
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+	
+	float sum = read_imagef(hiddenSummationTemp, hiddenPosition).x;
+
+	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(tanh(sum)));
 }
 
 void kernel predLearnWeights(read_only image2d_t visibleStatesPrev, 
@@ -756,7 +766,7 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 				float newTrace = weightPrev.y * weightLambda + (target - predPrev) * state;
 				float newTrace2 = weightPrev.z * weightLambda + (0.0f - predPrev) * state;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha * (fmax(0.0f, tdError) * newTrace - fmax(0.0f, -tdError) * newTrace2), newTrace, newTrace2, 0.0f);
+				float4 weight = (float4)(weightPrev.x + weightAlpha * (fmax(0.0f, tdError) * newTrace), newTrace, newTrace2, 0.0f);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}

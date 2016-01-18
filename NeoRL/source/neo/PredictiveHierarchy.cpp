@@ -187,7 +187,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates, l != 0);
+		_layers[l]._pred.activate(cs, visibleStates, l == 0 ? Predictor::_identity : Predictor::_tanH);
 	}
 
 	if (learn) {

@@ -10,6 +10,13 @@ namespace neo {
 	class Predictor {
 	public:
 		/*!
+		\brief Type of the nonlinearity
+		*/
+		enum NonlinearityType {
+			_identity, _binary, _tanH
+		};
+
+		/*!
 		\brief Visible layer desc
 		*/
 		struct VisibleLayerDesc {
@@ -85,7 +92,8 @@ namespace neo {
 		\brief Kernels
 		*/
 		cl::Kernel _activateKernel;
-		cl::Kernel _solveHiddenKernel;
+		cl::Kernel _solveHiddenBinaryKernel;
+		cl::Kernel _solveHiddenTanHKernel;
 		cl::Kernel _learnWeightsKernel;
 		cl::Kernel _learnWeightsTracesKernel;
 		cl::Kernel _learnQWeightsTracesKernel;
@@ -109,7 +117,7 @@ namespace neo {
 		/*!
 		\brief Activate predictor
 		*/
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold = true, bool bufferSwap = true);
+		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, NonlinearityType nonlinearityType, bool bufferSwap = true);
 
 		//!@{
 		/*!

@@ -328,7 +328,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates, l != 0);
+		_layers[l]._pred.activate(cs, visibleStates, l == 0 ? Predictor::_tanH : Predictor::_binary);
 	}
 
 	// Q predictor
@@ -347,7 +347,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 			visibleStates[0] = _layers[0]._sc.getHiddenStates()[_back];
 		}
 
-		_qPred.activate(cs, visibleStates, false);
+		_qPred.activate(cs, visibleStates, Predictor::_identity);
 	}
 
 	// Recover Q
@@ -387,7 +387,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 			if (l == 0)
 				_layers[l]._pred.learn(cs, tdError, actionTaken, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 			else
-				_layers[l]._pred.learn(cs, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
+				_layers[l]._pred.learn(cs, tdError, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 		}
 
 		// Q Pred

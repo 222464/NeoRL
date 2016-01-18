@@ -58,13 +58,14 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 
 	// Create kernels
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivate");
-	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHidden");
+	_solveHiddenBinaryKernel = cl::Kernel(program.getProgram(), "predSolveHiddenBinary");
+	_solveHiddenTanHKernel = cl::Kernel(program.getProgram(), "predSolveHiddenTanH");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "predLearnWeights");
 	_learnWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnWeightsTraces");
 	_learnQWeightsTracesKernel = cl::Kernel(program.getProgram(), "predLearnQWeightsTraces");
 }
 
-void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, bool threshold, bool bufferSwap) {
+void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, NonlinearityType nonlinearityType, bool bufferSwap) {
 	// Start by clearing summation buffer
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -95,13 +96,21 @@ void Predictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> 
 		std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 	}
 
-	if (threshold) {
+	if (nonlinearityType == _binary) {
 		int argIndex = 0;
 
-		_solveHiddenKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
-		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_solveHiddenBinaryKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+		_solveHiddenBinaryKernel.setArg(argIndex++, _hiddenStates[_front]);
 	
-		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		cs.getQueue().enqueueNDRangeKernel(_solveHiddenBinaryKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+	}
+	else if (nonlinearityType == _tanH) {
+		int argIndex = 0;
+
+		_solveHiddenTanHKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+		_solveHiddenTanHKernel.setArg(argIndex++, _hiddenStates[_front]);
+
+		cs.getQueue().enqueueNDRangeKernel(_solveHiddenTanHKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 	else
 		cs.getQueue().enqueueCopyImage(_hiddenSummationTemp[_back], _hiddenStates[_front], { 0, 0, 0 }, { 0, 0, 0 }, { static_cast<cl::size_type>(_hiddenSize.x), static_cast<cl::size_type>(_hiddenSize.y), 1 });
@@ -317,6 +326,6 @@ void Predictor::readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	// Create kernels
 	_activateKernel = cl::Kernel(program.getProgram(), "predActivate");
-	_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHidden");
+	//_solveHiddenKernel = cl::Kernel(program.getProgram(), "predSolveHidden");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "predLearnWeights");
 }

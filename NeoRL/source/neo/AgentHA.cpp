@@ -128,6 +128,7 @@ void AgentHA::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
 
+		cs.getQueue().enqueueFillImage(_layers[l]._predRewardBaselines[_back], zeroColor, zeroOrigin, layerRegion);
 		cs.getQueue().enqueueFillImage(_layers[l]._predReward, zeroColor, zeroOrigin, layerRegion);
 		cs.getQueue().enqueueFillImage(_layers[l]._propagatedPredReward, zeroColor, zeroOrigin, layerRegion);
 
@@ -208,6 +209,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 
 			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
+
 			// Get reward
 			if (l < _layers.size() - 1) {
 				int argIndex = 0;
@@ -215,9 +217,14 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 				_predictionRewardKernel.setArg(argIndex++, _layers[l + 1]._pred.getHiddenStates()[_back]);
 				_predictionRewardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 				_predictionRewardKernel.setArg(argIndex++, _layers[l]._predReward);
+				_predictionRewardKernel.setArg(argIndex++, _layers[l]._predRewardBaselines[_back]);
+				_predictionRewardKernel.setArg(argIndex++, _layers[l]._predRewardBaselines[_front]);
 				_predictionRewardKernel.setArg(argIndex++, _layerDescs[l]._scActiveRatio);
+				_predictionRewardKernel.setArg(argIndex++, _layerDescs[l]._predRewardBaselineDecay);
 
 				cs.getQueue().enqueueNDRangeKernel(_predictionRewardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+
+				std::swap(_layers[l]._predRewardBaselines[_front], _layers[l]._predRewardBaselines[_back]);
 			}
 
 			// Propagate reward
@@ -268,7 +275,7 @@ void AgentHA::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D &i
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates, true);
+		_layers[l]._pred.activate(cs, visibleStates, Predictor::_binary);
 	}
 
 	// Copy prediction as starting action

@@ -212,7 +212,7 @@ void AgentER::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates, l != 0);
+		//_layers[l]._pred.activate(cs, visibleStates, l != 0);
 	}
 
 	// Q predictor
@@ -231,7 +231,7 @@ void AgentER::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl
 			visibleStates[0] = _layers[0]._sc.getHiddenStates()[_back];
 		}
 
-		_qPred.activate(cs, visibleStates, false);
+		//_qPred.activate(cs, visibleStates, false);
 	}
 
 	// Recover Q
@@ -389,7 +389,7 @@ void AgentER::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl
 					visibleStatesPrev[0] = _layers[l]._scStatesTemp[_front];
 				}
 
-				_layers[l]._pred.activate(cs, visibleStatesPrev, l != 0, false);
+				//_layers[l]._pred.activate(cs, visibleStatesPrev, l != 0, false);
 
 				if (l == 0)
 					_layers[l]._pred.learnCurrent(cs, _actionTarget, visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
@@ -413,7 +413,7 @@ void AgentER::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl
 					visibleStatesPrev[0] = _layers[0]._sc.getHiddenStates()[_front];
 				}
 
-				_qPred.activate(cs, visibleStatesPrev, false, false);
+				//_qPred.activate(cs, visibleStatesPrev, false, false);
 
 				_qPred.learnCurrent(cs, _qTarget, visibleStatesPrev, _qWeightAlpha);
 			}

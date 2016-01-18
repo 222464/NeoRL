@@ -224,7 +224,7 @@ void AgentSwarm::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 			visibleStates[0] = _layers[l]._sc.getHiddenStates()[_back];
 		}
 
-		_layers[l]._pred.activate(cs, visibleStates);
+		//_layers[l]._pred.activate(cs, visibleStates);
 
 		//if (l == 0)
 		//	_layers[l]._pred.propagateError(cs, input);
