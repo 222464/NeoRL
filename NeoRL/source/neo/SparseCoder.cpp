@@ -81,7 +81,7 @@ void SparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &prog
 
 	// Create kernels
 	_reconstructVisibleKernel = cl::Kernel(program.getProgram(), "scReconstructVisible");
-	_activateFromReconstructionErrorKernel = cl::Kernel(program.getProgram(), "scActivateFromReconstructionError");
+	_activateKernel = cl::Kernel(program.getProgram(), "scActivate");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "scSolveHidden");
 	_learnThresholdsKernel = cl::Kernel(program.getProgram(), "scLearnThresholds");
 	_learnWeightsKernel = cl::Kernel(program.getProgram(), "scLearnSparseCoderWeights");
@@ -117,15 +117,15 @@ void SparseCoder::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D
 
 		int argIndex = 0;
 
-		_activateFromReconstructionErrorKernel.setArg(argIndex++, visibleStates[vli]);
-		_activateFromReconstructionErrorKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
-		_activateFromReconstructionErrorKernel.setArg(argIndex++, _hiddenSummationTemp[_front]);
-		_activateFromReconstructionErrorKernel.setArg(argIndex++, vl._weights[_back]);
-		_activateFromReconstructionErrorKernel.setArg(argIndex++, vld._size);
-		_activateFromReconstructionErrorKernel.setArg(argIndex++, vl._hiddenToVisible);
-		_activateFromReconstructionErrorKernel.setArg(argIndex++, vld._radius);
+		_activateKernel.setArg(argIndex++, visibleStates[vli]);
+		_activateKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+		_activateKernel.setArg(argIndex++, _hiddenSummationTemp[_front]);
+		_activateKernel.setArg(argIndex++, vl._weights[_back]);
+		_activateKernel.setArg(argIndex++, vld._size);
+		_activateKernel.setArg(argIndex++, vl._hiddenToVisible);
+		_activateKernel.setArg(argIndex++, vld._radius);
 
-		cs.getQueue().enqueueNDRangeKernel(_activateFromReconstructionErrorKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		cs.getQueue().enqueueNDRangeKernel(_activateKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
 		// Swap buffers
 		std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);

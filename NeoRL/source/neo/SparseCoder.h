@@ -118,7 +118,7 @@ namespace neo {
 		\brief Kernels
 		*/
 		cl::Kernel _reconstructVisibleKernel;
-		cl::Kernel _activateFromReconstructionErrorKernel;
+		cl::Kernel _activateKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnThresholdsKernel;
 		cl::Kernel _learnWeightsKernel;

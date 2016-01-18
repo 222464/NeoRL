@@ -36,7 +36,7 @@ int main()
 	layerDescs[0]._predictiveRadius = 8;
 	layerDescs[0]._feedBackRadius = 8;
 	layerDescs[0]._scWeightAlpha = 0.01f;
-	layerDescs[0]._predWeightAlpha = 0.01f;
+	layerDescs[0]._predWeightAlpha = 0.001f;
 	layerDescs[1]._size = { 8, 8 };
 	layerDescs[2]._size = { 8, 8 };
 
@@ -117,7 +117,7 @@ int main()
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, inputBuffer.data());
 
-			ph.simStep(cs, inputImage, true, false);
+			ph.simStep(cs, inputImage, true, true);
 
 			std::vector<float> res(2 * 1);
 

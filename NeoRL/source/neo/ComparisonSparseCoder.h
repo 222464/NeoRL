@@ -58,7 +58,7 @@ namespace neo {
 			/*!
 			\brief Weights
 			*/
-			DoubleBuffer3D _weightsForward;
+			DoubleBuffer3D _weights;
 			//!@}
 
 			//!@{

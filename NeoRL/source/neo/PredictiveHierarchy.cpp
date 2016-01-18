@@ -15,7 +15,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	cl_int2 prevLayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<SparseCoder::VisibleLayerDesc> scDescs;
+		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs;
 
 		if (l == 0) {
 			scDescs.resize(1);
@@ -45,7 +45,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			scDescs[1]._useTraces = true;
 		}
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initInhibitionRange, initThreshold, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
@@ -115,7 +115,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
 			}
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
 			// Get reward
 			if (l < _layers.size() - 1) {
@@ -155,9 +155,9 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 
 			if (learn) {
 				if (l == 0)
-					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
+					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 				else
-					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
+					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 			}
 		}
 
