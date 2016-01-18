@@ -329,7 +329,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 	
-				float2 weight = (float2)(weightPrev.x + reward * (weightPrev.y - weightPrev.x), weightPrev.y * weightLambda + weightAlpha * state * (1.0f - statePrev) * visibleState);
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * state * (visibleState - weightPrev.x));
 	
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -662,7 +662,7 @@ void kernel predActivate(read_only image2d_t visibleStates,
 	int2 visibleSize, float2 hiddenToVisible, int radius)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)((hiddenPosition.x + 0.5f) * hiddenToVisible.x + 0.5f, (hiddenPosition.y + 0.5f) * hiddenToVisible.y + 0.5f);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
 	float sum = read_imagef(hiddenSummationTempBack, hiddenPosition).x;
 
@@ -703,7 +703,7 @@ void kernel predLearnWeights(read_only image2d_t visibleStatesPrev,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)((hiddenPosition.x + 0.5f) * hiddenToVisible.x + 0.5f, (hiddenPosition.y + 0.5f) * hiddenToVisible.y + 0.5f);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 	
@@ -737,7 +737,7 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda, float tdError)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)((hiddenPosition.x + 0.5f) * hiddenToVisible.x + 0.5f, (hiddenPosition.y + 0.5f) * hiddenToVisible.y + 0.5f);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 	
@@ -773,7 +773,7 @@ void kernel predLearnQWeightsTraces(read_only image2d_t visibleStatesPrev,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda, float tdError)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)((hiddenPosition.x + 0.5f) * hiddenToVisible.x + 0.5f, (hiddenPosition.y + 0.5f) * hiddenToVisible.y + 0.5f);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
@@ -1407,7 +1407,7 @@ void kernel swarmQLearnHiddenBiasesTraces(read_only image2d_t hiddenTD, read_onl
 // ----------------------------------------- Predictive Hierarchy -----------------------------------------
 
 void kernel phPredictionReward(read_only image2d_t predictions, read_only image2d_t hiddenStates,
-	write_only image2d_t rewards, float activeRatio)
+	write_only image2d_t rewards, read_only image2d_t hiddenBaselinesBack, write_only image2d_t hiddenBaselinesFront, float activeRatio, float baselineDecay)
 {
 	int2 position = (int2)(get_global_id(0), get_global_id(1));
 	
@@ -1415,9 +1415,14 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 
 	float state = read_imagef(hiddenStates, position).x;
 
-	float reward = pred * state;//1.0f - (pred * state + (1.0f - pred) * (1.0f - state) * activeRatio);
+	float reward = pred * state;// + (1.0f - pred) * (1.0f - state) * activeRatio);
 
-	write_imagef(rewards, position, (float4)(reward));
+	float baselinePrev = read_imagef(hiddenBaselinesBack, position).x;
+
+	float baseline = (1.0f - baselineDecay) * baselinePrev + baselineDecay * reward;
+
+	write_imagef(hiddenBaselinesFront, position, (float4)(baseline));
+	write_imagef(rewards, position, (float4)(reward - baselinePrev));
 }
 
 void kernel phPredictionRewardPropagation(read_only image2d_t rewards, write_only image2d_t propagatedRewards,

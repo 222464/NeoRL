@@ -71,6 +71,8 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l - 1]._size, initWeightRange, false, rng);
 
 		// Create baselines
+		_layers[l]._predRewardBaselines = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
+
 		_layers[l]._predReward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
 		_layers[l]._propagatedPredReward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
 
@@ -79,6 +81,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
 
+		cs.getQueue().enqueueFillImage(_layers[l]._predRewardBaselines[_back], zeroColor, zeroOrigin, layerRegion);
 		cs.getQueue().enqueueFillImage(_layers[l]._predReward, zeroColor, zeroOrigin, layerRegion);
 		cs.getQueue().enqueueFillImage(_layers[l]._propagatedPredReward, zeroColor, zeroOrigin, layerRegion);
 
@@ -120,13 +123,18 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			// Get reward
 			if (l < _layers.size() - 1) {
 				int argIndex = 0;
-
+				
 				_predictionRewardKernel.setArg(argIndex++, _layers[l + 1]._pred.getHiddenStates()[_back]);
 				_predictionRewardKernel.setArg(argIndex++, _layers[l]._sc.getHiddenStates()[_back]);
 				_predictionRewardKernel.setArg(argIndex++, _layers[l]._predReward);
+				_predictionRewardKernel.setArg(argIndex++, _layers[l]._predRewardBaselines[_back]);
+				_predictionRewardKernel.setArg(argIndex++, _layers[l]._predRewardBaselines[_front]);
 				_predictionRewardKernel.setArg(argIndex++, _layerDescs[l]._scActiveRatio);
+				_predictionRewardKernel.setArg(argIndex++, _layerDescs[l]._predRewardBaselineDecay);
 
 				cs.getQueue().enqueueNDRangeKernel(_predictionRewardKernel, cl::NullRange, cl::NDRange(_layerDescs[l]._size.x, _layerDescs[l]._size.y));
+
+				std::swap(_layers[l]._predRewardBaselines[_front], _layers[l]._predRewardBaselines[_back]);
 			}
 
 			// Propagate reward
