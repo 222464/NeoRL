@@ -757,7 +757,7 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 
 				float newTrace = weightPrev.y * weightLambda + alphaError * state;
 
-				float2 weight = (float2)(weightPrev.x + tdError * newTrace, newTrace);
+				float2 weight = (float2)(weightPrev.x + (tdError > 0.0f ? 1.0f : 0.0f) * newTrace, newTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}

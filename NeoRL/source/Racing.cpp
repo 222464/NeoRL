@@ -118,7 +118,8 @@ int main() {
 
 	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, layerDescs, { -0.5f, 0.5f }, generator);
 
-	agent._whiteningKernelRadius = 3;
+	agent._whiteningKernelRadius = 4;
+	agent._whiteningIntensity = 5000.0f;
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	cl::Image2D actionImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), aWidth, aHeight);
@@ -469,11 +470,13 @@ int main() {
 
 				for (int x = 0; x < whitenedImage.getSize().x; x++)
 					for (int y = 0; y < whitenedImage.getSize().y; y++) {
-						cl_float grey = whiteningData[x + y * whitenedImage.getSize().x];
+						cl_float grey = input[x + y * whitenedImage.getSize().x];
 
 						sf::Color c;
 
-						c.r = c.g = c.b = grey * 255.0f;
+						c.r = c.g = c.b = std::max(0.0f, grey * 255.0f);
+
+						c.r = std::max(0.0f, -grey * 255.0f);
 
 						whitenedImage.setPixel(x, y, c);
 					}
@@ -496,15 +499,61 @@ int main() {
 			window.display();
 		}
 
+		input.clear();
+		input.assign(inWidth * inHeight, 0.0f);
+
 		for (int i = 0; i < sensors.size(); i++)
 			input[i] = sensors[i];
 
-		for (int i = 0; i < sensors.size(); i++)
-			input[i + sensors.size()] = 1.0f - sensors[i];
+		//input[sensors.size() + 0] = (car._rotation / (2.0f * 3.141596f));
+		//input[sensors.size() + 1] = 1.0f - (car._rotation / (2.0f * 3.141596f));
+		//input[sensors.size() + 2] = car._speed * 0.1f;
 
-		input[sensors.size() * 2 + 0] = (car._rotation / (2.0f * 3.141596f));
-		input[sensors.size() * 2 + 1] = 1.0f - (car._rotation / (2.0f * 3.141596f));
-		input[sensors.size() * 2 + 2] = car._speed * 0.1f;
+		// Find second derivative to detect gradient centers
+		std::vector<float> d = input;
+
+		for (int prime = 0; prime < 1; prime++) {
+			for (int i = 0; i < d.size(); i++) {
+				float deriv = 0.0f;
+				float div = 0.0f;
+
+				for (int j = 1; j < 3; j++) {
+					float slopePlus = 0.0f;
+					float slopeMinus = 0.0f;
+
+					if (i + j < d.size()) {
+						slopePlus = (d[i + j] - d[i]) / j;
+					}
+
+					if (i - j >= 0) {
+						slopeMinus = (d[i - j] - d[i]) / j;
+					}
+
+					float sampleWeight = static_cast<float>(d.size() - j) / d.size();
+
+					deriv += sampleWeight * (slopePlus - slopeMinus);
+
+					div += sampleWeight;
+				}
+
+				deriv /= div;
+
+				d[i] = deriv;
+			}
+		}
+
+		// Find max
+		int maxIndex = 0;
+
+		for (int i = 1; i < d.size(); i++) {
+			if (d[i] > d[maxIndex])
+				maxIndex = i;
+		}
+
+		input.clear();
+		input.assign(inWidth * inHeight, 0.0f);
+
+		input[maxIndex] = 1.0f;
 
 		//for (int i = 0; i < input.size(); i++)
 		//	agent2.setState(i, input[i]);
@@ -517,14 +566,14 @@ int main() {
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 		cs.getQueue().enqueueWriteImage(actionImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
-		agent.simStep(cs, inputImage, actionImage, reset ? -1.0f : 0.03f * reward, generator);
+		agent.simStep(cs, inputImage, actionImage, reset ? -1.0f : 0.03f * reward, generator, true, false);
 
 		std::vector<float> actionTemp(action.size() * 2);
 
 		cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
 
 		for (int i = 0; i < action.size(); i++)
-			action[i] = actionTemp[i * 2 + 0];
+			action[i] = actionTemp[i];
 
 		// Dummy agent
 		/*float angle = std::acos(std::min(1.0f, std::max(-1.0f, trackPerp.x * carDir.x + trackPerp.y * carDir.y)));
