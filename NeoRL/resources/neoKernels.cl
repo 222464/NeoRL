@@ -290,7 +290,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates,
 
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 			
-				float weight = weightPrev + weightAlpha * state * (visibleState - activation * weightPrev);
+				float weight = weightPrev + weightAlpha * state * (visibleState - weightPrev);
 	
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
@@ -325,7 +325,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 	
-				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * state * (visibleState - activation * weightPrev.x));
+				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * state * (visibleState - weightPrev.x));
 	
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -757,7 +757,7 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 
 				float newTrace = weightPrev.y * weightLambda + alphaError * state;
 
-				float2 weight = (float2)(weightPrev.x + (tdError > 0.0f ? 1.0f : 0.0f) * newTrace, newTrace);
+				float2 weight = (float2)(weightPrev.x + tdError * newTrace, newTrace);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -1418,7 +1418,7 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 	float baseline = (1.0f - baselineDecay) * baselinePrev + baselineDecay * reward;
 
 	write_imagef(hiddenBaselinesFront, position, (float4)(baseline));
-	write_imagef(rewards, position, (float4)((reward - baselinePrev) > 0.0f ? 1.0f : 0.0f));
+	write_imagef(rewards, position, (float4)(fmax(0.0f, reward - baselinePrev)));
 }
 
 void kernel phPredictionRewardPropagation(read_only image2d_t rewards, write_only image2d_t propagatedRewards,

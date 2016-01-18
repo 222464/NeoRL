@@ -99,6 +99,21 @@ namespace neo {
 		cl_int2 _qSize;
 
 		/*!
+		\brief Store input coder size
+		*/
+		cl_int2 _inputCoderSize;
+
+		/*!
+		\brief Store action coder size
+		*/
+		cl_int2 _actionCoderSize;
+
+		/*!
+		\brief Store Q coder size
+		*/
+		cl_int2 _qCoderSize;
+
+		/*!
 		\brief Q Input layer
 		*/
 		cl::Image2D _qInput;
@@ -112,6 +127,15 @@ namespace neo {
 		\brief Additional predictor for Q
 		*/
 		Predictor _qPred;
+
+		//!@{
+		/*!
+		\brief Separate sparse coders for input to SDR transforms
+		*/
+		ComparisonSparseCoder _inputCoder;
+		ComparisonSparseCoder _actionCoder;
+		ComparisonSparseCoder _qCoder;
+		//!@}
 
 		//!@{
 		/*!
@@ -165,6 +189,31 @@ namespace neo {
 		cl_float _qWeightLambda;
 		//!@}
 
+		//!@{
+		/*!
+		\brief Coder parameters
+		*/
+		cl_int _inputCoderFeedForwardRadius;
+		cl_int _actionCoderFeedForwardRadius;
+		cl_int _qCoderFeedForwardRadius;
+
+		cl_int _inputCoderLateralRadius;
+		cl_int _actionCoderLateralRadius;
+		cl_int _qCoderLateralRadius;
+
+		cl_float _inputCoderActiveRatio;
+		cl_float _actionCoderActiveRatio;
+		cl_float _qCoderActiveRatio;
+
+		cl_float _inputCoderAlpha;
+		cl_float _actionCoderAlpha;
+		cl_float _qCoderAlpha;
+
+		cl_float _inputCoderBoostAlpha;
+		cl_float _actionCoderBoostAlpha;
+		cl_float _qCoderBoostAlpha;
+		//!@}	
+
 		/*!
 		\brief Initialize defaults
 		*/
@@ -173,7 +222,12 @@ namespace neo {
 			_whiteningIntensity(1024.0f),
 			_qGamma(0.98f), _qAlpha(0.5f),
 			_qWeightAlpha(0.001f), _qWeightLambda(0.95f),
-			_prevValue(0.0f), _prevQ(0.0f), _prevTDError(0.0f)
+			_prevValue(0.0f), _prevQ(0.0f), _prevTDError(0.0f),
+			_inputCoderFeedForwardRadius(4), _actionCoderFeedForwardRadius(4), _qCoderFeedForwardRadius(4),
+			_inputCoderLateralRadius(4), _actionCoderLateralRadius(4), _qCoderLateralRadius(4),
+			_inputCoderActiveRatio(0.05f), _actionCoderActiveRatio(0.05f), _qCoderActiveRatio(0.05f),
+			_inputCoderAlpha(0.01f), _actionCoderAlpha(0.01f), _qCoderAlpha(0.01f),
+			_inputCoderBoostAlpha(0.01f), _actionCoderBoostAlpha(0.01f), _qCoderBoostAlpha(0.01f)
 		{}
 
 		/*!
@@ -182,6 +236,7 @@ namespace neo {
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			cl_int2 inputSize, cl_int2 actionSize, cl_int2 qSize, 
+			cl_int2 inputCoderSize, cl_int2 actionCoderSize, cl_int2 qCoderSize,
 			const std::vector<LayerDesc> &layerDescs,
 			cl_float2 initWeightRange,
 			std::mt19937 &rng);

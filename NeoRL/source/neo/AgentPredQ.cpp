@@ -6,6 +6,7 @@ using namespace neo;
 
 void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, cl_int2 actionSize, cl_int2 qSize,
+	cl_int2 inputCoderSize, cl_int2 actionCoderSize, cl_int2 qCoderSize,
 	const std::vector<LayerDesc> &layerDescs,
 	cl_float2 initWeightRange,
 	std::mt19937 &rng)
@@ -13,6 +14,10 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	_inputSize = inputSize;
 	_actionSize = actionSize;
 	_qSize = qSize;
+
+	_inputCoderSize = inputCoderSize;
+	_actionCoderSize = actionCoderSize;
+	_qCoderSize = qCoderSize;
 
 	_layerDescs = layerDescs;
 	_layers.resize(_layerDescs.size());
@@ -27,21 +32,21 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		if (l == 0) {
 			scDescs.resize(3);
 
-			scDescs[0]._size = prevLayerSize;
+			scDescs[0]._size = _inputCoderSize;
 			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
 			scDescs[0]._ignoreMiddle = false;
 			scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
 			scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
 			scDescs[0]._useTraces = false;
 
-			scDescs[1]._size = _actionSize;
+			scDescs[1]._size = _actionCoderSize;
 			scDescs[1]._radius = _layerDescs[l]._feedForwardRadius;
 			scDescs[1]._ignoreMiddle = false;
 			scDescs[1]._weightAlpha = _layerDescs[l]._scWeightAlpha;
 			scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
 			scDescs[1]._useTraces = false;
 
-			scDescs[2]._size = _qSize;
+			scDescs[2]._size = _qCoderSize;
 			scDescs[2]._radius = _layerDescs[l]._feedForwardRadius;
 			scDescs[2]._ignoreMiddle = false;
 			scDescs[2]._weightAlpha = _layerDescs[l]._scWeightAlpha;
@@ -146,6 +151,43 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	_predictionRewardKernel = cl::Kernel(program.getProgram(), "phPredictionReward");
 	_predictionRewardPropagationKernel = cl::Kernel(program.getProgram(), "phPredictionRewardPropagation");
 	_setQKernel = cl::Kernel(program.getProgram(), "phSetQ");
+
+	// Create coders
+	{
+		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(1);
+
+		scDescs[0]._size = _inputSize;
+		scDescs[0]._radius = _inputCoderFeedForwardRadius;
+		scDescs[0]._ignoreMiddle = false;
+		scDescs[0]._weightAlpha = _inputCoderAlpha;
+		scDescs[0]._useTraces = false;
+
+		_inputCoder.createRandom(cs, program, scDescs, _inputCoderSize, _inputCoderLateralRadius, initWeightRange, rng);
+	}
+
+	{
+		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(1);
+
+		scDescs[0]._size = _actionSize;
+		scDescs[0]._radius = _inputCoderFeedForwardRadius;
+		scDescs[0]._ignoreMiddle = false;
+		scDescs[0]._weightAlpha = _actionCoderAlpha;
+		scDescs[0]._useTraces = false;
+
+		_actionCoder.createRandom(cs, program, scDescs, _actionCoderSize, _actionCoderLateralRadius, initWeightRange, rng);
+	}
+
+	{
+		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs(1);
+
+		scDescs[0]._size = _qSize;
+		scDescs[0]._radius = _qCoderFeedForwardRadius;
+		scDescs[0]._ignoreMiddle = false;
+		scDescs[0]._weightAlpha = _qCoderAlpha;
+		scDescs[0]._useTraces = false;
+
+		_qCoder.createRandom(cs, program, scDescs, _qCoderSize, _qCoderLateralRadius, initWeightRange, rng);
+	}
 }
 
 void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const cl::Image2D &actionTaken, float reward, std::mt19937 &rng, bool learn, bool whiten) {
@@ -168,6 +210,40 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 
 	_qWhitener.filter(cs, _qInput, _whiteningKernelRadius, _whiteningIntensity);
 
+	// Feed to coders
+	{
+		std::vector<cl::Image2D> visibleStates(1);
+
+		visibleStates[0] = whiten ? _inputWhitener.getResult() : input;
+
+		_inputCoder.activate(cs, visibleStates, _inputCoderActiveRatio);
+
+		if (learn)
+			_inputCoder.learn(cs, visibleStates, _inputCoderBoostAlpha, _inputCoderActiveRatio);
+	}
+
+	{
+		std::vector<cl::Image2D> visibleStates(1);
+
+		visibleStates[0] = _actionWhitener.getResult();
+
+		_actionCoder.activate(cs, visibleStates, _actionCoderActiveRatio);
+
+		if (learn)
+			_actionCoder.learn(cs, visibleStates, _actionCoderBoostAlpha, _actionCoderActiveRatio);
+	}
+
+	{
+		std::vector<cl::Image2D> visibleStates(1);
+
+		visibleStates[0] = _qWhitener.getResult();
+
+		_qCoder.activate(cs, visibleStates, _qCoderActiveRatio);
+
+		if (learn)
+			_qCoder.learn(cs, visibleStates, _qCoderBoostAlpha, _qCoderActiveRatio);
+	}
+
 	// Feed forward
 	for (int l = 0; l < _layers.size(); l++) {
 		{
@@ -176,9 +252,9 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 			if (l == 0) {
 				visibleStates.resize(3);
 
-				visibleStates[0] = whiten ? _inputWhitener.getResult() : input;
-				visibleStates[1] = _actionWhitener.getResult();
-				visibleStates[2] = _qWhitener.getResult();
+				visibleStates[0] = _inputCoder.getHiddenStates()[_back];
+				visibleStates[1] = _actionCoder.getHiddenStates()[_back];
+				visibleStates[2] = _qCoder.getHiddenStates()[_back];
 			}
 			else {
 				visibleStates.resize(2);
@@ -309,9 +385,9 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 			}
 
 			if (l == 0)
-				_layers[l]._pred.learn(cs, tdError > 0.0f ? 1.0f : 0.0f, actionTaken, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+				_layers[l]._pred.learn(cs, std::max(0.0f, tdError), actionTaken, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 			else
-				_layers[l]._pred.learn(cs, tdError > 0.0f ? 1.0f : 0.0f, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+				_layers[l]._pred.learn(cs, std::max(0.0f, tdError), _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 		}
 
 		// Q Pred
