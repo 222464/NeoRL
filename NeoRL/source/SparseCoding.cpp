@@ -46,20 +46,20 @@ int main() {
 
 	neo::ComparisonSparseCoder sparseCoder;
 
-	std::vector<neo::ComparisonSparseCoder::VisibleLayerDesc> layerDescs(2);
+	std::vector<neo::ComparisonSparseCoder::VisibleLayerDesc> layerDescs(1);
 
 	layerDescs[0]._size = { sampleWidth, sampleHeight };
 	layerDescs[0]._radius = 6;
 	layerDescs[0]._useTraces = false;
 	layerDescs[0]._weightAlpha = 0.01f;
 
-	layerDescs[1]._size = { codeWidth, codeHeight };
+	/*layerDescs[1]._size = { codeWidth, codeHeight };
 	layerDescs[1]._radius = 6;
 	layerDescs[1]._useTraces = false;
-	layerDescs[1]._weightAlpha = 0.01f;
-	layerDescs[1]._ignoreMiddle = true;
+	layerDescs[1]._weightAlpha = 0.001f;
+	layerDescs[1]._ignoreMiddle = true;*/
 
-	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -0.01f, 0.01f }, generator);
+	sparseCoder.createRandom(cs, prog, layerDescs, { codeWidth, codeHeight }, 8, { -1.0f, 1.0f }, generator);
 
 	// ------------------------------- Load Resources --------------------------------
 
@@ -90,7 +90,7 @@ int main() {
 
 	cs.getQueue().enqueueWriteImage(sourceImage, CL_TRUE, { 0, 0, 0 }, { sampleImage.getSize().x, sampleImage.getSize().y, 1 }, 0, 0, colors.data());
 
-	whitener.filter(cs, sourceImage, 2, 1000.0f);
+	whitener.filter(cs, sourceImage, 3, 4000.0f);
 
 	cs.getQueue().enqueueReadImage(whitener.getResult(), CL_TRUE, { 0, 0, 0 }, { sampleImage.getSize().x, sampleImage.getSize().y, 1 }, 0, 0, colors.data());
 
@@ -181,7 +181,7 @@ int main() {
 
 			sparseCoder.activate(cs, visibleStates, 0.1f);
 
-			sparseCoder.learn(cs, rewardImage, visibleStates, 0.02f, 0.1f);
+			sparseCoder.learn(cs, visibleStates, 0.01f, 0.1f);
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
@@ -245,6 +245,9 @@ int main() {
 		float scalar = 1.0f / (maxWeight - minWeight);
 
 		averageWeight /= count;
+
+		maxWeight = 1.0f;
+		minWeight = -1.0f;
 
 		for (int sx = 0; sx < codeWidth; sx++)
 			for (int sy = 0; sy < codeHeight; sy++) {

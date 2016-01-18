@@ -42,7 +42,7 @@ int main()
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 2, 1 }, layerDescs, { -0.2f, 0.2f }, { 0.01f, 0.05f }, 0.1f, generator);
+	ph.createRandom(cs, prog, { 2, 1 }, layerDescs, { -0.2f, 0.2f }, generator);
 
 	sf::RenderWindow renderWindow;
 

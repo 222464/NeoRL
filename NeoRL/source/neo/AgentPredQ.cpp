@@ -7,7 +7,7 @@ using namespace neo;
 void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, cl_int2 actionSize, cl_int2 qSize,
 	const std::vector<LayerDesc> &layerDescs,
-	cl_float2 initWeightRange, cl_float2 initInhibitionRange, cl_float initThreshold,
+	cl_float2 initWeightRange,
 	std::mt19937 &rng)
 {
 	_inputSize = inputSize;
@@ -22,7 +22,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	cl_int2 prevLayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<SparseCoder::VisibleLayerDesc> scDescs;
+		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs;
 
 		if (l == 0) {
 			scDescs.resize(3);
@@ -66,7 +66,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			scDescs[1]._useTraces = true;
 		}
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, initInhibitionRange, initThreshold, rng);
+		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
 
 		std::vector<Predictor::VisibleLayerDesc> predDescs;
 
@@ -184,7 +184,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
 			}
 
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scIterations, _layerDescs[l]._scLeak);
+			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
 			// Get reward
 			if (l < _layers.size() - 1) {
@@ -224,9 +224,9 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 
 			if (learn) {
 				if (l == 0)
-					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
+					_layers[l]._sc.learn(cs, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 				else
-					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scWeightLateralAlpha, _layerDescs[l]._scThresholdAlpha, _layerDescs[l]._scActiveRatio);
+					_layers[l]._sc.learn(cs, _layers[l]._propagatedPredReward, visibleStates, _layerDescs[l]._scBoostAlpha, _layerDescs[l]._scActiveRatio);
 			}
 		}
 	}

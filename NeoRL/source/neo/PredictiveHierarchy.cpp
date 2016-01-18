@@ -4,7 +4,7 @@ using namespace neo;
 
 void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 	cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
-	cl_float2 initWeightRange, cl_float2 initInhibitionRange, cl_float initThreshold,
+	cl_float2 initWeightRange,
 	std::mt19937 &rng)
 {
 	_inputSize = inputSize;

@@ -146,13 +146,14 @@ void kernel cscActivate(read_only image2d_t visibleStates,
 	int2 visibleSize, float2 hiddenToVisible, int radius)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)((hiddenPosition.x + 0.5f) * hiddenToVisible.x + 0.5f, (hiddenPosition.y + 0.5f) * hiddenToVisible.y + 0.5f);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
 	float sum = read_imagef(hiddenSummationTempBack, hiddenPosition).x;
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
 	float subSum = 0.0f;
+	float count = 0.0f;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -167,11 +168,15 @@ void kernel cscActivate(read_only image2d_t visibleStates,
 
 				float state = read_imagef(visibleStates, visiblePosition).x;
 
-				subSum += state * weight;
+				float delta = state - weight;
+
+				subSum += -delta * delta;
+
+				count++;
 			}
 		}
 
-	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum + subSum));
+	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum + subSum / fmax(1.0f, count)));
 }
 
 void kernel cscActivateIgnoreMiddle(read_only image2d_t visibleStates,
@@ -179,13 +184,14 @@ void kernel cscActivateIgnoreMiddle(read_only image2d_t visibleStates,
 	int2 visibleSize, float2 hiddenToVisible, int radius)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)((hiddenPosition.x + 0.5f) * hiddenToVisible.x + 0.5f, (hiddenPosition.y + 0.5f) * hiddenToVisible.y + 0.5f);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
 	float sum = read_imagef(hiddenSummationTempBack, hiddenPosition).x;
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
 	float subSum = 0.0f;
+	float count = 0.0f;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -203,11 +209,15 @@ void kernel cscActivateIgnoreMiddle(read_only image2d_t visibleStates,
 
 				float state = read_imagef(visibleStates, visiblePosition).x;
 
-				subSum += state * weight;
+				float delta = state - weight;
+
+				subSum += -delta * delta;
+
+				count++;
 			}
 		}
 
-	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum + subSum));
+	write_imagef(hiddenSummationTempFront, hiddenPosition, (float4)(sum + subSum / fmax(1.0f, count)));
 }
 
 void kernel cscSolveHidden(read_only image2d_t hiddenSummationTemp,
@@ -259,18 +269,17 @@ void kernel cscLearnHiddenBiases(read_only image2d_t biasesBack, write_only imag
 }
 
 void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates,
-	read_only image2d_t hiddenStates, read_only image2d_t hiddenActivations, 
+	read_only image2d_t hiddenStates, read_only image2d_t hiddenStatesPrev, 
 	read_only image3d_t weightsBack, write_only image3d_t weightsFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)((hiddenPosition.x + 0.5f) * hiddenToVisible.x + 0.5f, (hiddenPosition.y + 0.5f) * hiddenToVisible.y + 0.5f);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
-
-	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
+	float statePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -285,7 +294,7 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates,
 
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 			
-				float weight = weightPrev + weightAlpha * state * (visibleState - activation * weightPrev);
+				float weight = weightPrev + weightAlpha * state * (1.0f - statePrev) * (visibleState - weightPrev);
 	
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight));
 			}
@@ -293,21 +302,20 @@ void kernel cscLearnHiddenWeights(read_only image2d_t visibleStates,
 }
 
 void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only image2d_t visibleStates,
-	read_only image2d_t hiddenStates, read_only image2d_t hiddenActivations, 
+	read_only image2d_t hiddenStates, read_only image2d_t hiddenStatesPrev,  
 	read_only image3d_t weightsBack, write_only image3d_t weightsFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 visiblePositionCenter = (int2)((hiddenPosition.x + 0.5f) * hiddenToVisible.x + 0.5f, (hiddenPosition.y + 0.5f) * hiddenToVisible.y + 0.5f);
+	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
 	float reward = read_imagef(rewards, hiddenPosition).x;
 
 	float state = read_imagef(hiddenStates, hiddenPosition).x;
+	float statePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
 
-	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
-	
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
 			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
@@ -321,7 +329,7 @@ void kernel cscLearnHiddenWeightsTraces(read_only image2d_t rewards, read_only i
 				
 				float visibleState = read_imagef(visibleStates, visiblePosition).x;
 	
-				float2 weight = (float2)(weightPrev.x + reward * weightPrev.y, weightPrev.y * weightLambda + weightAlpha * state * (visibleState - activation * weightPrev.x));
+				float2 weight = (float2)(weightPrev.x + reward * (weightPrev.y - weightPrev.x), weightPrev.y * weightLambda + weightAlpha * state * (1.0f - statePrev) * visibleState);
 	
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -333,7 +341,7 @@ void kernel cscForward(read_only image2d_t hiddenStates,
 	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
 {
 	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
-	int2 hiddenPositionCenter = (int2)((visiblePosition.x + 0.5f) * visibleToHidden.x + 0.5f, (visiblePosition.y + 0.5f) * visibleToHidden.y + 0.5f);
+	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
 	
 	float recon = 0.0f;
 
