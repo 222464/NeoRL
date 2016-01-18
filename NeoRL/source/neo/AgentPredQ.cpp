@@ -385,9 +385,9 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, const
 			}
 
 			if (l == 0)
-				_layers[l]._pred.learn(cs, std::max(0.0f, tdError), actionTaken, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+				_layers[l]._pred.learn(cs, tdError, actionTaken, visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
 			else
-				_layers[l]._pred.learn(cs, std::max(0.0f, tdError), _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha, _layerDescs[l]._predWeightLambda);
+				_layers[l]._pred.learn(cs, _layers[l - 1]._sc.getHiddenStates()[_back], visibleStatesPrev, _layerDescs[l]._predWeightAlpha);
 		}
 
 		// Q Pred

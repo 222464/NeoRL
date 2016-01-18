@@ -44,7 +44,7 @@ void Predictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progra
 
 		cl_int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
 
-		vl._weights = createDoubleBuffer3D(cs, weightsSize, useTraces ? CL_RG : CL_R, CL_FLOAT);
+		vl._weights = createDoubleBuffer3D(cs, weightsSize, useTraces ? CL_RGBA : CL_R, CL_FLOAT);
 
 		randomUniform(vl._weights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
 	}

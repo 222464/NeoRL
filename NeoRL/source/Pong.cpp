@@ -121,19 +121,18 @@ int main() {
 	int aWidth = 2;
 	int aHeight = 2;
 
-	int qWidth = 2;
-	int qHeight = 2;
+	int qWidth = 4;
+	int qHeight = 4;
 
 	std::vector<neo::AgentPredQ::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 16, 16 };
-	layerDescs[0]._scWeightAlpha = 0.001f;
-	layerDescs[1]._size = { 16, 16 };
-	layerDescs[2]._size = { 16, 16 };
+	layerDescs[0]._size = { 8, 8 };
+	layerDescs[1]._size = { 8, 8 };
+	layerDescs[2]._size = { 8, 8 };
 
 	neo::AgentPredQ agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, layerDescs, { -0.01f, 0.01f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, { 8, 8 }, { 8, 8 }, { 8, 8 }, layerDescs, { -0.4f, 0.4f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	cl::Image2D actionTaken = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), aWidth, aHeight);
@@ -247,6 +246,8 @@ int main() {
 
 		_ballPosition += _ballVelocity;
 
+		reward = _paddlePosition;
+
 		averageReward = (1.0f - averageRewardDecay) * averageReward + averageRewardDecay * reward;
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
@@ -264,8 +265,8 @@ int main() {
 			action[0] = dist01(generator) * 2.0f - 1.0f;
 
 		action[1] = action[0] * 2.1f - 0.24f;
-		action[2] = action[0] * -0.5f, +0.2f;
-		action[3] = action[0] - 2.0f;
+		action[2] = action[0] * -0.5f + 0.2f;
+		action[3] = action[0] - 1.0f;
 
 		float act = action[0];
 

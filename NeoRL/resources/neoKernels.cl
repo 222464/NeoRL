@@ -740,8 +740,6 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 	float target = read_imagef(targets, hiddenPosition).x;
 	float predPrev = read_imagef(predictionsPrev, hiddenPosition).x;
 
-	float alphaError = weightAlpha * (target - predPrev);
-
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
 			int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
@@ -751,15 +749,16 @@ void kernel predLearnWeightsTraces(read_only image2d_t visibleStatesPrev,
 
 				int wi = offset.y + offset.x * (radius * 2 + 1);
 
-				float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
+				float4 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0));
 
 				float state = read_imagef(visibleStatesPrev, visiblePosition).x;
 
-				float newTrace = weightPrev.y * weightLambda + alphaError * state;
+				float newTrace = weightPrev.y * weightLambda + (target - predPrev) * state;
+				float newTrace2 = weightPrev.z * weightLambda + (0.0f - predPrev) * state;
 
-				float2 weight = (float2)(weightPrev.x + tdError * newTrace, newTrace);
+				float4 weight = (float4)(weightPrev.x + weightAlpha * (fmax(0.0f, tdError) * newTrace - fmax(0.0f, -tdError) * newTrace2), newTrace, newTrace2, 0.0f);
 
-				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
+				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}
 		}
 }
@@ -1411,7 +1410,7 @@ void kernel phPredictionReward(read_only image2d_t predictions, read_only image2
 
 	float state = read_imagef(hiddenStates, position).x;
 
-	float reward = (pred * state + (1.0f - pred) * (1.0f - state) * activeRatio);
+	float reward = pred * state;// + (1.0f - pred) * (1.0f - state) * activeRatio);
 
 	float baselinePrev = read_imagef(hiddenBaselinesBack, position).x;
 
