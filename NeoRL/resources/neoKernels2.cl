@@ -385,6 +385,16 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 		}
 }
 
+void kernel spLearnBiases(read_only image2d_t hiddenStates, read_only image2d_t hiddenBiasesBack, write_only image2d_t hiddenBiasesFront, float biasAlpha, float activeRatio) {
+	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+
+	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
+
+	float hiddenBiasPrev = read_imagef(hiddenBiasesBack, hiddenPosition).x;
+
+	write_imagef(hiddenBiasesFront, hiddenPosition, (float4)(hiddenBiasPrev + biasAlpha * (activeRatio - hiddenState)));
+}
+
 // ----------------------------------------- Preprocessing -----------------------------------------
 
 void kernel whiten(read_only image2d_t input, write_only image2d_t result, int2 imageSize, int kernelRadius, float intensity) {

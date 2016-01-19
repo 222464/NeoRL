@@ -82,9 +82,10 @@ namespace neo {
 	private:
 		//!@{
 		/*!
-		\brief Hidden states and activations
+		\brief Hidden states and biases
 		*/
 		DoubleBuffer2D _hiddenStates;
+		DoubleBuffer2D _hiddenBiases;
 		//!@}
 
 		/*!
@@ -131,6 +132,7 @@ namespace neo {
 		cl::Kernel _errorPropagationKernel;
 		cl::Kernel _learnEncoderWeightsKernel;
 		cl::Kernel _learnDecoderWeightsKernel;
+		cl::Kernel _learnBiasesKernel;
 		//!@}
 
 	public:
@@ -153,7 +155,7 @@ namespace neo {
 		\brief Learning functions
 		*/
 		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
-			const std::vector<cl::Image2D> &feedBackStates, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda);
+			const std::vector<cl::Image2D> &feedBackStates, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda, float biasAlpha, float activeRatio);
 		//!@}
 
 		/*!
