@@ -104,7 +104,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 
 	if (learn) {
 		// Feed forward
-		prevLayerState = whiten ? _inputWhitener.getResult() : input;
+		prevLayerState = input;
 
 		for (int l = 0; l < _layers.size(); l++) {
 			// Encoder
