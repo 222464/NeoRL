@@ -90,7 +90,6 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 	_encodeKernel = cl::Kernel(program.getProgram(), "spEncode");
 	_decodeKernel = cl::Kernel(program.getProgram(), "spDecode");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "spSolveHidden");
-	_solveVisibleKernel = cl::Kernel(program.getProgram(), "spSolveVisible");
 	_predictionErrorKernel = cl::Kernel(program.getProgram(), "spPredictionError");
 	_errorPropagationKernel = cl::Kernel(program.getProgram(), "spErrorPropagation");
 	_learnEncoderWeightsKernel = cl::Kernel(program.getProgram(), "spLearnEncoderWeights");
@@ -158,6 +157,7 @@ void SparsePredictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Ima
 		_decodeKernel.setArg(argIndex++, vl._visibleToFeedBack);
 		_decodeKernel.setArg(argIndex++, vld._predDecodeRadius);
 		_decodeKernel.setArg(argIndex++, vld._feedBackDecodeRadius);
+		_decodeKernel.setArg(argIndex++, vld._predictBinary);
 
 		cs.getQueue().enqueueNDRangeKernel(_decodeKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 	}
@@ -209,7 +209,6 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			int argIndex = 0;
 
 			_errorPropagationKernel.setArg(argIndex++, vl._error);
-			_errorPropagationKernel.setArg(argIndex++, _hiddenStates[_front]);
 			_errorPropagationKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_back]);
 			_errorPropagationKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_front]);
 			_errorPropagationKernel.setArg(argIndex++, vl._predDecoderWeights[_back]);
@@ -260,6 +259,7 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			int argIndex = 0;
 
 			_learnEncoderWeightsKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_back]);
+			_learnEncoderWeightsKernel.setArg(argIndex++, _hiddenStates[_front]);
 			_learnEncoderWeightsKernel.setArg(argIndex++, visibleStatesPrev[vli]);
 			_learnEncoderWeightsKernel.setArg(argIndex++, vl._encoderWeights[_back]);
 			_learnEncoderWeightsKernel.setArg(argIndex++, vl._encoderWeights[_front]);

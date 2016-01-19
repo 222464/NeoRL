@@ -127,7 +127,6 @@ namespace neo {
 		cl::Kernel _encodeKernel;
 		cl::Kernel _decodeKernel;
 		cl::Kernel _solveHiddenKernel;
-		cl::Kernel _solveVisibleKernel;
 		cl::Kernel _predictionErrorKernel;
 		cl::Kernel _errorPropagationKernel;
 		cl::Kernel _learnEncoderWeightsKernel;
