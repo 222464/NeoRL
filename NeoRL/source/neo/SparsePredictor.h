@@ -75,6 +75,7 @@ namespace neo {
 			*/
 			cl_float2 _hiddenToVisible;
 			cl_float2 _visibleToHidden;
+			cl_float2 _visibleToFeedBack;
 			//!@}
 		};
 
@@ -90,6 +91,11 @@ namespace neo {
 		\brief Hidden size
 		*/
 		cl_int2 _hiddenSize;
+
+		/*!
+		\brief Feed back size
+		*/
+		std::vector<cl_int2> _feedBackSizes;
 
 		/*!
 		\brief Lateral (inhibitory) radius
@@ -134,7 +140,7 @@ namespace neo {
 		Requires the compute system, program with the NeoRL kernels, and initialization information
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
-			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, cl_int lateralRadius, cl_float2 initWeightRange,
+			const std::vector<VisibleLayerDesc> &visibleLayerDescs, cl_int2 hiddenSize, const std::vector<cl_int2> &feedBackSizes, cl_int lateralRadius, cl_float2 initWeightRange,
 			std::mt19937 &rng);
 
 		/*!
