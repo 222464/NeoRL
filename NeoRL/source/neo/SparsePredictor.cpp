@@ -12,6 +12,7 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 
 	_hiddenSize = hiddenSize;
 	_feedBackSizes = feedBackSizes;
+	_lateralRadius = lateralRadius;
 
 	cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
 	cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
