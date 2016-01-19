@@ -23,6 +23,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	_layers.resize(_layerDescs.size());
 
 	cl::Kernel randomUniform2DXYKernel = cl::Kernel(program.getProgram(), "randomUniform2DXY");
+	cl::Kernel randomUniform2DXYZKernel = cl::Kernel(program.getProgram(), "randomUniform2DXYZ");
 
 	cl_int2 prevLayerSize = inputSize;
 
@@ -116,7 +117,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 
 	_qInput = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _qSize.x, _qSize.y);
 
-	_qTransform = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_RG, CL_FLOAT), _qSize.x, _qSize.y);
+	_qTransform = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_RGB, CL_FLOAT), _qSize.x, _qSize.y);
 
 	// Q Predictor
 	{
@@ -142,7 +143,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	}
 
 	// Random Q transform
-	randomUniformXY(_qTransform, cs, randomUniform2DXYKernel, _qSize, { -1.0f, 1.0f }, rng);
+	randomUniformXYZ(_qTransform, cs, randomUniform2DXYZKernel, _qSize, { -1.0f, 1.0f }, rng);
 
 	_inputWhitener.create(cs, program, _inputSize, CL_R, CL_FLOAT);
 	_actionWhitener.create(cs, program, _actionSize, CL_R, CL_FLOAT);

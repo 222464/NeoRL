@@ -11,7 +11,7 @@
 #include <runner/Runner.h>
 
 #include <neo/AgentPredQ.h>
-#include <neo/AgentHA.h>
+#include <neo/AgentER.h>
 
 #include <vis/Plot.h>
 
@@ -124,18 +124,16 @@ int main() {
 	int qWidth = 4;
 	int qHeight = 4;
 
-	std::vector<neo::AgentHA::LayerDesc> layerDescs(3);
+	std::vector<neo::AgentPredQ::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 16, 16 };
 	layerDescs[0]._predWeightAlpha = 0.1f;
 	layerDescs[1]._size = { 16, 16 };
 	layerDescs[2]._size = { 16, 16 };
 
-	neo::AgentHA agent;
+	neo::AgentPredQ agent;
 
-	// { qWidth, qHeight }, { 8, 8 }, { 8, 8 }, { 8, 8 }, 
-
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, layerDescs, { -0.4f, 0.4f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, { 8, 8 }, { 8, 8 }, { 8, 8 }, layerDescs, { -0.4f, 0.4f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	cl::Image2D actionTaken = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), aWidth, aHeight);
@@ -249,18 +247,18 @@ int main() {
 
 		_ballPosition += _ballVelocity;
 
-		reward = _paddlePosition;
+		//reward = _paddlePosition;
 
 		averageReward = (1.0f - averageRewardDecay) * averageReward + averageRewardDecay * reward;
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 		cs.getQueue().enqueueWriteImage(actionTaken, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
-		agent.simStep(cs, reward, inputImage, generator);
+		agent.simStep(cs, inputImage, actionTaken, reward, generator);
 
 		std::vector<float> actionTemp(action.size());
 
-		cs.getQueue().enqueueReadImage(agent.getExploratoryAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
+		cs.getQueue().enqueueReadImage(agent.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, actionTemp.data());
 
 		action[0] = std::min(1.0f, std::max(-1.0f, actionTemp[0]));
 

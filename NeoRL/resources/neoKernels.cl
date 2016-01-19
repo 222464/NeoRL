@@ -106,6 +106,17 @@ void kernel randomUniform2DXY(write_only image2d_t values, uint2 seed, float2 mi
 	write_imagef(values, position, (float4)(v.x, v.y, 0.0f, 0.0f));
 }
 
+// Initialize a random uniform 2D image (XYZ fields)
+void kernel randomUniform2DXYZ(write_only image2d_t values, uint2 seed, float2 minMax) {
+	uint2 seedValue = seed + (uint2)(get_global_id(0) * 15 + 66, get_global_id(1) * 61 + 2) * 56;
+
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+
+	float3 v = (float3)(randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x, randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x, randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x);
+
+	write_imagef(values, position, (float4)(v.x, v.y, v.z, 0.0f));
+}
+
 // Initialize a random uniform 2D image (XZ fields)
 void kernel randomUniform2DXZ(write_only image2d_t values, uint2 seed, float2 minMax) {
 	uint2 seedValue = seed + (uint2)(get_global_id(0) * 29 + 12, get_global_id(1) * 16 + 23) * 36;
@@ -1492,9 +1503,9 @@ void kernel phExploration(read_only image2d_t actions,
 void kernel phSetQ(read_only image2d_t qTransforms, write_only image2d_t qValues, float q) {
 	int2 position = (int2)(get_global_id(0), get_global_id(1));
 	
-	float2 trans = read_imagef(qTransforms, position).xy;
+	float3 trans = read_imagef(qTransforms, position).xyz;
 	
-	float wQ = q * trans.x + trans.y;
+	float wQ = q * q * trans.x + q * trans.y + trans.z;
 
 	write_imagef(qValues, position, (float4)(wQ));
 }

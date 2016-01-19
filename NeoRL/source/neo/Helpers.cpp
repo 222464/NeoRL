@@ -62,6 +62,20 @@ void neo::randomUniformXY(cl::Image2D &image2D, sys::ComputeSystem &cs, cl::Kern
 	cs.getQueue().enqueueNDRangeKernel(randomUniform2DXYKernel, cl::NullRange, cl::NDRange(size.x, size.y));
 }
 
+void neo::randomUniformXYZ(cl::Image2D &image2D, sys::ComputeSystem &cs, cl::Kernel &randomUniform2DXYZKernel, cl_int2 size, cl_float2 range, std::mt19937 &rng) {
+	int argIndex = 0;
+
+	std::uniform_int_distribution<int> seedDist(0, 999);
+
+	cl_uint2 seed = { seedDist(rng), seedDist(rng) };
+
+	randomUniform2DXYZKernel.setArg(argIndex++, image2D);
+	randomUniform2DXYZKernel.setArg(argIndex++, seed);
+	randomUniform2DXYZKernel.setArg(argIndex++, range);
+
+	cs.getQueue().enqueueNDRangeKernel(randomUniform2DXYZKernel, cl::NullRange, cl::NDRange(size.x, size.y));
+}
+
 void neo::randomUniformXY(cl::Image3D &image3D, sys::ComputeSystem &cs, cl::Kernel &randomUniform3DXYKernel, cl_int3 size, cl_float2 range, std::mt19937 &rng) {
 	int argIndex = 0;
 
