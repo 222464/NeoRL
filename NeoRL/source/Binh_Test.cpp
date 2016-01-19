@@ -102,20 +102,20 @@ int main()
 		if (autoplay || sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
 			index++;
 
-			float value = index % 10 == 0 ? 1.0f : (index % 3 == 0 ? 1.0f : 0.0f);// std::sin(0.164f * 3.141596f * index + 0.25f);// +0.7f * std::sin(0.12352f * 3.141596f * index * 1.5f + 0.2154f) + 0.5f * std::sin(0.0612f * 3.141596f * index * 3.0f - 0.2112f);
+			float value = std::sin(index * 0.6f);// index % 10 == 0 ? 1.0f : (index % 3 == 0 ? 1.0f : 0.0f);// std::sin(0.164f * 3.141596f * index + 0.25f);// +0.7f * std::sin(0.12352f * 3.141596f * index * 1.5f + 0.2154f) + 0.5f * std::sin(0.0612f * 3.141596f * index * 3.0f - 0.2112f);
 
 			inputBuffer[0] = value;
 			inputBuffer[1] = 1.0f - value;
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, inputBuffer.data());
 
-			ph.simStep(cs, inputImage, true, false);
+			ph.simStep(cs, inputImage, true, true);
 
 			std::vector<float> res(2 * 1);
 
 			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, res.data());
 
-			float v = res[0];// 0.5f * (res[0] + (1.0f - res[1]));
+			float v = 0.5f * (res[0] + (1.0f - res[1]));
 
 			// Plot target data
 			vis::Point p;
