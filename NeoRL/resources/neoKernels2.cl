@@ -164,7 +164,7 @@ void kernel spEncode(read_only image2d_t visibleStates,
 
 void kernel spDecode(read_only image2d_t hiddenStates, read_only image2d_t feedBackStates,
 	write_only image2d_t predictions, read_only image3d_t predWeights, read_only image3d_t feedBackWeights,
-	int2 hiddenSize, int2 feedBackSize, float2 visibleToHidden, float2 visibleToFeedBack, int predRadius, int feedBackRadius, bool predBinary)
+	int2 hiddenSize, int2 feedBackSize, float2 visibleToHidden, float2 visibleToFeedBack, int predRadius, int feedBackRadius, char predBinary)
 {
 	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
@@ -203,7 +203,7 @@ void kernel spDecode(read_only image2d_t hiddenStates, read_only image2d_t feedB
 
 				float weight = read_imagef(feedBackWeights, (int4)(visiblePosition.x, visiblePosition.y, wi, 0)).x;
 
-				float state = read_imagef(feedBackStates, hiddenPosition).x;
+				float state = read_imagef(feedBackStates, feedBackPosition).x;
 
 				sum += state * weight;
 			}
@@ -268,7 +268,7 @@ void kernel scErrorPropagation(read_only image2d_t errors,
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
 	
-	float error = read_imagef(hiddenErrorSummationTempFront, visiblePosition).x;
+	float error = read_imagef(hiddenErrorSummationTempBack, hiddenPosition).x;
 
 	for (int dx = -reversePredDecodeRadii.x; dx <= reversePredDecodeRadii.x; dx++)
 		for (int dy = -reversePredDecodeRadii.y; dy <= reversePredDecodeRadii.y; dy++) {
@@ -296,7 +296,7 @@ void kernel scErrorPropagation(read_only image2d_t errors,
 			}
 		}
 
-	write_imagef(reconstructionError, visiblePosition, (float4)(error));
+	write_imagef(hiddenErrorSummationTempFront, hiddenPosition, (float4)(error));
 }
 
 void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_t hiddenStates, read_only image2d_t feedBackStates,
@@ -341,11 +341,9 @@ void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_
 
 				int wi = offset.y + offset.x * (feedBackRadius * 2 + 1);
 
-				float weightPrev = read_imagef(feedBackWeightsBack, (int4)(visiblePosition.x, visiblePosition.y, wi, 0)).x;
+				float2 weightPrev = read_imagef(feedBackWeightsBack, (int4)(visiblePosition.x, visiblePosition.y, wi, 0)).xy;
 
-				float statePrev = read_imagef(feedBackStates, hiddenPosition).x;
-
-				float weight = weightPrev + weightAlpha * error * statePrev;
+				float statePrev = read_imagef(feedBackStates, feedBackPosition).x;
 
 				float2 weight = (float2)(weightPrev.x + weightAlpha * weightPrev.y, error * statePrev);
 
@@ -374,13 +372,13 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 
 				int wi = offset.y + offset.x * (radius * 2 + 1);
 
-				float2 weightPrev = read_imagef(weightsPrev, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
+				float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
 
 				float state = read_imagef(visibleStates, visiblePosition).x;
 
 				float2 weight = (float2)(weightPrev.x + weightAlpha * error * weightPrev.x, weightPrev.y * weightLambda * (1.0f - state) + state);
 
-				write_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
+				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
 		}
 }

@@ -55,8 +55,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		else
 			feedBackSizes[0] = feedBackSizes[1] = { 1, 1 };
 
-		if (l < _layers.size() - 1)
-			_layers[l]._sp.createRandom(cs, program, scDescs, _layerDescs[l]._size, feedBackSizes, _layerDescs[l]._lateralRadius, initWeightRange, rng);
+		_layers[l]._sp.createRandom(cs, program, scDescs, _layerDescs[l]._size, feedBackSizes, _layerDescs[l]._lateralRadius, initWeightRange, rng);
 
 		_layers[l]._additionalErrors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), prevLayerSize.x, prevLayerSize.y);
 

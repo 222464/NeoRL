@@ -115,21 +115,6 @@ namespace neo {
 		void simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn = true, bool whiten = true);
 
 		/*!
-		\brief Clear working memory
-		*/
-		void clearMemory(sys::ComputeSystem &cs);
-
-		/*!
-		\brief Write to stream
-		*/
-		void writeToStream(sys::ComputeSystem &cs, std::ostream &os) const;
-
-		/*!
-		\brief Read from stream
-		*/
-		void readFromStream(sys::ComputeSystem &cs, sys::ComputeProgram &program, std::istream &is);
-
-		/*!
 		\brief Get number of layers
 		*/
 		size_t getNumLayers() const {

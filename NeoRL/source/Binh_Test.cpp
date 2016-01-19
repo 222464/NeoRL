@@ -22,7 +22,7 @@ int main()
 
 	sys::ComputeProgram prog;
 
-	prog.loadFromFile("resources/neoKernels.cl", cs);
+	prog.loadFromFile("resources/neoKernels2.cl", cs);
 
 	// --------------------------- Create the Sparse Coder ---------------------------
 
@@ -35,8 +35,6 @@ int main()
 	layerDescs[0]._size = { 8, 8 };
 	layerDescs[0]._predictiveRadius = 8;
 	layerDescs[0]._feedBackRadius = 8;
-	layerDescs[0]._scWeightAlpha = 0.05f;
-	layerDescs[0]._predWeightAlpha = 0.05f;
 	layerDescs[1]._size = { 8, 8 };
 	layerDescs[2]._size = { 8, 8 };
 
@@ -98,12 +96,6 @@ int main()
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::C))
 			autoplay = true;
-				
-		if (!sPrev && sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
-			std::ofstream os("binh_save.neo");
-
-			ph.writeToStream(cs, os);
-		}
 
 		sPrev = sf::Keyboard::isKeyPressed(sf::Keyboard::S);
 
@@ -169,7 +161,7 @@ int main()
 
 			std::vector<float> data(64);
 
-			cs.getQueue().enqueueReadImage(ph.getLayer(0)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, data.data());
+			cs.getQueue().enqueueReadImage(ph.getLayer(0)._sp.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, data.data());
 
 			for (int x = 0; x < 8; x++) {
 
