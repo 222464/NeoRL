@@ -299,7 +299,7 @@ void kernel scErrorPropagation(read_only image2d_t errors,
 	write_imagef(reconstructionError, visiblePosition, (float4)(error));
 }
 
-void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_t hiddenStatesPrev, read_only image2d_t feedBackStatesPrev,
+void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_t hiddenStates, read_only image2d_t feedBackStates,
 	read_only image3d_t predWeightsBack, write_only image3d_t predWeightsFront,
 	read_only image3d_t feedBackWeightsBack, write_only image3d_t feedBackWeightsFront,
 	int2 hiddenSize, int2 feedBackSize, float2 visibleToHidden, float2 visibleToFeedBack, int predRadius, int feedBackRadius, float weightAlpha)
@@ -322,13 +322,13 @@ void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_
 
 				int wi = offset.y + offset.x * (predRadius * 2 + 1);
 
-				float weightPrev = read_imagef(predWeightsBack, (int4)(visiblePosition.x, visiblePosition.y, wi, 0)).x;
+				float2 weightPrev = read_imagef(predWeightsBack, (int4)(visiblePosition.x, visiblePosition.y, wi, 0)).xy;
 
-				float statePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
+				float statePrev = read_imagef(hiddenStates, hiddenPosition).x;
 
-				float weight = weightPrev + weightAlpha * error * statePrev;
+				float2 weight = (float2)(weightPrev.x + weightAlpha * weightPrev.y, error * statePrev);
 
-				write_imagef(predWeightsFront, (int4)(visiblePosition.x, visiblePosition.y, wi, 0), (float4)(weight));
+				write_imagef(predWeightsFront, (int4)(visiblePosition.x, visiblePosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
 		}
 
@@ -343,11 +343,13 @@ void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_
 
 				float weightPrev = read_imagef(feedBackWeightsBack, (int4)(visiblePosition.x, visiblePosition.y, wi, 0)).x;
 
-				float statePrev = read_imagef(feedBackStatesPrev, hiddenPosition).x;
+				float statePrev = read_imagef(feedBackStates, hiddenPosition).x;
 
 				float weight = weightPrev + weightAlpha * error * statePrev;
 
-				write_imagef(feedBackWeightsBack, (int4)(visiblePosition.x, visiblePosition.y, wi, 0), (float4)(weight));
+				float2 weight = (float2)(weightPrev.x + weightAlpha * weightPrev.y, error * statePrev);
+
+				write_imagef(feedBackWeightsFront, (int4)(visiblePosition.x, visiblePosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
 		}
 }

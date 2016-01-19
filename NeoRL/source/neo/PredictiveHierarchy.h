@@ -52,6 +52,11 @@ namespace neo {
 			\brief Sparse predictor
 			*/
 			SparsePredictor _sp;
+
+			/*!
+			\brief Layer for additional error signals
+			*/
+			cl::Image2D _additionalErrors;
 		};
 
 	private:

@@ -152,8 +152,8 @@ namespace neo {
 		/*!
 		\brief Learning functions
 		*/
-		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev,
-			const std::vector<cl::Image2D> &feedBackStatesPrev, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda);
+		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
+			const std::vector<cl::Image2D> &feedBackStates, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda);
 		//!@}
 
 		/*!
