@@ -78,6 +78,8 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 		vl._predictions = createDoubleBuffer2D(cs, vld._size, CL_R, CL_FLOAT);
 	
 		cs.getQueue().enqueueFillImage(vl._predictions[_back], zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), 1 });
+
+		vl._error = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
 	}
 
 	// Hidden state data
@@ -261,6 +263,7 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			cs.getQueue().enqueueNDRangeKernel(_learnDecoderWeightsKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 
 			std::swap(vl._predDecoderWeights[_front], vl._predDecoderWeights[_back]);
+			std::swap(vl._feedBackDecoderWeights[_front], vl._feedBackDecoderWeights[_back]);
 		}
 
 		// Encoder
