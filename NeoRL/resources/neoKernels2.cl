@@ -164,7 +164,7 @@ void kernel spEncode(read_only image2d_t visibleStates,
 
 void kernel spDecode(read_only image2d_t hiddenStates, read_only image2d_t feedBackStates,
 	write_only image2d_t predictions, read_only image3d_t predWeights, read_only image3d_t feedBackWeights,
-	int2 hiddenSize, int2 feedBackSize, float2 visibleToHidden, float2 visibleToFeedBack, int predRadius, int feedBackRadius, char predBinary)
+	int2 hiddenSize, int2 feedBackSize, float2 visibleToHidden, float2 visibleToFeedBack, int predRadius, int feedBackRadius, char predictThresholded)
 {
 	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
@@ -209,7 +209,7 @@ void kernel spDecode(read_only image2d_t hiddenStates, read_only image2d_t feedB
 			}
 		}
 
-	write_imagef(predictions, visiblePosition, (float4)(predBinary ? (sum > 0.5f ? 1.0f : 0.0f) : sum));
+	write_imagef(predictions, visiblePosition, (float4)(predictThresholded ? fmax(0.0f, tanh(sum)) : sum));
 }
 
 void kernel spSolveHidden(read_only image2d_t hiddenSummationTemp,
@@ -240,7 +240,7 @@ void kernel spSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? activation : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? fmax(0.0f, tanh(activation)) : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -361,7 +361,9 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 	
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
-	float error = read_imagef(errors, hiddenPosition).x * (read_imagef(hiddenStatesPrev, hiddenPosition).x == 0.0f ? 0.0f : 1.0f);
+	float hiddenStatePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
+
+	float error = read_imagef(errors, hiddenPosition).x * (hiddenStatePrev == 0.0f ? 0.0f : (1.0f - hiddenStatePrev * hiddenStatePrev));
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 

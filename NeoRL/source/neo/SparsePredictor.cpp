@@ -168,7 +168,7 @@ void SparsePredictor::activateDecoder(sys::ComputeSystem &cs, const std::vector<
 		_decodeKernel.setArg(argIndex++, vl._visibleToFeedBack);
 		_decodeKernel.setArg(argIndex++, vld._predDecodeRadius);
 		_decodeKernel.setArg(argIndex++, vld._feedBackDecodeRadius);
-		_decodeKernel.setArg(argIndex++, vld._predictBinary);
+		_decodeKernel.setArg(argIndex++, vld._predictThresholded);
 
 		cs.getQueue().enqueueNDRangeKernel(_decodeKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 	}

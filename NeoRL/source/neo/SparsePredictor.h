@@ -36,13 +36,13 @@ namespace neo {
 			/*!
 			\brief Whether or not the predictions should be binary
 			*/
-			char _predictBinary;
+			char _predictThresholded;
 
 			/*!
 			\brief Initialize defaults
 			*/
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _encodeRadius(4), _predDecodeRadius(4), _feedBackDecodeRadius(4), _predictBinary(true)
+				: _size({ 8, 8 }), _encodeRadius(4), _predDecodeRadius(4), _feedBackDecodeRadius(4), _predictThresholded(true)
 			{}
 		};
 
