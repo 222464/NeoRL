@@ -35,8 +35,8 @@ int main()
 	layerDescs[0]._size = { 8, 8 };
 	layerDescs[0]._predictiveRadius = 8;
 	layerDescs[0]._feedBackRadius = 8;
-	layerDescs[0]._scWeightAlpha = 0.01f;
-	layerDescs[0]._predWeightAlpha = 0.001f;
+	layerDescs[0]._scWeightAlpha = 0.05f;
+	layerDescs[0]._predWeightAlpha = 0.05f;
 	layerDescs[1]._size = { 8, 8 };
 	layerDescs[2]._size = { 8, 8 };
 

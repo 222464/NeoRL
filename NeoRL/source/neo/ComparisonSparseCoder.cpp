@@ -65,7 +65,8 @@ void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputePro
 	cs.getQueue().enqueueFillImage(_hiddenBiases[_back], zeroColor, zeroOrigin, hiddenRegion);
 
 	_hiddenActivationSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
-	
+	_hiddenPredictionSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
+
 	cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
 
 	// Create kernels
@@ -73,8 +74,10 @@ void ComparisonSparseCoder::createRandom(sys::ComputeSystem &cs, sys::ComputePro
 	_activateIgnoreMiddleKernel = cl::Kernel(program.getProgram(), "cscActivateIgnoreMiddle");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "cscSolveHidden");
 	_learnHiddenBiasesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenBiases");
-	_learnHiddenWeightsKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeights");
-	_learnHiddenWeightsTracesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsTraces");
+	_learnHiddenWeightsActivationKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsActivation");
+	_learnHiddenWeightsTracesActivationKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsTracesActivation");
+	_learnHiddenWeightsPredictionKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsPrediction");
+	_learnHiddenWeightsTracesPredictionKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsTracesPrediction");
 	_forwardKernel = cl::Kernel(program.getProgram(), "cscForward");
 }
 
@@ -91,35 +94,82 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-		if (vld._ignoreMiddle) {
-			int argIndex = 0;
+		if (!vld._isPredictiveCoding) {
+			if (vld._ignoreMiddle) {
+				int argIndex = 0;
 
-			_activateIgnoreMiddleKernel.setArg(argIndex++, visibleStates[vli]);
-			_activateIgnoreMiddleKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
-			_activateIgnoreMiddleKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_front]);
-			_activateIgnoreMiddleKernel.setArg(argIndex++, vl._weights[_back]);
-			_activateIgnoreMiddleKernel.setArg(argIndex++, vld._size);
-			_activateIgnoreMiddleKernel.setArg(argIndex++, vl._hiddenToVisible);
-			_activateIgnoreMiddleKernel.setArg(argIndex++, vld._radius);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, visibleStates[vli]);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_front]);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, vl._weights[_back]);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, vld._size);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, vl._hiddenToVisible);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, vld._radius);
 
-			cs.getQueue().enqueueNDRangeKernel(_activateIgnoreMiddleKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+				cs.getQueue().enqueueNDRangeKernel(_activateIgnoreMiddleKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			}
+			else {
+				int argIndex = 0;
+
+				_activateKernel.setArg(argIndex++, visibleStates[vli]);
+				_activateKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
+				_activateKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_front]);
+				_activateKernel.setArg(argIndex++, vl._weights[_back]);
+				_activateKernel.setArg(argIndex++, vld._size);
+				_activateKernel.setArg(argIndex++, vl._hiddenToVisible);
+				_activateKernel.setArg(argIndex++, vld._radius);
+
+				cs.getQueue().enqueueNDRangeKernel(_activateKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			}
+
+			// Swap buffers
+			std::swap(_hiddenActivationSummationTemp[_front], _hiddenActivationSummationTemp[_back]);
 		}
-		else {
-			int argIndex = 0;
+	}
 
-			_activateKernel.setArg(argIndex++, visibleStates[vli]);
-			_activateKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
-			_activateKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_front]);
-			_activateKernel.setArg(argIndex++, vl._weights[_back]);
-			_activateKernel.setArg(argIndex++, vld._size);
-			_activateKernel.setArg(argIndex++, vl._hiddenToVisible);
-			_activateKernel.setArg(argIndex++, vld._radius);
+	// Start by clearing summation buffer to biases
+	{
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
 
-			cs.getQueue().enqueueNDRangeKernel(_activateKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		cs.getQueue().enqueueFillImage(_hiddenPredictionSummationTemp[_back], cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, zeroOrigin, hiddenRegion);
+	}
+
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		if (vld._isPredictiveCoding) {
+			if (vld._ignoreMiddle) {
+				int argIndex = 0;
+
+				_activateIgnoreMiddleKernel.setArg(argIndex++, visibleStates[vli]);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, _hiddenPredictionSummationTemp[_back]);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, _hiddenPredictionSummationTemp[_front]);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, vl._weights[_back]);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, vld._size);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, vl._hiddenToVisible);
+				_activateIgnoreMiddleKernel.setArg(argIndex++, vld._radius);
+
+				cs.getQueue().enqueueNDRangeKernel(_activateIgnoreMiddleKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			}
+			else {
+				int argIndex = 0;
+
+				_activateKernel.setArg(argIndex++, visibleStates[vli]);
+				_activateKernel.setArg(argIndex++, _hiddenPredictionSummationTemp[_back]);
+				_activateKernel.setArg(argIndex++, _hiddenPredictionSummationTemp[_front]);
+				_activateKernel.setArg(argIndex++, vl._weights[_back]);
+				_activateKernel.setArg(argIndex++, vld._size);
+				_activateKernel.setArg(argIndex++, vl._hiddenToVisible);
+				_activateKernel.setArg(argIndex++, vld._radius);
+
+				cs.getQueue().enqueueNDRangeKernel(_activateKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			}
+
+			// Swap buffers
+			std::swap(_hiddenPredictionSummationTemp[_front], _hiddenPredictionSummationTemp[_back]);
 		}
-
-		// Swap buffers
-		std::swap(_hiddenActivationSummationTemp[_front], _hiddenActivationSummationTemp[_back]);
 	}
 
 	// Back now contains the sums. Solve sparse codes from this
@@ -127,6 +177,7 @@ void ComparisonSparseCoder::activate(sys::ComputeSystem &cs, const std::vector<c
 		int argIndex = 0;
 
 		_solveHiddenKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
+		_solveHiddenKernel.setArg(argIndex++, _hiddenPredictionSummationTemp[_back]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenStates[_front]);
 		_solveHiddenKernel.setArg(argIndex++, _hiddenSize);
 		_solveHiddenKernel.setArg(argIndex++, _lateralRadius);
@@ -180,21 +231,47 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const std::vector<cl::
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-		int argIndex = 0;
+		if (!vld._isPredictiveCoding) {
+			int argIndex = 0;
 
-		_learnHiddenWeightsKernel.setArg(argIndex++, visibleStates[vli]);
-		_learnHiddenWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
-		_learnHiddenWeightsKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
-		_learnHiddenWeightsKernel.setArg(argIndex++, vl._weights[_back]);
-		_learnHiddenWeightsKernel.setArg(argIndex++, vl._weights[_front]);
-		_learnHiddenWeightsKernel.setArg(argIndex++, vld._size);
-		_learnHiddenWeightsKernel.setArg(argIndex++, vl._hiddenToVisible);
-		_learnHiddenWeightsKernel.setArg(argIndex++, vld._radius);
-		_learnHiddenWeightsKernel.setArg(argIndex++, vld._weightAlpha);
+			_learnHiddenWeightsActivationKernel.setArg(argIndex++, visibleStates[vli]);
+			_learnHiddenWeightsActivationKernel.setArg(argIndex++, _hiddenStates[_back]);
+			_learnHiddenWeightsActivationKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
+			_learnHiddenWeightsActivationKernel.setArg(argIndex++, vl._weights[_back]);
+			_learnHiddenWeightsActivationKernel.setArg(argIndex++, vl._weights[_front]);
+			_learnHiddenWeightsActivationKernel.setArg(argIndex++, vld._size);
+			_learnHiddenWeightsActivationKernel.setArg(argIndex++, vl._hiddenToVisible);
+			_learnHiddenWeightsActivationKernel.setArg(argIndex++, vld._radius);
+			_learnHiddenWeightsActivationKernel.setArg(argIndex++, vld._weightAlpha);
 
-		cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsActivationKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
-		std::swap(vl._weights[_front], vl._weights[_back]);
+			std::swap(vl._weights[_front], vl._weights[_back]);
+		}
+	}
+
+	// Learn weights
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+		if (vld._isPredictiveCoding) {
+			int argIndex = 0;
+
+			_learnHiddenWeightsPredictionKernel.setArg(argIndex++, visibleStates[vli]);
+			_learnHiddenWeightsPredictionKernel.setArg(argIndex++, _hiddenStates[_back]);
+			_learnHiddenWeightsPredictionKernel.setArg(argIndex++, _hiddenPredictionSummationTemp[_back]);
+			_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vl._weights[_back]);
+			_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vl._weights[_front]);
+			_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vld._size);
+			_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vl._hiddenToVisible);
+			_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vld._radius);
+			_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vld._weightAlpha);
+
+			cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsPredictionKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+			std::swap(vl._weights[_front], vl._weights[_back]);
+		}
 	}
 }
 
@@ -219,40 +296,84 @@ void ComparisonSparseCoder::learn(sys::ComputeSystem &cs, const cl::Image2D &rew
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-		if (vld._useTraces) {
-			int argIndex = 0;
+		if (!vld._isPredictiveCoding) {
+			if (vld._useTraces) {
+				int argIndex = 0;
 
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, rewards);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, visibleStates[vli]);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, _hiddenStates[_back]);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vl._weights[_back]);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vl._weights[_front]);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vld._size);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vl._hiddenToVisible);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vld._radius);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vld._weightAlpha);
-			_learnHiddenWeightsTracesKernel.setArg(argIndex++, vld._weightLambda);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, rewards);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, visibleStates[vli]);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, _hiddenStates[_back]);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, vl._weights[_back]);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, vl._weights[_front]);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, vld._size);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, vl._hiddenToVisible);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, vld._radius);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, vld._weightAlpha);
+				_learnHiddenWeightsTracesActivationKernel.setArg(argIndex++, vld._weightLambda);
 
-			cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsTracesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+				cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsTracesActivationKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			}
+			else {
+				int argIndex = 0;
+
+				_learnHiddenWeightsActivationKernel.setArg(argIndex++, visibleStates[vli]);
+				_learnHiddenWeightsActivationKernel.setArg(argIndex++, _hiddenStates[_back]);
+				_learnHiddenWeightsActivationKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
+				_learnHiddenWeightsActivationKernel.setArg(argIndex++, vl._weights[_back]);
+				_learnHiddenWeightsActivationKernel.setArg(argIndex++, vl._weights[_front]);
+				_learnHiddenWeightsActivationKernel.setArg(argIndex++, vld._size);
+				_learnHiddenWeightsActivationKernel.setArg(argIndex++, vl._hiddenToVisible);
+				_learnHiddenWeightsActivationKernel.setArg(argIndex++, vld._radius);
+				_learnHiddenWeightsActivationKernel.setArg(argIndex++, vld._weightAlpha);
+
+				cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsActivationKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			}
+
+			std::swap(vl._weights[_front], vl._weights[_back]);
 		}
-		else {
-			int argIndex = 0;
+	}
 
-			_learnHiddenWeightsKernel.setArg(argIndex++, visibleStates[vli]);
-			_learnHiddenWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
-			_learnHiddenWeightsKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
-			_learnHiddenWeightsKernel.setArg(argIndex++, vl._weights[_back]);
-			_learnHiddenWeightsKernel.setArg(argIndex++, vl._weights[_front]);
-			_learnHiddenWeightsKernel.setArg(argIndex++, vld._size);
-			_learnHiddenWeightsKernel.setArg(argIndex++, vl._hiddenToVisible);
-			_learnHiddenWeightsKernel.setArg(argIndex++, vld._radius);
-			_learnHiddenWeightsKernel.setArg(argIndex++, vld._weightAlpha);
+	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
+		VisibleLayer &vl = _visibleLayers[vli];
+		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-			cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+		if (vld._isPredictiveCoding) {
+			if (vld._useTraces) {
+				int argIndex = 0;
+
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, rewards);
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, visibleStates[vli]);
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, _hiddenStates[_back]);
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, _hiddenPredictionSummationTemp[_back]);
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, vl._weights[_back]);
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, vl._weights[_front]);
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, vld._size);
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, vl._hiddenToVisible);
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, vld._radius);
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, vld._weightAlpha);
+				_learnHiddenWeightsTracesPredictionKernel.setArg(argIndex++, vld._weightLambda);
+
+				cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsTracesPredictionKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			}
+			else {
+				int argIndex = 0;
+
+				_learnHiddenWeightsPredictionKernel.setArg(argIndex++, visibleStates[vli]);
+				_learnHiddenWeightsPredictionKernel.setArg(argIndex++, _hiddenStates[_back]);
+				_learnHiddenWeightsPredictionKernel.setArg(argIndex++, _hiddenPredictionSummationTemp[_back]);
+				_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vl._weights[_back]);
+				_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vl._weights[_front]);
+				_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vld._size);
+				_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vl._hiddenToVisible);
+				_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vld._radius);
+				_learnHiddenWeightsPredictionKernel.setArg(argIndex++, vld._weightAlpha);
+
+				cs.getQueue().enqueueNDRangeKernel(_learnHiddenWeightsPredictionKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			}
+
+			std::swap(vl._weights[_front], vl._weights[_back]);
 		}
-
-		std::swap(vl._weights[_front], vl._weights[_back]);
 	}
 }
 
@@ -409,8 +530,8 @@ void ComparisonSparseCoder::readFromStream(sys::ComputeSystem &cs, sys::ComputeP
 	_activateIgnoreMiddleKernel = cl::Kernel(program.getProgram(), "cscActivateIgnoreMiddle");
 	_solveHiddenKernel = cl::Kernel(program.getProgram(), "cscSolveHidden");
 	_learnHiddenBiasesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenBiases");
-	_learnHiddenWeightsKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeights");
-	_learnHiddenWeightsTracesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsTraces");
+	//_learnHiddenWeightsKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeights");
+	//_learnHiddenWeightsTracesKernel = cl::Kernel(program.getProgram(), "cscLearnHiddenWeightsTraces");
 }
 
 void ComparisonSparseCoder::clearMemory(sys::ComputeSystem &cs) {

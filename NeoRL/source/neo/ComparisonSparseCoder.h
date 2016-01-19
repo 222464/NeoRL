@@ -14,6 +14,11 @@ namespace neo {
 		*/
 		struct VisibleLayerDesc {
 			/*!
+			\brief Whether this layer is predictively coding
+			*/
+			bool _isPredictiveCoding;
+
+			/*!
 			\brief Size of visible layer
 			*/
 			cl_int2 _size;
@@ -45,7 +50,8 @@ namespace neo {
 			\brief Initialize defaults
 			*/
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _radius(4), _weightAlpha(0.0001f), _weightLambda(0.95f),
+				: _isPredictiveCoding(false),
+				_size({ 8, 8 }), _radius(4), _weightAlpha(0.0001f), _weightLambda(0.95f),
 				_ignoreMiddle(false), _useTraces(false)
 			{}
 		};
@@ -99,6 +105,7 @@ namespace neo {
 		\brief Temporary summation buffers
 		*/
 		DoubleBuffer2D _hiddenActivationSummationTemp;
+		DoubleBuffer2D _hiddenPredictionSummationTemp;
 		//!@}
 
 		//!@{
@@ -117,8 +124,10 @@ namespace neo {
 		cl::Kernel _activateIgnoreMiddleKernel;
 		cl::Kernel _solveHiddenKernel;
 		cl::Kernel _learnHiddenBiasesKernel;
-		cl::Kernel _learnHiddenWeightsKernel;
-		cl::Kernel _learnHiddenWeightsTracesKernel;
+		cl::Kernel _learnHiddenWeightsActivationKernel;
+		cl::Kernel _learnHiddenWeightsTracesActivationKernel;
+		cl::Kernel _learnHiddenWeightsPredictionKernel;
+		cl::Kernel _learnHiddenWeightsTracesPredictionKernel;
 		cl::Kernel _forwardKernel;
 		//!@}
 
