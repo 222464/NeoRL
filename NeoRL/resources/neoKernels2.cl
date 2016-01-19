@@ -240,7 +240,7 @@ void kernel spSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? activation : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -361,7 +361,7 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 	
 	int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
 
-	float error = read_imagef(errors, hiddenPosition).x * read_imagef(hiddenStatesPrev, hiddenPosition).x;
+	float error = read_imagef(errors, hiddenPosition).x * (read_imagef(hiddenStatesPrev, hiddenPosition).x == 0.0f ? 0.0f : 1.0f);
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 

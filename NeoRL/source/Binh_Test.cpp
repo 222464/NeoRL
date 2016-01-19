@@ -109,7 +109,7 @@ int main()
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, inputBuffer.data());
 
-			ph.simStep(cs, inputImage, true, true);
+			ph.simStep(cs, inputImage, true, false);
 
 			std::vector<float> res(2 * 1);
 

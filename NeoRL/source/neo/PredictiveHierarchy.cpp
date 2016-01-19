@@ -116,7 +116,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			std::vector<cl::Image2D> feedBackStates(2);
 
 			if (l < _layers.size() - 1)
-				feedBackStates[0] = feedBackStates[1] = _layers[l + 1]._sp.getVisibleLayer(0)._predictions[_back];
+				feedBackStates[0] = feedBackStates[1] = _layers[l + 1]._sp.getVisibleLayer(0)._predictions[_front];
 			else
 				feedBackStates[0] = feedBackStates[1] = _zeroLayer;
 
