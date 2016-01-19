@@ -76,6 +76,8 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 		}
 
 		vl._predictions = createDoubleBuffer2D(cs, vld._size, CL_R, CL_FLOAT);
+	
+		cs.getQueue().enqueueFillImage(vl._predictions[_back], zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), 1 });
 	}
 
 	// Hidden state data

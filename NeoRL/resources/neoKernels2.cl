@@ -378,7 +378,7 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 
 				float state = read_imagef(visibleStates, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * error * weightPrev.x, weightPrev.y * weightLambda * (1.0f - hiddenState) + state);
+				float2 weight = (float2)(weightPrev.x + weightAlpha * error * weightPrev.y, weightPrev.y * weightLambda * (1.0f - hiddenState) + state);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
