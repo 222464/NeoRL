@@ -139,7 +139,7 @@ void SparsePredictor::activateEncoder(sys::ComputeSystem &cs, const std::vector<
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
 	
-	// No buffer swapping yet
+	// No buffer swapping yet, this happens in the decoding phase
 }
 
 void SparsePredictor::activateDecoder(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &feedBackStates) {
@@ -263,7 +263,7 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			_learnDecoderWeightsKernel.setArg(argIndex++, vld._feedBackDecodeRadius);
 			_learnDecoderWeightsKernel.setArg(argIndex++, weightAlpha);
 
-			cs.getQueue().enqueueNDRangeKernel(_learnDecoderWeightsKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			cs.getQueue().enqueueNDRangeKernel(_learnDecoderWeightsKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 
 			std::swap(vl._predDecoderWeights[_front], vl._predDecoderWeights[_back]);
 		}
@@ -282,6 +282,7 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			_learnEncoderWeightsKernel.setArg(argIndex++, vl._hiddenToVisible);
 			_learnEncoderWeightsKernel.setArg(argIndex++, vld._encodeRadius);
 			_learnEncoderWeightsKernel.setArg(argIndex++, weightAlpha);
+			_learnEncoderWeightsKernel.setArg(argIndex++, weightLambda);
 
 			cs.getQueue().enqueueNDRangeKernel(_learnEncoderWeightsKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 

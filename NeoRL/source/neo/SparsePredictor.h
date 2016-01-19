@@ -36,7 +36,7 @@ namespace neo {
 			/*!
 			\brief Whether or not the predictions should be binary
 			*/
-			cl_int _predictBinary;
+			char _predictBinary;
 
 			/*!
 			\brief Initialize defaults
@@ -100,7 +100,7 @@ namespace neo {
 		/*!
 		\brief Lateral (inhibitory) radius
 		*/
-		cl_int2 _lateralRadius;
+		cl_int _lateralRadius;
 
 		/*!
 		\brief Hidden activation summation temporary buffer

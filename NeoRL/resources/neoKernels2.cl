@@ -260,7 +260,7 @@ void kernel spPredictionError(read_only image2d_t predictionsPrev, read_only ima
 	write_imagef(errors, visiblePosition, (float4)(predError + additionalError));
 }
 
-void kernel scErrorPropagation(read_only image2d_t errors,
+void kernel spErrorPropagation(read_only image2d_t errors,
 	read_only image2d_t hiddenErrorSummationTempBack, write_only image2d_t hiddenErrorSummationTempFront,
 	read_only image3d_t predWeights,
 	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int predRadius, int2 reversePredDecodeRadii)
@@ -383,4 +383,66 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
 		}
+}
+
+// ----------------------------------------- Preprocessing -----------------------------------------
+
+void kernel whiten(read_only image2d_t input, write_only image2d_t result, int2 imageSize, int kernelRadius, float intensity) {
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float4 currentColor = read_imagef(input, position);
+
+	float4 center = currentColor;
+
+	float count = 0.0f;
+
+	for (int dx = -kernelRadius; dx <= kernelRadius; dx++)
+		for (int dy = -kernelRadius; dy <= kernelRadius; dy++) {
+			if (dx == 0 && dy == 0)
+				continue;
+			
+			int2 otherPosition = position + (int2)(dx, dy);
+
+			if (inBounds0(otherPosition, imageSize)) {
+				float4 otherColor = read_imagef(input, otherPosition);
+
+				center += otherColor;
+
+				count++;
+			}
+		}
+
+	center /= count + 1.0f;
+
+	float4 centeredCurrentColor = currentColor - center;
+
+	float4 covariances = (float4)(0.0f);
+
+	for (int dx = -kernelRadius; dx <= kernelRadius; dx++)
+		for (int dy = -kernelRadius; dy <= kernelRadius; dy++) {
+			if (dx == 0 && dy == 0)
+				continue;
+			
+			int2 otherPosition = position + (int2)(dx, dy);
+
+			if (inBounds0(otherPosition, imageSize)) {
+				float4 otherColor = read_imagef(input, otherPosition);
+
+				float4 centeredOtherColor = otherColor - center;
+
+				covariances += centeredOtherColor * centeredCurrentColor;
+			}
+		}
+
+	covariances /= fmax(1.0f, count);
+
+	float4 centeredCurrentColorSigns = (float4)(centeredCurrentColor.x > 0.0f ? 1.0f : -1.0f,
+		centeredCurrentColor.y > 0.0f ? 1.0f : -1.0f,
+		centeredCurrentColor.z > 0.0f ? 1.0f : -1.0f,
+		centeredCurrentColor.w > 0.0f ? 1.0f : -1.0f);
+
+	// Modify color
+	float4 whitenedColor = fmin(1.0f, fmax(-1.0f, (centeredCurrentColor > 0.0f ? (float4)(1.0f) : (float4)(-1.0f)) * (1.0f - exp(-fabs(intensity * covariances)))));
+
+	write_imagef(result, position, whitenedColor);
 }
