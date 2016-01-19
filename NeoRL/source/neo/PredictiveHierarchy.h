@@ -1,7 +1,6 @@
 #pragma once
 
-#include "ComparisonSparseCoder.h"
-#include "Predictor.h"
+#include "SparsePredictor.h"
 #include "ImageWhitener.h"
 
 namespace neo {
@@ -26,24 +25,13 @@ namespace neo {
 
 			//!@{
 			/*!
-			\brief Sparse coder parameters
+			\brief Sparse predictor parameters
 			*/
-			cl_float _scWeightAlpha;
-			cl_float _scWeightRecurrentAlpha;
-			cl_float _scWeightLambda;
-			cl_float _scActiveRatio;
-			cl_float _scBoostAlpha;
+			cl_float _spWeightAlpha;
+			cl_float _spWeightLambda;
+			cl_float _spActiveRatio;
+			cl_float _spBiasAlpha;
 			//!@}
-
-			/*!
-			\brief Predictor parameters
-			*/
-			cl_float _predWeightAlpha;
-
-			/*!
-			\brief Prediction reward parameters
-			*/
-			cl_float _predRewardBaselineDecay;
 
 			/*!
 			\brief Initialize defaults
@@ -51,9 +39,8 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_scWeightAlpha(0.001f), _scWeightRecurrentAlpha(0.001f), _scWeightLambda(0.95f),
-				_scActiveRatio(0.04f), _scBoostAlpha(0.01f),
-				_predWeightAlpha(0.01f), _predRewardBaselineDecay(0.01f)
+				_spWeightAlpha(0.001f), _spWeightLambda(0.95f),
+				_spActiveRatio(0.04f), _spBiasAlpha(0.01f)
 			{}
 		};
 
@@ -61,22 +48,10 @@ namespace neo {
 		\brief Layer
 		*/
 		struct Layer {
-			//!@{
 			/*!
-			\brief Sparse coder and predictor
+			\brief Sparse predictor
 			*/
-			ComparisonSparseCoder _sc;
-			Predictor _pred;
-			//!@}
-
-			//!@{
-			/*!
-			\brief For prediction reward determination
-			*/
-			DoubleBuffer2D _predRewardBaselines;
-			cl::Image2D _predReward;
-			cl::Image2D _propagatedPredReward;
-			//!@}
+			SparsePredictor _sp;
 		};
 
 	private:
@@ -93,18 +68,15 @@ namespace neo {
 		std::vector<LayerDesc> _layerDescs;
 		//!@}
 
-		//!@{
 		/*!
-		\brief Kernels for hierarchy
-		*/
-		cl::Kernel _predictionRewardKernel;
-		cl::Kernel _predictionRewardPropagationKernel;
-		//!@}
-
-		/*!
-		\brief Input whiteners
+		\brief Input whitener
 		*/
 		ImageWhitener _inputWhitener;
+
+		/*!
+		\brief Zero layer for capping of the network
+		*/
+		cl::Image2D _zeroLayer;
 
 	public:
 		//!@{
@@ -124,8 +96,8 @@ namespace neo {
 		{}
 
 		/*!
-		\brief Create a comparison sparse coder with random initialization
-		Requires the compute system, program with the NeoRL kernels, and initialization information.
+		\brief Create a predictive hierarchy with random initialization
+		Requires the compute system, program with the NeoRL kernels, and initialization information
 		*/
 		void createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
 			cl_int2 inputSize, const std::vector<LayerDesc> &layerDescs,
@@ -177,7 +149,7 @@ namespace neo {
 		\brief Get the prediction
 		*/
 		const cl::Image2D &getPrediction() const {
-			return _layers.front()._pred.getHiddenStates()[_back];
+			return _layers.front()._sp.getVisibleLayer(0)._predictions[_back];
 		}
 
 		/*!

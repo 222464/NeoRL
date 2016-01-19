@@ -96,7 +96,7 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 	_learnDecoderWeightsKernel = cl::Kernel(program.getProgram(), "spLearnDecoderWeights");
 }
 
-void SparsePredictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &feedBackStates, float activeRatio) {
+void SparsePredictor::activateEncoder(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio) {
 	// Start by clearing activation summation buffer
 	{
 		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -138,6 +138,20 @@ void SparsePredictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Ima
 
 		cs.getQueue().enqueueNDRangeKernel(_solveHiddenKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 	}
+	
+	// No buffer swapping yet
+}
+
+void SparsePredictor::activateDecoder(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &feedBackStates) {
+	// Start by clearing activation summation buffer
+	{
+		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
+		cl::array<cl::size_type, 3> hiddenRegion = { _hiddenSize.x, _hiddenSize.y, 1 };
+
+		cs.getQueue().enqueueFillImage(_hiddenActivationSummationTemp[_back], zeroColor, zeroOrigin, hiddenRegion);
+	}
 
 	// Now decode
 	for (int vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -161,7 +175,7 @@ void SparsePredictor::activate(sys::ComputeSystem &cs, const std::vector<cl::Ima
 
 		cs.getQueue().enqueueNDRangeKernel(_decodeKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 	}
-	
+
 	// Swap buffers
 	std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 

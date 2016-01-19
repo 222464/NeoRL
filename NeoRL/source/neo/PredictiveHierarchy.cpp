@@ -15,92 +15,57 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	cl_int2 prevLayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<ComparisonSparseCoder::VisibleLayerDesc> scDescs;
+		std::vector<SparsePredictor::VisibleLayerDesc> scDescs;
 
 		if (l == 0) {
 			scDescs.resize(2);
 
 			scDescs[0]._size = prevLayerSize;
-			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
-			scDescs[0]._ignoreMiddle = false;
-			scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
-			scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
-			scDescs[0]._useTraces = false;
+			scDescs[0]._encodeRadius = _layerDescs[l]._feedForwardRadius;
+			scDescs[0]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
+			scDescs[0]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
+			scDescs[0]._predictBinary = false;
 
 			scDescs[1]._size = _layerDescs[l]._size;
-			scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
-			scDescs[1]._ignoreMiddle = true;
-			scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
-			scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
-			scDescs[1]._useTraces = false;
-			scDescs[1]._isPredictiveCoding = true;
+			scDescs[1]._encodeRadius = _layerDescs[l]._recurrentRadius;
+			scDescs[1]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
+			scDescs[1]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
+			scDescs[1]._predictBinary = true;
 		}
 		else {
 			scDescs.resize(2);
 
 			scDescs[0]._size = prevLayerSize;
-			scDescs[0]._radius = _layerDescs[l]._feedForwardRadius;
-			scDescs[0]._ignoreMiddle = false;
-			scDescs[0]._weightAlpha = _layerDescs[l]._scWeightAlpha;
-			scDescs[0]._weightLambda = _layerDescs[l]._scWeightLambda;
-			scDescs[0]._useTraces = true;
+			scDescs[0]._encodeRadius = _layerDescs[l]._feedForwardRadius;
+			scDescs[0]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
+			scDescs[0]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
+			scDescs[0]._predictBinary = true;
 
 			scDescs[1]._size = _layerDescs[l]._size;
-			scDescs[1]._radius = _layerDescs[l]._recurrentRadius;
-			scDescs[1]._ignoreMiddle = true;
-			scDescs[1]._weightAlpha = _layerDescs[l]._scWeightRecurrentAlpha;
-			scDescs[1]._weightLambda = _layerDescs[l]._scWeightLambda;
-			scDescs[1]._useTraces = true;
-			scDescs[1]._isPredictiveCoding = true;
+			scDescs[1]._encodeRadius = _layerDescs[l]._recurrentRadius;
+			scDescs[1]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
+			scDescs[1]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
+			scDescs[1]._predictBinary = true;
 		}
 
-		_layers[l]._sc.createRandom(cs, program, scDescs, _layerDescs[l]._size, _layerDescs[l]._lateralRadius, initWeightRange, rng);
+		std::vector<cl_int2> feedBackSizes(2);
 
-		std::vector<Predictor::VisibleLayerDesc> predDescs;
-
-		if (l < _layers.size() - 1) {
-			predDescs.resize(2);
-
-			predDescs[0]._size = _layerDescs[l]._size;
-			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
-
-			predDescs[1]._size = _layerDescs[l]._size;
-			predDescs[1]._radius = _layerDescs[l]._feedBackRadius;
-		}
-		else {
-			predDescs.resize(1);
-
-			predDescs[0]._size = _layerDescs[l]._size;
-			predDescs[0]._radius = _layerDescs[l]._predictiveRadius;
-		}
-
-		if (l == 0)
-			_layers[l]._pred.createRandom(cs, program, predDescs, _inputSize, initWeightRange, false, rng);
+		if (l < _layers.size() - 1)
+			feedBackSizes[0] = feedBackSizes[1] = _layerDescs[l + 1]._size;
 		else
-			_layers[l]._pred.createRandom(cs, program, predDescs, _layerDescs[l - 1]._size, initWeightRange, false, rng);
+			feedBackSizes[0] = feedBackSizes[1] = { 1, 1 };
 
-		// Create baselines
-		_layers[l]._predRewardBaselines = createDoubleBuffer2D(cs, _layerDescs[l]._size, CL_R, CL_FLOAT);
-
-		_layers[l]._predReward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
-		_layers[l]._propagatedPredReward = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _layerDescs[l]._size.x, _layerDescs[l]._size.y);
-
-		cl_float4 zeroColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-		cl::array<cl::size_type, 3> zeroOrigin = { 0, 0, 0 };
-		cl::array<cl::size_type, 3> layerRegion = { _layerDescs[l]._size.x, _layerDescs[l]._size.y, 1 };
-
-		cs.getQueue().enqueueFillImage(_layers[l]._predRewardBaselines[_back], zeroColor, zeroOrigin, layerRegion);
-		cs.getQueue().enqueueFillImage(_layers[l]._predReward, zeroColor, zeroOrigin, layerRegion);
-		cs.getQueue().enqueueFillImage(_layers[l]._propagatedPredReward, zeroColor, zeroOrigin, layerRegion);
+		if (l < _layers.size() - 1)
+			_layers[l]._sp.createRandom(cs, program, scDescs, _layerDescs[l]._size, feedBackSizes, _layerDescs[l]._lateralRadius, initWeightRange, rng);
 
 		prevLayerSize = _layerDescs[l]._size;
 	}
 
 	_inputWhitener.create(cs, program, _inputSize, CL_R, CL_FLOAT);
 
-	_predictionRewardKernel = cl::Kernel(program.getProgram(), "phPredictionReward");
-	_predictionRewardPropagationKernel = cl::Kernel(program.getProgram(), "phPredictionRewardPropagation");
+	_zeroLayer = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 1, 1);
+
+	cs.getQueue().enqueueFillImage(_zeroLayer, cl_float4{ 0.0f, 0.0f, 0.0f, 0.0f }, { 0, 0, 0 }, { 1, 1, 1 });
 }
 
 void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn, bool whiten) {
@@ -113,22 +78,12 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 
 	for (int l = 0; l < _layers.size(); l++) {
 		{
-			std::vector<cl::Image2D> visibleStates;
+			std::vector<cl::Image2D> visibleStates(2);
 
-			if (l == 0) {
-				visibleStates.resize(2);
+			visibleStates[0] = prevLayerState;
+			visibleStates[1] = _layers[l]._sp.getHiddenStates()[_back];
 
-				visibleStates[0] = prevLayerState;
-				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
-			}
-			else {
-				visibleStates.resize(2);
-
-				visibleStates[0] = prevLayerState;
-				visibleStates[1] = _layers[l]._sc.getHiddenStates()[_back];
-			}
-
-			_layers[l]._sc.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
+			_layers[l]._sp.activate(cs, visibleStates, _layerDescs[l]._scActiveRatio);
 
 			// Get reward
 			if (l < _layers.size() - 1) {

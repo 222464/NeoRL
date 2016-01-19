@@ -145,7 +145,8 @@ namespace neo {
 		/*!
 		\brief Activate predictor
 		*/
-		void activate(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &feedBackStates, float activeRatio);
+		void activateEncoder(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio);
+		void activateDecoder(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &feedBackStates);
 
 		//!@{
 		/*!
