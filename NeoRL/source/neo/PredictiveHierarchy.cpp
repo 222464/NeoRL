@@ -85,7 +85,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 		visibleStates[0] = prevLayerState;
 		visibleStates[1] = _layers[l]._sp.getHiddenStates()[_front];
 
-		_layers[l]._sp.activateEncoder(cs, visibleStates,_layerDescs[l]._spActiveRatio);
+		_layers[l]._sp.activateEncoder(cs, visibleStates, _layerDescs[l]._spActiveRatio);
 
 		prevLayerState = _layers[l]._sp.getHiddenStates()[_front];
 	}

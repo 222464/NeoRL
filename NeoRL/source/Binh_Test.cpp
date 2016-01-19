@@ -26,7 +26,13 @@ int main()
 
 	// --------------------------- Create the Sparse Coder ---------------------------
 
-	std::vector<float> inputBuffer(2 * 1, 0.0f);
+	std::vector<float> inputBuffer(5 * 5, 0.0f);
+	std::vector<float> inputTransform(2 * (5 * 5 - 1), 0.0f);
+
+	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+
+	for (int i = 0; i < inputTransform.size(); i++)
+		inputTransform[i] = dist01(generator) * 2.0f - 1.0f;
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 2, 1);
 
@@ -40,7 +46,7 @@ int main()
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 2, 1 }, layerDescs, { -0.2f, 0.2f }, generator);
+	ph.createRandom(cs, prog, { 5, 5 }, layerDescs, { -0.2f, 0.2f }, generator);
 
 	sf::RenderWindow renderWindow;
 
@@ -105,17 +111,20 @@ int main()
 			float value = std::sin(index * 0.6f);// index % 10 == 0 ? 1.0f : (index % 3 == 0 ? 1.0f : 0.0f);// std::sin(0.164f * 3.141596f * index + 0.25f);// +0.7f * std::sin(0.12352f * 3.141596f * index * 1.5f + 0.2154f) + 0.5f * std::sin(0.0612f * 3.141596f * index * 3.0f - 0.2112f);
 
 			inputBuffer[0] = value;
-			inputBuffer[1] = 1.0f - value;
+			
+			for (int i = 1; i < inputBuffer.size(); i++) {
+				inputBuffer[i] = value * inputTransform[2 * (i - 1) + 0] + inputTransform[2 * (i - 1) + 1];
+			}
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, inputBuffer.data());
 
-			ph.simStep(cs, inputImage, true, true);
+			ph.simStep(cs, inputImage, true, false);
 
-			std::vector<float> res(2 * 1);
+			std::vector<float> res(inputBuffer.size());
 
 			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, res.data());
 
-			float v = 0.5f * (res[0] + (1.0f - res[1]));
+			float v = res[0];
 
 			// Plot target data
 			vis::Point p;
