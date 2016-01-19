@@ -324,9 +324,9 @@ void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_
 
 				float2 weightPrev = read_imagef(predWeightsBack, (int4)(visiblePosition.x, visiblePosition.y, wi, 0)).xy;
 
-				float statePrev = read_imagef(hiddenStates, hiddenPosition).x;
+				float state = read_imagef(hiddenStates, hiddenPosition).x;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * weightPrev.y, error * statePrev);
+				float2 weight = (float2)(weightPrev.x + weightAlpha * error * weightPrev.y, state);
 
 				write_imagef(predWeightsFront, (int4)(visiblePosition.x, visiblePosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -343,9 +343,9 @@ void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_
 
 				float2 weightPrev = read_imagef(feedBackWeightsBack, (int4)(visiblePosition.x, visiblePosition.y, wi, 0)).xy;
 
-				float statePrev = read_imagef(feedBackStates, feedBackPosition).x;
+				float state = read_imagef(feedBackStates, feedBackPosition).x;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * weightPrev.y, error * statePrev);
+				float2 weight = (float2)(weightPrev.x + weightAlpha * error * weightPrev.y, state);
 
 				write_imagef(feedBackWeightsFront, (int4)(visiblePosition.x, visiblePosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
