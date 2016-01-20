@@ -387,7 +387,7 @@ void kernel spLearnDecoderWeightsRL(read_only image2d_t errors, read_only image2
 				float state = read_imagef(hiddenStates, hiddenPosition).x;
 
 				float rlTrace = weightPrev.w * weightLambda + error * weightPrev.y;
-				float grad = fmax(0.0f, tdError) * rlTrace;
+				float grad = tdError * rlTrace;
 				float meanSquare = (1.0f - rmsDecay) * weightPrev.z + rmsDecay * grad * grad;
 
 				float4 weight = (float4)(weightPrev.x + weightAlpha * grad / sqrt(meanSquare + rmsEpsilon), state, meanSquare, rlTrace);
@@ -410,7 +410,7 @@ void kernel spLearnDecoderWeightsRL(read_only image2d_t errors, read_only image2
 				float state = read_imagef(feedBackStates, feedBackPosition).x;
 				
 				float rlTrace = weightPrev.w * weightLambda + error * weightPrev.y;
-				float grad = fmax(0.0f, tdError) * rlTrace;
+				float grad = tdError * rlTrace;
 				float meanSquare = (1.0f - rmsDecay) * weightPrev.z + rmsDecay * grad * grad;
 
 				float4 weight = (float4)(weightPrev.x + weightAlpha * grad / sqrt(meanSquare + rmsEpsilon), state, meanSquare, rlTrace);

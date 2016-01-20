@@ -135,7 +135,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 			visibleStates[0] = prevLayerState;
 			visibleStates[1] = _layers[l]._sp.getHiddenStates()[_back];
 			visibleStates[2] = actionTaken;
-			visibleStates[3] = _zeroLayer; // Unused as input
+			visibleStates[3] = _qInputLayer; // Unused as input
 		}
 		else {
 			visibleStates.resize(2);
@@ -210,7 +210,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 	_prevValue = q;
 
-	std::cout << "Q: " << q << std::endl;
+	//std::cout << "Q: " << q << std::endl;
 
 	// Encode target Q
 	{
@@ -236,7 +236,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 				visibleStates[0] = prevLayerState;
 				visibleStates[1] = _layers[l]._sp.getHiddenStates()[_front];
-				visibleStates[2] = actionTaken;
+				visibleStates[2] = tdError > 0.0f ? actionTaken : _layers[l]._sp.getVisibleLayer(0)._predictions[_front];
 				visibleStates[3] = _qInputLayer;
 			}
 			else {
@@ -273,7 +273,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 				}
 			}
 
-			_layers[l]._sp.learnRL(tdError, cs, visibleStates, feedBackStates,
+			_layers[l]._sp.learn(cs, visibleStates, feedBackStates,
 				l == 0 ? std::vector<cl::Image2D>{ _layers[l]._additionalErrors, _layers[l]._additionalErrors, _layers[l]._additionalErrors, _layers[l]._additionalErrors } : std::vector<cl::Image2D>{ _layers[l]._additionalErrors, _layers[l]._additionalErrors },
 				_layerDescs[l]._spWeightAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon);
 
