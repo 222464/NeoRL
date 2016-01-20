@@ -209,7 +209,7 @@ void kernel spDecode(read_only image2d_t hiddenStates, read_only image2d_t feedB
 			}
 		}
 
-	write_imagef(predictions, visiblePosition, (float4)(predictThresholded ? (sum > 0.5f ? 1.0f : 0.0f) : sum));
+	write_imagef(predictions, visiblePosition, (float4)(predictThresholded ? fmax(0.0f, tanh(sum)) : sum));
 }
 
 void kernel spSolveHidden(read_only image2d_t hiddenSummationTemp,
@@ -240,7 +240,7 @@ void kernel spSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? fmax(0.0f, tanh(activation)) : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -363,7 +363,7 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 
 	float hiddenStatePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
 
-	float error = read_imagef(errors, hiddenPosition).x * hiddenStatePrev;//(hiddenStatePrev == 0.0f ? 0.0f : (1.0f - hiddenStatePrev * hiddenStatePrev));
+	float error = read_imagef(errors, hiddenPosition).x * (hiddenStatePrev == 0.0f ? 0.0f : (1.0f - hiddenStatePrev * hiddenStatePrev));
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 
@@ -380,7 +380,7 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 
 				float state = read_imagef(visibleStates, visiblePosition).x;
 
-				float2 weight = (float2)(weightPrev.x + weightAlpha * error * weightPrev.y, weightPrev.y * weightLambda + state);
+				float2 weight = (float2)(weightPrev.x + weightAlpha * error * weightPrev.y, weightPrev.y * weightLambda * (1.0f - (hiddenState == 0.0f ? 0.0f : (1.0f - hiddenState * hiddenState))) + state);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -394,7 +394,7 @@ void kernel spLearnBiases(read_only image2d_t hiddenStates, read_only image2d_t 
 
 	float hiddenBiasPrev = read_imagef(hiddenBiasesBack, hiddenPosition).x;
 
-	write_imagef(hiddenBiasesFront, hiddenPosition, (float4)(hiddenBiasPrev + biasAlpha * (activeRatio - hiddenState)));
+	write_imagef(hiddenBiasesFront, hiddenPosition, (float4)(hiddenBiasPrev + biasAlpha * (activeRatio - (hiddenState == 0.0f ? 0.0f : 1.0f))));
 }
 
 // ----------------------------------------- Preprocessing -----------------------------------------
