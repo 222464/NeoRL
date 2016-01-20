@@ -142,6 +142,7 @@ namespace neo {
 		cl::Kernel _errorPropagationKernel;
 		cl::Kernel _learnEncoderWeightsKernel;
 		cl::Kernel _learnDecoderWeightsKernel;
+		cl::Kernel _learnDecoderWeightsRLKernel;
 		cl::Kernel _learnBiasesKernel;
 		//!@}
 
@@ -165,6 +166,9 @@ namespace neo {
 		\brief Learning functions
 		*/
 		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
+			const std::vector<cl::Image2D> &feedBackStates, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon);
+	
+		void learnRL(float tdError, sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
 			const std::vector<cl::Image2D> &feedBackStates, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon);
 		//!@}
 

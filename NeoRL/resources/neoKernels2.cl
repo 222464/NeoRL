@@ -358,6 +358,68 @@ void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_
 		}
 }
 
+void kernel spLearnDecoderWeightsRL(read_only image2d_t errors, read_only image2d_t hiddenStates, read_only image2d_t feedBackStates,
+	read_only image3d_t predWeightsBack, write_only image3d_t predWeightsFront,
+	read_only image3d_t feedBackWeightsBack, write_only image3d_t feedBackWeightsFront,
+	int2 hiddenSize, int2 feedBackSize, float2 visibleToHidden, float2 visibleToFeedBack, int predRadius, int feedBackRadius,
+	float weightAlpha, float weightLambda, float rmsDecay, float rmsEpsilon, float tdError)
+{
+	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
+	int2 feedBackPositionCenter = (int2)(visiblePosition.x * visibleToFeedBack.x + 0.5f, visiblePosition.y * visibleToFeedBack.y + 0.5f);
+	
+	int2 hiddenFieldLowerBound = hiddenPositionCenter - (int2)(predRadius);
+	int2 feedBackFieldLowerBound = feedBackPositionCenter - (int2)(feedBackRadius);
+
+	float error = read_imagef(errors, visiblePosition).x;
+
+	for (int dx = -predRadius; dx <= predRadius; dx++)
+		for (int dy = -predRadius; dy <= predRadius; dy++) {
+			int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
+
+			if (inBounds0(hiddenPosition, hiddenSize)) {
+				int2 offset = hiddenPosition - hiddenFieldLowerBound;
+
+				int wi = offset.y + offset.x * (predRadius * 2 + 1);
+
+				float4 weightPrev = read_imagef(predWeightsBack, (int4)(visiblePosition.x, visiblePosition.y, wi, 0));
+
+				float state = read_imagef(hiddenStates, hiddenPosition).x;
+
+				float rlTrace = weightPrev.w * weightLambda + error * weightPrev.y;
+				float grad = fmax(0.0f, tdError) * rlTrace;
+				float meanSquare = (1.0f - rmsDecay) * weightPrev.z + rmsDecay * grad * grad;
+
+				float4 weight = (float4)(weightPrev.x + weightAlpha * grad / sqrt(meanSquare + rmsEpsilon), state, meanSquare, rlTrace);
+
+				write_imagef(predWeightsFront, (int4)(visiblePosition.x, visiblePosition.y, wi, 0), weight);
+			}
+		}
+
+	for (int dx = -feedBackRadius; dx <= feedBackRadius; dx++)
+		for (int dy = -feedBackRadius; dy <= feedBackRadius; dy++) {
+			int2 feedBackPosition = feedBackPositionCenter + (int2)(dx, dy);
+
+			if (inBounds0(feedBackPosition, feedBackSize)) {
+				int2 offset = feedBackPosition - feedBackFieldLowerBound;
+
+				int wi = offset.y + offset.x * (feedBackRadius * 2 + 1);
+
+				float4 weightPrev = read_imagef(feedBackWeightsBack, (int4)(visiblePosition.x, visiblePosition.y, wi, 0));
+
+				float state = read_imagef(feedBackStates, feedBackPosition).x;
+				
+				float rlTrace = weightPrev.w * weightLambda + error * weightPrev.y;
+				float grad = fmax(0.0f, tdError) * rlTrace;
+				float meanSquare = (1.0f - rmsDecay) * weightPrev.z + rmsDecay * grad * grad;
+
+				float4 weight = (float4)(weightPrev.x + weightAlpha * grad / sqrt(meanSquare + rmsEpsilon), state, meanSquare, rlTrace);
+
+				write_imagef(feedBackWeightsFront, (int4)(visiblePosition.x, visiblePosition.y, wi, 0), weight);
+			}
+		}
+}
+
 void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_t hiddenStates, read_only image2d_t hiddenStatesPrev,
 	read_only image2d_t visibleStates, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
 	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda, float rmsDecay, float rmsEpsilon)

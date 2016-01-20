@@ -94,13 +94,10 @@ namespace neo {
 		*/
 		cl::Image2D _zeroLayer;
 
-		//!@{
 		/*!
 		\brief For RL
 		*/
 		float _prevValue;
-		float _prevQ;
-		//!@}
 
 		//!@{
 		/*!
@@ -135,7 +132,6 @@ namespace neo {
 			_whiteningIntensity(1024.0f),
 			// RL
 			_prevValue(0.0f),
-			_prevQ(0.0f),
 			_qAlpha(0.5f),
 			_qGamma(0.98f)
 		{}

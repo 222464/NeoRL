@@ -1,5 +1,7 @@
 #include "AgentPredQ.h"
 
+#include <iostream>
+
 using namespace neo;
 
 void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &program,
@@ -208,6 +210,8 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 	_prevValue = q;
 
+	std::cout << "Q: " << q << std::endl;
+
 	// Encode target Q
 	{
 		int argIndex = 0;
@@ -269,7 +273,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 				}
 			}
 
-			_layers[l]._sp.learn(cs, visibleStates, feedBackStates,
+			_layers[l]._sp.learnRL(tdError, cs, visibleStates, feedBackStates,
 				l == 0 ? std::vector<cl::Image2D>{ _layers[l]._additionalErrors, _layers[l]._additionalErrors, _layers[l]._additionalErrors, _layers[l]._additionalErrors } : std::vector<cl::Image2D>{ _layers[l]._additionalErrors, _layers[l]._additionalErrors },
 				_layerDescs[l]._spWeightAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon);
 
