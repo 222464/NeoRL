@@ -40,7 +40,7 @@ namespace neo {
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_spWeightAlpha(0.1f), _spWeightLambda(0.95f),
-				_spActiveRatio(0.06f), _spBiasAlpha(0.001f)
+				_spActiveRatio(0.02f), _spBiasAlpha(0.001f)
 			{}
 		};
 

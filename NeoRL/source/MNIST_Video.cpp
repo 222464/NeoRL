@@ -40,7 +40,7 @@ int main() {
 
 	sys::ComputeProgram prog;
 
-	prog.loadFromFile("resources/neoKernels.cl", cs);
+	prog.loadFromFile("resources/neoKernels2.cl", cs);
 
 	// --------------------------- Create the Sparse Coder ---------------------------
 
@@ -57,17 +57,12 @@ int main() {
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(4);
 
 	layerDescs[0]._size = { 64, 64 };
-	layerDescs[0]._feedForwardRadius = 8;
-
 	layerDescs[1]._size = { 48, 48 };
-
 	layerDescs[2]._size = { 32, 32 };
-
 	layerDescs[3]._size = { 24, 24 };
-
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 64, 64 }, layerDescs, { -0.01f, 0.01f }, { 0.01f, 0.05f }, 0.1f, generator);
+	ph.createRandom(cs, prog, { 64, 64 }, layerDescs, { -0.5f, 0.5f }, generator);
 
 	float avgError = 1.0f;
 
@@ -297,7 +292,7 @@ int main() {
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 64, 64, 1 }, 0, 0, input.data());
 
-			ph.simStep(cs, inputImage);
+			ph.simStep(cs, inputImage, true, true);
 
 			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 64, 64, 1 }, 0, 0, prediction.data());
 
