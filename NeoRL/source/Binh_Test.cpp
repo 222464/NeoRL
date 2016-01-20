@@ -34,7 +34,7 @@ int main()
 	for (int i = 0; i < inputTransform.size(); i++)
 		inputTransform[i] = dist01(generator) * 2.0f - 1.0f;
 
-	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 2, 1);
+	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), 5, 5);
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
@@ -108,7 +108,7 @@ int main()
 		if (autoplay || sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
 			index++;
 
-			float value = index % 7 == 0 ? 1.0f : (index % 3 == 0 ? 1.0f : 0.0f);// std::sin(0.164f * 3.141596f * index + 0.25f) + 0.7f * std::sin(0.12352f * 3.141596f * index * 1.5f + 0.2154f) + 0.5f * std::sin(0.0612f * 3.141596f * index * 3.0f - 0.2112f);
+			float value = std::sin(0.164f * 3.141596f * index + 0.25f) + 0.7f * std::sin(0.12352f * 3.141596f * index * 1.5f + 0.2154f) + 0.5f * std::sin(0.0612f * 3.141596f * index * 3.0f - 0.2112f);
 
 			inputBuffer[0] = value;
 			
@@ -116,13 +116,13 @@ int main()
 				inputBuffer[i] = value * inputTransform[2 * (i - 1) + 0] + inputTransform[2 * (i - 1) + 1];
 			}
 
-			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, inputBuffer.data());
+			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 5, 5, 1 }, 0, 0, inputBuffer.data());
 
-			ph.simStep(cs, inputImage, true, false);
+			ph.simStep(cs, inputImage, true);
 
 			std::vector<float> res(inputBuffer.size());
 
-			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 2, 1, 1 }, 0, 0, res.data());
+			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 5, 5, 1 }, 0, 0, res.data());
 
 			float v = res[0];
 
