@@ -70,7 +70,7 @@ int main() {
 
 	sys::ComputeProgram prog;
 
-	prog.loadFromFile("resources/neoKernels.cl", cs);
+	prog.loadFromFile("resources/neoKernels2.cl", cs);
 
 	_ballPosition = sf::Vector2f(0.5f, 0.5f);
 	_ballVelocity = sf::Vector2f(0.44f, 0.55f);
@@ -127,13 +127,12 @@ int main() {
 	std::vector<neo::AgentPredQ::LayerDesc> layerDescs(3);
 
 	layerDescs[0]._size = { 16, 16 };
-	layerDescs[0]._predWeightAlpha = 0.1f;
 	layerDescs[1]._size = { 16, 16 };
 	layerDescs[2]._size = { 16, 16 };
 
 	neo::AgentPredQ agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, { 8, 8 }, { 8, 8 }, { 8, 8 }, layerDescs, { -0.4f, 0.4f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, layerDescs, { -0.4f, 0.4f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	cl::Image2D actionTaken = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), aWidth, aHeight);
@@ -254,7 +253,7 @@ int main() {
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 		cs.getQueue().enqueueWriteImage(actionTaken, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
-		agent.simStep(cs, inputImage, actionTaken, reward, generator);
+		agent.simStep(cs, reward, inputImage, actionTaken);
 
 		std::vector<float> actionTemp(action.size());
 
@@ -356,7 +355,7 @@ int main() {
 			for (int l = 0; l < layerDescs.size() - 2; l++) {
 				std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
-				cs.getQueue().enqueueReadImage(agent.getLayer(l + 1)._pred.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+				cs.getQueue().enqueueReadImage(agent.getLayer(l + 1)._sp.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
 				sf::Image img;
 

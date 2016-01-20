@@ -39,7 +39,7 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 			static_cast<float>(_feedBackSizes[vli].y) / static_cast<float>(vld._size.y)
 		};
 
-		{
+		if (vld._useForInput) {
 			int weightDiam = vld._encodeRadius * 2 + 1;
 
 			int numWeights = weightDiam * weightDiam;
@@ -120,20 +120,22 @@ void SparsePredictor::activateEncoder(sys::ComputeSystem &cs, const std::vector<
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-		int argIndex = 0;
+		if (vld._useForInput) {
+			int argIndex = 0;
 
-		_encodeKernel.setArg(argIndex++, visibleStates[vli]);
-		_encodeKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
-		_encodeKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_front]);
-		_encodeKernel.setArg(argIndex++, vl._encoderWeights[_back]);
-		_encodeKernel.setArg(argIndex++, vld._size);
-		_encodeKernel.setArg(argIndex++, vl._hiddenToVisible);
-		_encodeKernel.setArg(argIndex++, vld._encodeRadius);
+			_encodeKernel.setArg(argIndex++, visibleStates[vli]);
+			_encodeKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_back]);
+			_encodeKernel.setArg(argIndex++, _hiddenActivationSummationTemp[_front]);
+			_encodeKernel.setArg(argIndex++, vl._encoderWeights[_back]);
+			_encodeKernel.setArg(argIndex++, vld._size);
+			_encodeKernel.setArg(argIndex++, vl._hiddenToVisible);
+			_encodeKernel.setArg(argIndex++, vld._encodeRadius);
 
-		cs.getQueue().enqueueNDRangeKernel(_encodeKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			cs.getQueue().enqueueNDRangeKernel(_encodeKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
-		// Swap buffers
-		std::swap(_hiddenActivationSummationTemp[_front], _hiddenActivationSummationTemp[_back]);
+			// Swap buffers
+			std::swap(_hiddenActivationSummationTemp[_front], _hiddenActivationSummationTemp[_back]);
+		}
 	}
 
 	{
@@ -276,7 +278,7 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 		}
 
 		// Encoder
-		{
+		if (vld._useForInput) {
 			int argIndex = 0;
 
 			_learnEncoderWeightsKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_back]);

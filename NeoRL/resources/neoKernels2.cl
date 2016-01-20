@@ -466,3 +466,27 @@ void kernel whiten(read_only image2d_t input, write_only image2d_t result, int2 
 
 	write_imagef(result, position, whitenedColor);
 }
+
+// -------------------------------------- AgentPredQ ---------------------------------------
+
+void kernel pqSetQ(read_only image2d_t qTransforms, write_only image2d_t qValues, float q) {
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float2 trans = read_imagef(qTransforms, position).xy;
+	
+	float wQ = q * trans.x + trans.y;
+
+	write_imagef(qValues, position, (float4)(wQ));
+}
+
+void kernel pqGetQ(read_only image2d_t qPreds, read_only image2d_t qTransforms, write_only image2d_t qValues) {
+	int2 position = (int2)(get_global_id(0), get_global_id(1));
+	
+	float pred = read_imagef(qPreds, position).x;
+	
+	float2 trans = read_imagef(qTransforms, position).xy;
+	
+	float wQ = (pred - trans.y) / (trans.x == 0.0f ? 1.0f : trans.x);
+
+	write_imagef(qValues, position, (float4)(wQ));
+}
