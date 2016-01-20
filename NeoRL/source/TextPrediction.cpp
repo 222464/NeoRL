@@ -36,7 +36,7 @@ int main() {
 
 	sys::ComputeProgram prog;
 
-	prog.loadFromFile("resources/neoKernels.cl", cs);
+	prog.loadFromFile("resources/neoKernels2.cl", cs);
 
 	// --------------------------- Create the Sparse Coder ---------------------------
 
@@ -64,18 +64,13 @@ int main() {
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 16, 16 };
-	layerDescs[0]._feedForwardRadius = 6;
-	layerDescs[0]._predictiveRadius = 12;
-	layerDescs[0]._feedBackRadius = 12;
-
-	layerDescs[1]._size = { 16, 16 };
-
-	layerDescs[2]._size = { 16, 16 };
+	layerDescs[0]._size = { 32, 32 };
+	layerDescs[1]._size = { 32, 32 };
+	layerDescs[2]._size = { 32, 32 };
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { inputsRoot, inputsRoot }, layerDescs, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { inputsRoot, inputsRoot }, layerDescs, { -0.1f, 0.1f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inputsRoot, inputsRoot);
 
@@ -202,9 +197,21 @@ int main() {
 			error = 0.0f;
 
 		//for (int i = 0; i < pred.size(); i++)
-	//		std::cout << (pred[i] > 0.5f ? 1 : 0) << " ";
+		//	std::cout << pred[i] << " ";
 
 		//std::cout << predChar << " " << test[current] << std::endl;
+
+		/*std::vector<float> data(64);
+
+		cs.getQueue().enqueueReadImage(ph.getLayer(0)._sp.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 8, 8, 1 }, 0, 0, data.data());
+
+		for (int x = 0; x < 8; x++) {
+
+			for (int y = 0; y < 8; y++)
+				std::cout << data[x + y * 8] << " ";
+
+			std::cout << std::endl;
+		}*/
 
 		averageError = 0.99f * averageError + 0.01f * error;
 		avgText.setString("Avg Err: " + std::to_string(averageError));

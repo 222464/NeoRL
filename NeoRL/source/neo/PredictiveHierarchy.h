@@ -40,7 +40,7 @@ namespace neo {
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
 				_spWeightAlpha(0.01f), _spWeightLambda(0.95f),
-				_spActiveRatio(0.1f), _spBiasAlpha(0.001f)
+				_spActiveRatio(0.05f), _spBiasAlpha(0.01f)
 			{}
 		};
 
@@ -112,7 +112,7 @@ namespace neo {
 		/*!
 		\brief Simulation step of hierarchy
 		*/
-		void simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn = true, bool whiten = true);
+		void simStep(sys::ComputeSystem &cs, const cl::Image2D &input, bool learn = true, bool whiten = false);
 
 		/*!
 		\brief Get number of layers

@@ -36,7 +36,7 @@ namespace neo {
 			/*!
 			\brief Whether or not the predictions should be binary
 			*/
-			char _predictThresholded;
+			unsigned char _predictThresholded;
 
 			/*!
 			\brief Initialize defaults
