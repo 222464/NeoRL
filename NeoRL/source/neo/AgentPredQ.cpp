@@ -236,7 +236,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 				visibleStates[0] = prevLayerState;
 				visibleStates[1] = _layers[l]._sp.getHiddenStates()[_front];
-				visibleStates[2] = tdError > 0.0f ? actionTaken : _layers[l]._sp.getVisibleLayer(0)._predictions[_front];
+				visibleStates[2] = tdError > 0.0f ? actionTaken : _layers[l]._sp.getVisibleLayer(2)._predictions[_front];
 				visibleStates[3] = _qInputLayer;
 			}
 			else {
