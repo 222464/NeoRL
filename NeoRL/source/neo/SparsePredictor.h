@@ -38,11 +38,17 @@ namespace neo {
 			*/
 			unsigned char _predictThresholded;
 
+
+			/*!
+			\brief Whether this layer should be predicted
+			*/
+			bool _predict;
+
 			/*!
 			\brief Initialize defaults
 			*/
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _encodeRadius(4), _predDecodeRadius(4), _feedBackDecodeRadius(4), _predictThresholded(true)
+				: _size({ 8, 8 }), _encodeRadius(4), _predDecodeRadius(4), _feedBackDecodeRadius(4), _predictThresholded(true), _predict(true)
 			{}
 		};
 

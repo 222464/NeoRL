@@ -51,35 +51,37 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 			randomUniform(vl._encoderWeights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
 		}
 
-		{
-			int weightDiam = vld._predDecodeRadius * 2 + 1;
+		if (vld._predict) {
+			{
+				int weightDiam = vld._predDecodeRadius * 2 + 1;
 
-			int numWeights = weightDiam * weightDiam;
+				int numWeights = weightDiam * weightDiam;
 
-			cl_int3 weightsSize = { vld._size.x, vld._size.y, numWeights };
+				cl_int3 weightsSize = { vld._size.x, vld._size.y, numWeights };
 
-			vl._predDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
+				vl._predDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
 
-			randomUniform(vl._predDecoderWeights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
+				randomUniform(vl._predDecoderWeights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
+			}
+
+			{
+				int weightDiam = vld._feedBackDecodeRadius * 2 + 1;
+
+				int numWeights = weightDiam * weightDiam;
+
+				cl_int3 weightsSize = { vld._size.x, vld._size.y, numWeights };
+
+				vl._feedBackDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
+
+				randomUniform(vl._feedBackDecoderWeights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
+			}
+
+			vl._predictions = createDoubleBuffer2D(cs, vld._size, CL_R, CL_FLOAT);
+
+			cs.getQueue().enqueueFillImage(vl._predictions[_back], zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), 1 });
+
+			vl._error = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
 		}
-
-		{
-			int weightDiam = vld._feedBackDecodeRadius * 2 + 1;
-
-			int numWeights = weightDiam * weightDiam;
-
-			cl_int3 weightsSize = { vld._size.x, vld._size.y, numWeights };
-
-			vl._feedBackDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
-
-			randomUniform(vl._feedBackDecoderWeights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
-		}
-
-		vl._predictions = createDoubleBuffer2D(cs, vld._size, CL_R, CL_FLOAT);
-	
-		cs.getQueue().enqueueFillImage(vl._predictions[_back], zeroColor, zeroOrigin, { static_cast<cl::size_type>(vld._size.x), static_cast<cl::size_type>(vld._size.y), 1 });
-
-		vl._error = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), vld._size.x, vld._size.y);
 	}
 
 	// Hidden state data
@@ -155,22 +157,24 @@ void SparsePredictor::activateDecoder(sys::ComputeSystem &cs, const std::vector<
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-		int argIndex = 0;
+		if (vld._predict) {
+			int argIndex = 0;
 
-		_decodeKernel.setArg(argIndex++, _hiddenStates[_front]);
-		_decodeKernel.setArg(argIndex++, feedBackStates[vli]);
-		_decodeKernel.setArg(argIndex++, vl._predictions[_front]);
-		_decodeKernel.setArg(argIndex++, vl._predDecoderWeights[_back]);
-		_decodeKernel.setArg(argIndex++, vl._feedBackDecoderWeights[_back]);
-		_decodeKernel.setArg(argIndex++, _hiddenSize);
-		_decodeKernel.setArg(argIndex++, _feedBackSizes[vli]);
-		_decodeKernel.setArg(argIndex++, vl._visibleToHidden);
-		_decodeKernel.setArg(argIndex++, vl._visibleToFeedBack);
-		_decodeKernel.setArg(argIndex++, vld._predDecodeRadius);
-		_decodeKernel.setArg(argIndex++, vld._feedBackDecodeRadius);
-		_decodeKernel.setArg(argIndex++, vld._predictThresholded);
+			_decodeKernel.setArg(argIndex++, _hiddenStates[_front]);
+			_decodeKernel.setArg(argIndex++, feedBackStates[vli]);
+			_decodeKernel.setArg(argIndex++, vl._predictions[_front]);
+			_decodeKernel.setArg(argIndex++, vl._predDecoderWeights[_back]);
+			_decodeKernel.setArg(argIndex++, vl._feedBackDecoderWeights[_back]);
+			_decodeKernel.setArg(argIndex++, _hiddenSize);
+			_decodeKernel.setArg(argIndex++, _feedBackSizes[vli]);
+			_decodeKernel.setArg(argIndex++, vl._visibleToHidden);
+			_decodeKernel.setArg(argIndex++, vl._visibleToFeedBack);
+			_decodeKernel.setArg(argIndex++, vld._predDecodeRadius);
+			_decodeKernel.setArg(argIndex++, vld._feedBackDecodeRadius);
+			_decodeKernel.setArg(argIndex++, vld._predictThresholded);
 
-		cs.getQueue().enqueueNDRangeKernel(_decodeKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
+			cs.getQueue().enqueueNDRangeKernel(_decodeKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
+		}
 	}
 
 	// Swap buffers
@@ -180,7 +184,8 @@ void SparsePredictor::activateDecoder(sys::ComputeSystem &cs, const std::vector<
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-		std::swap(vl._predictions[_front], vl._predictions[_back]);
+		if (vld._predict)
+			std::swap(vl._predictions[_front], vl._predictions[_back]);
 	}
 }
 
@@ -202,38 +207,40 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 		VisibleLayer &vl = _visibleLayers[vli];
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-		{
-			int argIndex = 0;
+		if (vld._predict) {
+			{
+				int argIndex = 0;
 
-			_predictionErrorKernel.setArg(argIndex++, vl._predictions[_front]);
-			_predictionErrorKernel.setArg(argIndex++, visibleStates[vli]);
-			_predictionErrorKernel.setArg(argIndex++, addidionalErrors[vli]);
-			_predictionErrorKernel.setArg(argIndex++, vl._error);
+				_predictionErrorKernel.setArg(argIndex++, vl._predictions[_front]);
+				_predictionErrorKernel.setArg(argIndex++, visibleStates[vli]);
+				_predictionErrorKernel.setArg(argIndex++, addidionalErrors[vli]);
+				_predictionErrorKernel.setArg(argIndex++, vl._error);
 
-			cs.getQueue().enqueueNDRangeKernel(_predictionErrorKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
+				cs.getQueue().enqueueNDRangeKernel(_predictionErrorKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
+			}
+
+			// Propagate the error
+			{
+				cl_int2 reversePredDecodeRadii = { static_cast<int>(std::ceil(vl._visibleToHidden.x * (vld._predDecodeRadius + 0.5f))), static_cast<int>(std::ceil(vl._visibleToHidden.y * (vld._predDecodeRadius + 0.5f))) };
+
+				int argIndex = 0;
+
+				_errorPropagationKernel.setArg(argIndex++, vl._error);
+				_errorPropagationKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_back]);
+				_errorPropagationKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_front]);
+				_errorPropagationKernel.setArg(argIndex++, vl._predDecoderWeights[_back]);
+				_errorPropagationKernel.setArg(argIndex++, vld._size);
+				_errorPropagationKernel.setArg(argIndex++, _hiddenSize);
+				_errorPropagationKernel.setArg(argIndex++, vl._visibleToHidden);
+				_errorPropagationKernel.setArg(argIndex++, vl._hiddenToVisible);
+				_errorPropagationKernel.setArg(argIndex++, vld._predDecodeRadius);
+				_errorPropagationKernel.setArg(argIndex++, reversePredDecodeRadii);
+
+				cs.getQueue().enqueueNDRangeKernel(_errorPropagationKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+			}
+
+			std::swap(_hiddenErrorSummationTemp[_front], _hiddenErrorSummationTemp[_back]);
 		}
-
-		// Propagate the error
-		{
-			cl_int2 reversePredDecodeRadii = { static_cast<int>(std::ceil(vl._visibleToHidden.x * (vld._predDecodeRadius + 0.5f))), static_cast<int>(std::ceil(vl._visibleToHidden.y * (vld._predDecodeRadius + 0.5f))) };
-			
-			int argIndex = 0;
-
-			_errorPropagationKernel.setArg(argIndex++, vl._error);
-			_errorPropagationKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_back]);
-			_errorPropagationKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_front]);
-			_errorPropagationKernel.setArg(argIndex++, vl._predDecoderWeights[_back]);
-			_errorPropagationKernel.setArg(argIndex++, vld._size);
-			_errorPropagationKernel.setArg(argIndex++, _hiddenSize);
-			_errorPropagationKernel.setArg(argIndex++, vl._visibleToHidden);
-			_errorPropagationKernel.setArg(argIndex++, vl._hiddenToVisible);
-			_errorPropagationKernel.setArg(argIndex++, vld._predDecodeRadius);
-			_errorPropagationKernel.setArg(argIndex++, reversePredDecodeRadii);
-
-			cs.getQueue().enqueueNDRangeKernel(_errorPropagationKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
-		}
-
-		std::swap(_hiddenErrorSummationTemp[_front], _hiddenErrorSummationTemp[_back]);
 	}
 	
 	// Learn weights
@@ -242,7 +249,7 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 		VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 		// Decoder
-		{
+		if (vld._predict) {
 			int argIndex = 0;
 
 			_learnDecoderWeightsKernel.setArg(argIndex++, vl._error);
