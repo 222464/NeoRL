@@ -15,41 +15,41 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 	cl_int2 prevLayerSize = inputSize;
 
 	for (int l = 0; l < _layers.size(); l++) {
-		std::vector<SparsePredictor::VisibleLayerDesc> scDescs;
+		std::vector<SparsePredictor::VisibleLayerDesc> spDescs;
 
 		if (l == 0) {
-			scDescs.resize(2);
+			spDescs.resize(2);
 
-			scDescs[0]._size = prevLayerSize;
-			scDescs[0]._encodeRadius = _layerDescs[l]._feedForwardRadius;
-			scDescs[0]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
-			scDescs[0]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
-			scDescs[0]._predictThresholded = false;
-			scDescs[0]._predict = true;
+			spDescs[0]._size = prevLayerSize;
+			spDescs[0]._encodeRadius = _layerDescs[l]._feedForwardRadius;
+			spDescs[0]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
+			spDescs[0]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
+			spDescs[0]._predictThresholded = false;
+			spDescs[0]._predict = true;
 
-			scDescs[1]._size = _layerDescs[l]._size;
-			scDescs[1]._encodeRadius = _layerDescs[l]._recurrentRadius;
-			scDescs[1]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
-			scDescs[1]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
-			scDescs[1]._predictThresholded = true;
-			scDescs[1]._predict = false;
+			spDescs[1]._size = _layerDescs[l]._size;
+			spDescs[1]._encodeRadius = _layerDescs[l]._recurrentRadius;
+			spDescs[1]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
+			spDescs[1]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
+			spDescs[1]._predictThresholded = true;
+			spDescs[1]._predict = false;
 		}
 		else {
-			scDescs.resize(2);
+			spDescs.resize(2);
 
-			scDescs[0]._size = prevLayerSize;
-			scDescs[0]._encodeRadius = _layerDescs[l]._feedForwardRadius;
-			scDescs[0]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
-			scDescs[0]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
-			scDescs[0]._predictThresholded = true;
-			scDescs[0]._predict = true;
+			spDescs[0]._size = prevLayerSize;
+			spDescs[0]._encodeRadius = _layerDescs[l]._feedForwardRadius;
+			spDescs[0]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
+			spDescs[0]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
+			spDescs[0]._predictThresholded = true;
+			spDescs[0]._predict = true;
 
-			scDescs[1]._size = _layerDescs[l]._size;
-			scDescs[1]._encodeRadius = _layerDescs[l]._recurrentRadius;
-			scDescs[1]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
-			scDescs[1]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
-			scDescs[1]._predictThresholded = true;
-			scDescs[1]._predict = false;
+			spDescs[1]._size = _layerDescs[l]._size;
+			spDescs[1]._encodeRadius = _layerDescs[l]._recurrentRadius;
+			spDescs[1]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
+			spDescs[1]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
+			spDescs[1]._predictThresholded = true;
+			spDescs[1]._predict = false;
 		}
 
 		std::vector<cl_int2> feedBackSizes(2);
@@ -59,7 +59,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		else
 			feedBackSizes[0] = feedBackSizes[1] = { 1, 1 };
 
-		_layers[l]._sp.createRandom(cs, program, scDescs, _layerDescs[l]._size, feedBackSizes, _layerDescs[l]._lateralRadius, initWeightRange, rng);
+		_layers[l]._sp.createRandom(cs, program, spDescs, _layerDescs[l]._size, feedBackSizes, _layerDescs[l]._lateralRadius, initWeightRange, rng);
 
 		_layers[l]._additionalErrors = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), prevLayerSize.x, prevLayerSize.y);
 

@@ -32,7 +32,7 @@ int main() {
 
 	sys::ComputeSystem cs;
 
-	cs.create(sys::ComputeSystem::_gpu);
+	cs.create(sys::ComputeSystem::_cpu);
 
 	sys::ComputeProgram prog;
 
@@ -64,9 +64,9 @@ int main() {
 
 	std::vector<neo::PredictiveHierarchy::LayerDesc> layerDescs(3);
 
-	layerDescs[0]._size = { 32, 32 };
-	layerDescs[1]._size = { 32, 32 };
-	layerDescs[2]._size = { 32, 32 };
+	layerDescs[0]._size = { 16, 16 };
+	layerDescs[1]._size = { 16, 16 };
+	layerDescs[2]._size = { 16, 16 };
 
 	neo::PredictiveHierarchy ph;
 

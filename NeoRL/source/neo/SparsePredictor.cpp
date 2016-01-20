@@ -253,7 +253,7 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			int argIndex = 0;
 
 			_learnDecoderWeightsKernel.setArg(argIndex++, vl._error);
-			_learnDecoderWeightsKernel.setArg(argIndex++, _hiddenStates[_front]);
+			_learnDecoderWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
 			_learnDecoderWeightsKernel.setArg(argIndex++, feedBackStates[vli]);
 			_learnDecoderWeightsKernel.setArg(argIndex++, vl._predDecoderWeights[_back]);
 			_learnDecoderWeightsKernel.setArg(argIndex++, vl._predDecoderWeights[_front]);
