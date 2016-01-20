@@ -46,7 +46,7 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 
 			cl_int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
 
-			vl._encoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
+			vl._encoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RGBA, CL_FLOAT);
 
 			randomUniform(vl._encoderWeights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
 		}
@@ -59,7 +59,7 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 
 				cl_int3 weightsSize = { vld._size.x, vld._size.y, numWeights };
 
-				vl._predDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
+				vl._predDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RGBA, CL_FLOAT);
 
 				randomUniform(vl._predDecoderWeights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
 			}
@@ -71,7 +71,7 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 
 				cl_int3 weightsSize = { vld._size.x, vld._size.y, numWeights };
 
-				vl._feedBackDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
+				vl._feedBackDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RGBA, CL_FLOAT);
 
 				randomUniform(vl._feedBackDecoderWeights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
 			}
@@ -190,7 +190,7 @@ void SparsePredictor::activateDecoder(sys::ComputeSystem &cs, const std::vector<
 }
 
 void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
-	const std::vector<cl::Image2D> &feedBackStates, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda, float biasAlpha, float activeRatio)
+	const std::vector<cl::Image2D> &feedBackStates, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon)
 {
 	// Start by clearing error summation buffer
 	{
@@ -266,6 +266,8 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			_learnDecoderWeightsKernel.setArg(argIndex++, vld._predDecodeRadius);
 			_learnDecoderWeightsKernel.setArg(argIndex++, vld._feedBackDecodeRadius);
 			_learnDecoderWeightsKernel.setArg(argIndex++, weightAlpha);
+			_learnDecoderWeightsKernel.setArg(argIndex++, rmsDecay);
+			_learnDecoderWeightsKernel.setArg(argIndex++, rmsEpsilon);
 
 			cs.getQueue().enqueueNDRangeKernel(_learnDecoderWeightsKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 
@@ -288,6 +290,8 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			_learnEncoderWeightsKernel.setArg(argIndex++, vld._encodeRadius);
 			_learnEncoderWeightsKernel.setArg(argIndex++, weightAlpha);
 			_learnEncoderWeightsKernel.setArg(argIndex++, weightLambda);
+			_learnEncoderWeightsKernel.setArg(argIndex++, rmsDecay);
+			_learnEncoderWeightsKernel.setArg(argIndex++, rmsEpsilon);
 
 			cs.getQueue().enqueueNDRangeKernel(_learnEncoderWeightsKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 

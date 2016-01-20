@@ -115,7 +115,7 @@ int main() {
 
 	sys::ComputeProgram prog;
 
-	prog.loadFromFile("resources/neoKernels.cl", cs);
+	prog.loadFromFile("resources/neoKernels2.cl", cs);
 
 	std::vector<Level> levels;
 

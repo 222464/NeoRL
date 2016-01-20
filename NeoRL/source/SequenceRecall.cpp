@@ -16,7 +16,7 @@ int main() {
 
 	sys::ComputeProgram prog;
 
-	prog.loadFromFile("resources/neoKernels.cl", cs);
+	prog.loadFromFile("resources/neoKernels2.cl", cs);
 
 	// --------------------------- Create the Sparse Coder ---------------------------
 
@@ -30,7 +30,7 @@ int main() {
 
 	neo::PredictiveHierarchy ph;
 
-	ph.createRandom(cs, prog, { 4, 4 }, 12, layerDescs, { -0.01f, 0.01f }, generator);
+	ph.createRandom(cs, prog, { 4, 4 }, layerDescs, { -0.1f, 0.1f }, generator);
 
 	std::uniform_int_distribution<int> item_dist(0, 9);
 
@@ -78,7 +78,7 @@ int main() {
 		std::vector<float> pred(16, 0.0f);
 
 		for (int recall_iter = 0; recall_iter < 10; recall_iter++) {
-			cs.getQueue().enqueueReadImage(ph.getFirstLayerPred().getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, pred.data());
+			cs.getQueue().enqueueReadImage(ph.getPrediction(), CL_TRUE, { 0, 0, 0 }, { 4, 4, 1 }, 0, 0, pred.data());
 
 			for (int i = 0; i < 16; i++) {
 				if (i == items[recall_iter])

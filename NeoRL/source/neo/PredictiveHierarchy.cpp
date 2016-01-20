@@ -124,7 +124,8 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			else
 				feedBackStates[0] = feedBackStates[1] = _zeroLayer;
 
-			_layers[l]._sp.learn(cs, visibleStates, feedBackStates, { _layers[l]._additionalErrors, _layers[l]._additionalErrors }, _layerDescs[l]._spWeightAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio);
+			_layers[l]._sp.learn(cs, visibleStates, feedBackStates, { _layers[l]._additionalErrors, _layers[l]._additionalErrors },
+				_layerDescs[l]._spWeightAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon);
 
 			prevLayerState = _layers[l]._sp.getHiddenStates()[_back];
 		}
