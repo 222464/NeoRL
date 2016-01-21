@@ -84,9 +84,16 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			feedBackSizes[0] = feedBackSizes[1] = feedBackSizes[2] = feedBackSizes[3] = _layerDescs[l]._size;
 		}
 		else {
-			feedBackSizes.resize(2);
+			if (l == 0) {
+				feedBackSizes.resize(4);
 
-			feedBackSizes[0] = feedBackSizes[1] = { 1, 1 };
+				feedBackSizes[0] = feedBackSizes[1] = feedBackSizes[2] = feedBackSizes[3] = { 1, 1 };
+			}
+			else {
+				feedBackSizes.resize(2);
+
+				feedBackSizes[0] = feedBackSizes[1] = { 1, 1 };
+			}
 		}
 
 		_layers[l]._sp.createRandom(cs, program, spDescs, _layerDescs[l]._size, feedBackSizes, _layerDescs[l]._lateralRadius, initWeightRange, rng);
