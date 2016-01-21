@@ -282,7 +282,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 			_layers[l]._sp.learn(cs, visibleStates, feedBackStatesPrev,
 				l == 0 ? std::vector<cl::Image2D>{ _layers[l]._additionalErrors, _layers[l]._additionalErrors, _layers[l]._additionalErrors, _layers[l]._additionalErrors } : std::vector<cl::Image2D>{ _layers[l]._additionalErrors, _layers[l]._additionalErrors },
-				_layerDescs[l]._spWeightAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon);
+				_layerDescs[l]._spWeightEncodeAlpha, _layerDescs[l]._spWeightDecodeAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon);
 
 			prevLayerState = _layers[l]._sp.getHiddenStates()[_back];
 		}

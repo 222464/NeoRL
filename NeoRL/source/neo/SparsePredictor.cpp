@@ -192,7 +192,7 @@ void SparsePredictor::activateDecoder(sys::ComputeSystem &cs, const std::vector<
 }
 
 void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
-	const std::vector<cl::Image2D> &feedBackStatesPrev, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon)
+	const std::vector<cl::Image2D> &feedBackStatesPrev, const std::vector<cl::Image2D> &addidionalErrors, float weightEncodeAlpha, float weightDecodeAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon)
 {
 	// Start by clearing error summation buffer
 	{
@@ -267,7 +267,7 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			_learnDecoderWeightsKernel.setArg(argIndex++, vl._visibleToFeedBack);
 			_learnDecoderWeightsKernel.setArg(argIndex++, vld._predDecodeRadius);
 			_learnDecoderWeightsKernel.setArg(argIndex++, vld._feedBackDecodeRadius);
-			_learnDecoderWeightsKernel.setArg(argIndex++, weightAlpha);
+			_learnDecoderWeightsKernel.setArg(argIndex++, weightDecodeAlpha);
 			_learnDecoderWeightsKernel.setArg(argIndex++, rmsDecay);
 			_learnDecoderWeightsKernel.setArg(argIndex++, rmsEpsilon);
 
@@ -290,7 +290,7 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			_learnEncoderWeightsKernel.setArg(argIndex++, vld._size);
 			_learnEncoderWeightsKernel.setArg(argIndex++, vl._hiddenToVisible);
 			_learnEncoderWeightsKernel.setArg(argIndex++, vld._encodeRadius);
-			_learnEncoderWeightsKernel.setArg(argIndex++, weightAlpha);
+			_learnEncoderWeightsKernel.setArg(argIndex++, weightEncodeAlpha);
 			_learnEncoderWeightsKernel.setArg(argIndex++, weightLambda);
 			_learnEncoderWeightsKernel.setArg(argIndex++, rmsDecay);
 			_learnEncoderWeightsKernel.setArg(argIndex++, rmsEpsilon);

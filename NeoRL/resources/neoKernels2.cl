@@ -209,7 +209,7 @@ void kernel spDecode(read_only image2d_t hiddenStates, read_only image2d_t feedB
 			}
 		}
 
-	write_imagef(predictions, visiblePosition, (float4)(predictThresholded ? (sum > 0.5f ? 1.0f : 0.0f) : sum));
+	write_imagef(predictions, visiblePosition, (float4)(predictThresholded ? fmax(0.0f, tanh(sum)) : sum));
 }
 
 void kernel spSolveHidden(read_only image2d_t hiddenSummationTemp,
@@ -240,7 +240,7 @@ void kernel spSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? fmax(0.0f, tanh(activation)) : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -385,10 +385,10 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 
 				float state = read_imagef(visibleStates, visiblePosition).x;
 
-				float grad = error * weightPrev.y;
+				float grad = fmax(0.0f, error) * weightPrev.y;
 				float meanSquare = (1.0f - rmsDecay) * weightPrev.z + rmsDecay * grad * grad;
 
-				float4 weight = (float4)(weightPrev.x + weightAlpha * grad / sqrt(meanSquare + rmsEpsilon), weightPrev.y * weightLambda * (1.0f - hiddenState) + hiddenState * state, meanSquare, 0.0f);
+				float4 weight = (float4)(weightPrev.x + weightAlpha * grad / sqrt(meanSquare + rmsEpsilon), weightPrev.y * weightLambda + hiddenState * (state - hiddenState * weightPrev.x), meanSquare, 0.0f);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}

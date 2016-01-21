@@ -251,6 +251,8 @@ int main() {
 		if (dist01(generator) < 0.05f)
 			ratio = dist01(generator) * 2.0f - 1.0f;
 
+		action[0] = ratio;
+
 		for (int i = 0; i < actionMults.size(); i++) {
 			action[i + 1] = action[0] * actionMults[i] + actionOffsets[i];
 		}
@@ -262,7 +264,7 @@ int main() {
 		car._speed *= 0.95f;
 
 		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel));// * (action[0] * 0.5f + 0.5f)
-		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, action[0] * 1.2f)) * spinRate, 3.141596f * 2.0f);
+		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, ratio * 1.2f)) * spinRate, 3.141596f * 2.0f);
 
 		sf::Color curColor = collisionImg.getPixel(car._position.x, car._position.y);
 
