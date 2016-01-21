@@ -71,10 +71,12 @@ namespace neo {
 			*/
 			DoubleBuffer2D _predictions;
 
+			//!@{
 			/*!
-			\brief Temporary error buffer
+			\brief Temporary error buffers
 			*/
-			cl::Image2D _error;
+			cl::Image2D _predError;
+			//!@}
 
 			//!@{
 			/*!
@@ -98,11 +100,10 @@ namespace neo {
 	private:
 		//!@{
 		/*!
-		\brief Hidden states, biases and average errors
+		\brief Hidden states, biases
 		*/
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenBiases;
-		DoubleBuffer2D _hiddenAverageErrors;
 		//!@}
 
 		/*!
@@ -150,7 +151,6 @@ namespace neo {
 		cl::Kernel _learnEncoderWeightsKernel;
 		cl::Kernel _learnDecoderWeightsKernel;
 		cl::Kernel _learnBiasesKernel;
-		cl::Kernel _averageErrorsKernel;
 		//!@}
 
 	public:
@@ -172,10 +172,9 @@ namespace neo {
 		/*!
 		\brief Learning functions
 		*/
-		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev,
+		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
 			const std::vector<cl::Image2D> &feedBackStatesPrev, const std::vector<cl::Image2D> &addidionalErrors,
-			float weightEncodeAlpha, float weightDecodeAlpha, float weightLambda, float biasAlpha, float activeRatio,
-			float importanceDecay, float importanceStrength, float hiddenAverageErrorDecay);
+			float weightEncodeAlpha, float weightDecodeAlpha, float weightLambda, float biasAlpha, float activeRatio);
 		//!@}
 
 		/*!

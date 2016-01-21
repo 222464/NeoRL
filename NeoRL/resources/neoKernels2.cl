@@ -212,7 +212,7 @@ void kernel spDecode(read_only image2d_t hiddenStates, read_only image2d_t feedB
 			}
 		}
 
-	write_imagef(predictions, visiblePosition, (float4)(predictThresholded ? (sum > 0.5f ? 1.0f : 0.0f) : sum));
+	write_imagef(predictions, visiblePosition, (float4)(predictThresholded ? fmax(0.0f, tanh(sum)) : sum));
 }
 
 void kernel spSolveHidden(read_only image2d_t hiddenSummationTemp,
@@ -243,7 +243,7 @@ void kernel spSolveHidden(read_only image2d_t hiddenSummationTemp,
 			}
 		}
 
-	float state = inhibition < (counter * activeRatio) ? 1.0f : 0.0f;
+	float state = inhibition < (counter * activeRatio) ? fmax(0.0f, tanh(activation)) : 0.0f;
 
 	write_imagef(hiddenStatesFront, hiddenPosition, (float4)(state));
 }
@@ -261,6 +261,46 @@ void kernel spPredictionError(read_only image2d_t predictionsPrev, read_only ima
 	float additionalError = read_imagef(additionalErrors, visiblePosition).x;
 
 	write_imagef(errors, visiblePosition, (float4)(predError + additionalError));
+}
+
+void kernel spReverseEncode(read_only image2d_t hiddenStates, read_only image2d_t visibleStates,
+	write_only image2d_t reconError, read_only image3d_t weights,
+	int2 visibleSize, int2 hiddenSize, float2 visibleToHidden, float2 hiddenToVisible, int radius, int2 reverseRadii)
+{
+	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
+	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
+	
+	float recon = 0.0f;
+
+	for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++)
+		for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
+			int2 hiddenPosition = hiddenPositionCenter + (int2)(dx, dy);
+		
+			if (inBounds0(hiddenPosition, hiddenSize)) {
+				// Next layer node's receptive field
+				int2 fieldCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
+
+				int2 fieldLowerBound = fieldCenter - (int2)(radius);
+				int2 fieldUpperBound = fieldCenter + (int2)(radius + 1); // So is included in inBounds
+		
+				// Check for containment
+				if (inBounds(visiblePosition, fieldLowerBound, fieldUpperBound)) {	
+					int2 offset = visiblePosition - fieldLowerBound;
+
+					float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
+
+					int wi = offset.y + offset.x * (radius * 2 + 1);
+
+					float weight = read_imagef(weights, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+				
+					recon += hiddenState * weight;
+				}
+			}
+		}
+
+	float visibleState = read_imagef(visibleStates, visiblePosition).x;
+
+	write_imagef(reconError, visiblePosition, (float4)(visibleState - recon));
 }
 
 void kernel spErrorPropagation(read_only image2d_t errors,
@@ -359,9 +399,9 @@ void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_
 		}
 }
 
-void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_t averageErrors, read_only image2d_t hiddenStates, read_only image2d_t hiddenStatesPrev, read_only image2d_t hiddenActivations,
-	read_only image2d_t visibleStatesPrev, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
-	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda, float importanceDecay, float importanceStrength)
+void kernel spLearnEncoderWeights(read_only image2d_t hiddenErrors, read_only image2d_t hiddenStates, read_only image2d_t hiddenStatesPrev,
+	read_only image2d_t visibleStates, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
+	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
@@ -370,14 +410,8 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 	float hiddenStatePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
-	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
 
-	float error = read_imagef(errors, hiddenPosition).x * hiddenStatePrev;
-	float averageError = read_imagef(averageErrors, hiddenPosition).x;
-
-	float error2 = error * error;
-
-	float learn = error2 > averageError ? 1.0f : 0.0f;
+	float hiddenError = read_imagef(hiddenErrors, hiddenPosition).x * (hiddenStatePrev == 0.0f ? 0.0f : (1.0f - hiddenStatePrev * hiddenStatePrev));
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -388,17 +422,15 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 
 				int wi = offset.y + offset.x * (radius * 2 + 1);
 
-				float4 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0));
+				float2 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).xy;
 
-				float statePrev = read_imagef(visibleStatesPrev, visiblePosition).x;
-
-				float importance = weightPrev.z * (1.0f - importanceDecay) + error2 * (statePrev - error2 * weightPrev.x);
-				float newTrace = weightPrev.y * weightLambda + sigmoid(importance) * hiddenStatePrev * (statePrev - weightPrev.x);
-				float grad = learn * newTrace;
+				float state = read_imagef(visibleStates, visiblePosition).x;
+		
+				float grad = hiddenError * weightPrev.y;
 				
-				float4 weight = (float4)(weightPrev.x + weightAlpha * grad, newTrace, importance, 0.0f);
+				float2 weight = (float2)(weightPrev.x + weightAlpha * grad, weightPrev.y * weightLambda + hiddenState * state);
 
-				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
+				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
 		}
 }
@@ -410,7 +442,7 @@ void kernel spLearnBiases(read_only image2d_t hiddenStates, read_only image2d_t 
 
 	float hiddenBiasPrev = read_imagef(hiddenBiasesBack, hiddenPosition).x;
 
-	write_imagef(hiddenBiasesFront, hiddenPosition, (float4)(hiddenBiasPrev + biasAlpha * (activeRatio - hiddenState)));
+	write_imagef(hiddenBiasesFront, hiddenPosition, (float4)(hiddenBiasPrev + biasAlpha * (activeRatio - (hiddenState == 0.0f ? 0.0f : 1.0f))));
 }
 
 void kernel spAverageErrors(read_only image2d_t hiddenStatesPrev, read_only image2d_t hiddenErrorSummationTemp,
