@@ -176,7 +176,7 @@ namespace neo {
 		\brief Get the prediction
 		*/
 		const cl::Image2D &getAction() const {
-			return _layers.front()._sp.getVisibleLayer(0)._predictions[_back];
+			return _layers.front()._sp.getVisibleLayer(2)._predictions[_back];
 		}
 
 		/*!
