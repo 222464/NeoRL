@@ -87,7 +87,7 @@ int main() {
 
 	sys::ComputeProgram prog;
 
-	prog.loadFromFile("resources/neoKernels.cl", cs);
+	prog.loadFromFile("resources/neoKernels2.cl", cs);
 
 	std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
 
@@ -115,7 +115,7 @@ int main() {
 
 	neo::AgentPredQ agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, { 6, 6 }, { 6, 6 }, { 6, 6 }, layerDescs, { -0.5f, 0.5f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, layerDescs, { -0.1f, 0.1f }, generator);
 
 	agent._whiteningKernelRadius = 4;
 	agent._whiteningIntensity = 5000.0f;
@@ -245,15 +245,11 @@ int main() {
 			action[1] = -1.0f;*/
 
 		// Organize action
-		float ratio = std::min(1.0f, std::max(0.0f, action[0]));
+		float ratio = std::min(1.0f, std::max(-1.0f, action[0]));
 
 		// Exploration
 		if (dist01(generator) < 0.05f)
-			ratio = dist01(generator);
-
-		float steer = ratio * 2.0f - 1.0f;
-
-		action[0] = ratio;
+			ratio = dist01(generator) * 2.0f - 1.0f;
 
 		for (int i = 0; i < actionMults.size(); i++) {
 			action[i + 1] = action[0] * actionMults[i] + actionOffsets[i];
@@ -266,7 +262,7 @@ int main() {
 		car._speed *= 0.95f;
 
 		car._speed = std::min(maxSpeed, std::max(-maxSpeed, car._speed + accel));// * (action[0] * 0.5f + 0.5f)
-		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, steer * 1.2f)) * spinRate, 3.141596f * 2.0f);
+		car._rotation = std::fmod(car._rotation + std::min(1.0f, std::max(-1.0f, action[0] * 1.2f)) * spinRate, 3.141596f * 2.0f);
 
 		sf::Color curColor = collisionImg.getPixel(car._position.x, car._position.y);
 
@@ -428,7 +424,7 @@ int main() {
 				for (int l = 0; l < layerDescs.size(); l++) {
 					std::vector<float> data(layerDescs[l]._size.x * layerDescs[l]._size.y);
 
-					cs.getQueue().enqueueReadImage(agent.getLayer(l)._sc.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
+					cs.getQueue().enqueueReadImage(agent.getLayer(l)._sp.getHiddenStates()[neo::_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(layerDescs[l]._size.x), static_cast<cl::size_type>(layerDescs[l]._size.y), 1 }, 0, 0, data.data());
 
 					sf::Image img;
 
@@ -565,7 +561,7 @@ int main() {
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 		cs.getQueue().enqueueWriteImage(actionImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
-		agent.simStep(cs, inputImage, actionImage, reset ? -1.0f : 0.03f * reward, generator);
+		agent.simStep(cs, reset ? -1.0f : 0.03f * reward, inputImage, actionImage, true, true);
 
 		std::vector<float> actionTemp(action.size() * 2);
 

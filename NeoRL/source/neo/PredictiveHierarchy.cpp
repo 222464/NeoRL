@@ -55,7 +55,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 		std::vector<cl_int2> feedBackSizes(2);
 
 		if (l < _layers.size() - 1)
-			feedBackSizes[0] = feedBackSizes[1] = _layerDescs[l + 1]._size;
+			feedBackSizes[0] = feedBackSizes[1] = _layerDescs[l]._size;
 		else
 			feedBackSizes[0] = feedBackSizes[1] = { 1, 1 };
 
@@ -117,14 +117,14 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 			visibleStates[0] = prevLayerState;
 			visibleStates[1] = _layers[l]._sp.getHiddenStates()[_front];
 
-			std::vector<cl::Image2D> feedBackStates(2);
+			std::vector<cl::Image2D> feedBackStatesPrev(2);
 
 			if (l < _layers.size() - 1)
-				feedBackStates[0] = feedBackStates[1] = _layers[l + 1]._sp.getVisibleLayer(0)._predictions[_back];
+				feedBackStatesPrev[0] = feedBackStatesPrev[1] = _layers[l + 1]._sp.getVisibleLayer(0)._predictions[_front];
 			else
-				feedBackStates[0] = feedBackStates[1] = _zeroLayer;
+				feedBackStatesPrev[0] = feedBackStatesPrev[1] = _zeroLayer;
 
-			_layers[l]._sp.learn(cs, visibleStates, feedBackStates, { _layers[l]._additionalErrors, _layers[l]._additionalErrors },
+			_layers[l]._sp.learn(cs, visibleStates, feedBackStatesPrev, { _layers[l]._additionalErrors, _layers[l]._additionalErrors },
 				_layerDescs[l]._spWeightAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon);
 
 			prevLayerState = _layers[l]._sp.getHiddenStates()[_back];

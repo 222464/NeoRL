@@ -81,7 +81,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 		if (l < _layers.size() - 1) {
 			feedBackSizes.resize(4);
 
-			feedBackSizes[0] = feedBackSizes[1] = feedBackSizes[2] = feedBackSizes[3] = _layerDescs[l + 1]._size;
+			feedBackSizes[0] = feedBackSizes[1] = feedBackSizes[2] = feedBackSizes[3] = _layerDescs[l]._size;
 		}
 		else {
 			feedBackSizes.resize(2);
@@ -246,34 +246,34 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 				visibleStates[1] = _layers[l]._sp.getHiddenStates()[_front];
 			}
 
-			std::vector<cl::Image2D> feedBackStates;
+			std::vector<cl::Image2D> feedBackStatesPrev;
 
 			if (l < _layers.size() - 1) {
 				if (l == 0) {
-					feedBackStates.resize(4);
+					feedBackStatesPrev.resize(4);
 
-					feedBackStates[0] = feedBackStates[1] = feedBackStates[2] = feedBackStates[3] = _layers[l + 1]._sp.getVisibleLayer(0)._predictions[_back];
+					feedBackStatesPrev[0] = feedBackStatesPrev[1] = feedBackStatesPrev[2] = feedBackStatesPrev[3] = _layers[l + 1]._sp.getVisibleLayer(0)._predictions[_front];
 				}
 				else {
-					feedBackStates.resize(2);
+					feedBackStatesPrev.resize(2);
 
-					feedBackStates[0] = feedBackStates[1] = _layers[l + 1]._sp.getVisibleLayer(0)._predictions[_back];
+					feedBackStatesPrev[0] = feedBackStatesPrev[1] = _layers[l + 1]._sp.getVisibleLayer(0)._predictions[_front];
 				}
 			}
 			else {
 				if (l == 0) {
-					feedBackStates.resize(4);
+					feedBackStatesPrev.resize(4);
 
-					feedBackStates[0] = feedBackStates[1] = feedBackStates[2] = feedBackStates[3] = _zeroLayer;
+					feedBackStatesPrev[0] = feedBackStatesPrev[1] = feedBackStatesPrev[2] = feedBackStatesPrev[3] = _zeroLayer;
 				}
 				else {
-					feedBackStates.resize(2);
+					feedBackStatesPrev.resize(2);
 
-					feedBackStates[0] = feedBackStates[1] = _zeroLayer;
+					feedBackStatesPrev[0] = feedBackStatesPrev[1] = _zeroLayer;
 				}
 			}
 
-			_layers[l]._sp.learn(cs, visibleStates, feedBackStates,
+			_layers[l]._sp.learn(cs, visibleStates, feedBackStatesPrev,
 				l == 0 ? std::vector<cl::Image2D>{ _layers[l]._additionalErrors, _layers[l]._additionalErrors, _layers[l]._additionalErrors, _layers[l]._additionalErrors } : std::vector<cl::Image2D>{ _layers[l]._additionalErrors, _layers[l]._additionalErrors },
 				_layerDescs[l]._spWeightAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon);
 

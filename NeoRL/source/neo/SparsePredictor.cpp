@@ -59,7 +59,7 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 
 				cl_int3 weightsSize = { vld._size.x, vld._size.y, numWeights };
 
-				vl._predDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RGBA, CL_FLOAT);
+				vl._predDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
 
 				randomUniform(vl._predDecoderWeights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
 			}
@@ -71,7 +71,7 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 
 				cl_int3 weightsSize = { vld._size.x, vld._size.y, numWeights };
 
-				vl._feedBackDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RGBA, CL_FLOAT);
+				vl._feedBackDecoderWeights = createDoubleBuffer3D(cs, weightsSize, CL_RG, CL_FLOAT);
 
 				randomUniform(vl._feedBackDecoderWeights[_back], cs, randomUniform3DKernel, weightsSize, initWeightRange, rng);
 			}
@@ -192,7 +192,7 @@ void SparsePredictor::activateDecoder(sys::ComputeSystem &cs, const std::vector<
 }
 
 void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
-	const std::vector<cl::Image2D> &feedBackStates, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon)
+	const std::vector<cl::Image2D> &feedBackStatesPrev, const std::vector<cl::Image2D> &addidionalErrors, float weightAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon)
 {
 	// Start by clearing error summation buffer
 	{
@@ -255,8 +255,8 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			int argIndex = 0;
 
 			_learnDecoderWeightsKernel.setArg(argIndex++, vl._error);
-			_learnDecoderWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
-			_learnDecoderWeightsKernel.setArg(argIndex++, feedBackStates[vli]);
+			_learnDecoderWeightsKernel.setArg(argIndex++, _hiddenStates[_front]);
+			_learnDecoderWeightsKernel.setArg(argIndex++, feedBackStatesPrev[vli]);
 			_learnDecoderWeightsKernel.setArg(argIndex++, vl._predDecoderWeights[_back]);
 			_learnDecoderWeightsKernel.setArg(argIndex++, vl._predDecoderWeights[_front]);
 			_learnDecoderWeightsKernel.setArg(argIndex++, vl._feedBackDecoderWeights[_back]);
