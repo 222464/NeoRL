@@ -305,7 +305,7 @@ void kernel spErrorPropagation(read_only image2d_t errors,
 void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_t hiddenStatesPrev, read_only image2d_t feedBackStatesPrev,
 	read_only image3d_t predWeightsBack, write_only image3d_t predWeightsFront,
 	read_only image3d_t feedBackWeightsBack, write_only image3d_t feedBackWeightsFront,
-	int2 hiddenSize, int2 feedBackSize, float2 visibleToHidden, float2 visibleToFeedBack, int predRadius, int feedBackRadius, float weightAlpha, float rmsDecay, float rmsEpsilon)
+	int2 hiddenSize, int2 feedBackSize, float2 visibleToHidden, float2 visibleToFeedBack, int predRadius, int feedBackRadius, float weightAlpha)
 {
 	int2 visiblePosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 hiddenPositionCenter = (int2)(visiblePosition.x * visibleToHidden.x + 0.5f, visiblePosition.y * visibleToHidden.y + 0.5f);
@@ -330,9 +330,8 @@ void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_
 				float statePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
 
 				float grad = error * statePrev;
-				float meanSquare = (1.0f - rmsDecay) * weightPrev.y + rmsDecay * grad * grad;
-
-				float2 weight = (float2)(weightPrev.x + weightAlpha * grad, meanSquare);
+	
+				float2 weight = (float2)(weightPrev.x + weightAlpha * grad, 0.0f);
 
 				write_imagef(predWeightsFront, (int4)(visiblePosition.x, visiblePosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
@@ -352,18 +351,17 @@ void kernel spLearnDecoderWeights(read_only image2d_t errors, read_only image2d_
 				float statePrev = read_imagef(feedBackStatesPrev, feedBackPosition).x;
 				
 				float grad = error * statePrev;
-				float meanSquare = (1.0f - rmsDecay) * weightPrev.y + rmsDecay * grad * grad;
-
-				float2 weight = (float2)(weightPrev.x + weightAlpha * grad, meanSquare);
+	
+				float2 weight = (float2)(weightPrev.x + weightAlpha * grad, 0.0f);
 
 				write_imagef(feedBackWeightsFront, (int4)(visiblePosition.x, visiblePosition.y, wi, 0), (float4)(weight, 0.0f, 0.0f));
 			}
 		}
 }
 
-void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_t averageErrors, read_only image2d_t hiddenStates, read_only image2d_t hiddenStatesPrev,
-	read_only image2d_t visibleStates, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
-	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda, float rmsDecay, float rmsEpsilon)
+void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_t averageErrors, read_only image2d_t hiddenStates, read_only image2d_t hiddenStatesPrev, read_only image2d_t hiddenActivations,
+	read_only image2d_t visibleStatesPrev, read_only image3d_t weightsBack, write_only image3d_t weightsFront,
+	int2 visibleSize, float2 hiddenToVisible, int radius, float weightAlpha, float weightLambda, float importanceDecay, float importanceStrength)
 {
 	int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
 	int2 visiblePositionCenter = (int2)(hiddenPosition.x * hiddenToVisible.x + 0.5f, hiddenPosition.y * hiddenToVisible.y + 0.5f);
@@ -372,11 +370,14 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 
 	float hiddenState = read_imagef(hiddenStates, hiddenPosition).x;
 	float hiddenStatePrev = read_imagef(hiddenStatesPrev, hiddenPosition).x;
+	float activation = read_imagef(hiddenActivations, hiddenPosition).x;
 
 	float error = read_imagef(errors, hiddenPosition).x * hiddenStatePrev;
 	float averageError = read_imagef(averageErrors, hiddenPosition).x;
 
-	float learn = error * error > averageError ? 1.0f : 0.0f;
+	float error2 = error * error;
+
+	float learn = error2 > averageError ? 1.0f : 0.0f;
 
 	for (int dx = -radius; dx <= radius; dx++)
 		for (int dy = -radius; dy <= radius; dy++) {
@@ -389,12 +390,13 @@ void kernel spLearnEncoderWeights(read_only image2d_t errors, read_only image2d_
 
 				float4 weightPrev = read_imagef(weightsBack, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0));
 
-				float state = read_imagef(visibleStates, visiblePosition).x;
+				float statePrev = read_imagef(visibleStatesPrev, visiblePosition).x;
 
-				float grad = learn * weightPrev.y;
-				float meanSquare = (1.0f - rmsDecay) * weightPrev.z + rmsDecay * grad * grad;
-
-				float4 weight = (float4)(weightPrev.x + weightAlpha * grad, weightPrev.y * weightLambda * (1.0f - hiddenState) + hiddenState * (state - weightPrev.x), meanSquare, 0.0f);
+				float importance = weightPrev.z * (1.0f - importanceDecay) + error2 * (statePrev - error2 * weightPrev.x);
+				float newTrace = weightPrev.y * weightLambda + sigmoid(importance) * hiddenStatePrev * (statePrev - weightPrev.x);
+				float grad = learn * newTrace;
+				
+				float4 weight = (float4)(weightPrev.x + weightAlpha * grad, newTrace, importance, 0.0f);
 
 				write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), weight);
 			}

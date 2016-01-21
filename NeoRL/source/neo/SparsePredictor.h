@@ -172,9 +172,10 @@ namespace neo {
 		/*!
 		\brief Learning functions
 		*/
-		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
+		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, const std::vector<cl::Image2D> &visibleStatesPrev,
 			const std::vector<cl::Image2D> &feedBackStatesPrev, const std::vector<cl::Image2D> &addidionalErrors,
-			float weightEncodeAlpha, float weightDecodeAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon, float hiddenAverageErrorDecay);
+			float weightEncodeAlpha, float weightDecodeAlpha, float weightLambda, float biasAlpha, float activeRatio,
+			float importanceDecay, float importanceStrength, float hiddenAverageErrorDecay);
 		//!@}
 
 		/*!
