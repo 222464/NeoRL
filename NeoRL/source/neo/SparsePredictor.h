@@ -39,6 +39,11 @@ namespace neo {
 			unsigned char _predictThresholded;
 
 			/*!
+			\brief Whether or not the middle (center) input should be ignored (self in recurrent schemes)
+			*/
+			unsigned char _ignoreMiddle;
+
+			/*!
 			\brief Whether this layer should be predicted
 			*/
 			bool _predict;
@@ -52,7 +57,8 @@ namespace neo {
 			\brief Initialize defaults
 			*/
 			VisibleLayerDesc()
-				: _size({ 8, 8 }), _encodeRadius(4), _predDecodeRadius(4), _feedBackDecodeRadius(4), _predictThresholded(true), _predict(true), _useForInput(true)
+				: _size({ 8, 8 }), _encodeRadius(4), _predDecodeRadius(4), _feedBackDecodeRadius(4),
+				_predictThresholded(true), _ignoreMiddle(false), _predict(true), _useForInput(true)
 			{}
 		};
 
@@ -92,10 +98,11 @@ namespace neo {
 	private:
 		//!@{
 		/*!
-		\brief Hidden states and biases
+		\brief Hidden states, biases and average errors
 		*/
 		DoubleBuffer2D _hiddenStates;
 		DoubleBuffer2D _hiddenBiases;
+		DoubleBuffer2D _hiddenAverageErrors;
 		//!@}
 
 		/*!
@@ -143,6 +150,7 @@ namespace neo {
 		cl::Kernel _learnEncoderWeightsKernel;
 		cl::Kernel _learnDecoderWeightsKernel;
 		cl::Kernel _learnBiasesKernel;
+		cl::Kernel _averageErrorsKernel;
 		//!@}
 
 	public:
@@ -165,7 +173,8 @@ namespace neo {
 		\brief Learning functions
 		*/
 		void learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
-			const std::vector<cl::Image2D> &feedBackStatesPrev, const std::vector<cl::Image2D> &addidionalErrors, float weightEncodeAlpha, float weightDecodeAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon);
+			const std::vector<cl::Image2D> &feedBackStatesPrev, const std::vector<cl::Image2D> &addidionalErrors,
+			float weightEncodeAlpha, float weightDecodeAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon, float hiddenAverageErrorDecay);
 		//!@}
 
 		/*!

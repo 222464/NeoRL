@@ -87,12 +87,14 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 	// Hidden state data
 	_hiddenStates = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 	_hiddenBiases = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
+	_hiddenAverageErrors = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
 	_hiddenActivationSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
 	_hiddenErrorSummationTemp = createDoubleBuffer2D(cs, _hiddenSize, CL_R, CL_FLOAT);
 
 	cs.getQueue().enqueueFillImage(_hiddenStates[_back], zeroColor, zeroOrigin, hiddenRegion);
+	cs.getQueue().enqueueFillImage(_hiddenAverageErrors[_back], zeroColor, zeroOrigin, hiddenRegion);
 
 	randomUniform(_hiddenBiases[_back], cs, randomUniform2DKernel, _hiddenSize, initWeightRange, rng);
 
@@ -105,6 +107,7 @@ void SparsePredictor::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &
 	_learnEncoderWeightsKernel = cl::Kernel(program.getProgram(), "spLearnEncoderWeights");
 	_learnDecoderWeightsKernel = cl::Kernel(program.getProgram(), "spLearnDecoderWeights");
 	_learnBiasesKernel = cl::Kernel(program.getProgram(), "spLearnBiases");
+	_averageErrorsKernel = cl::Kernel(program.getProgram(), "spAverageErrors");
 }
 
 void SparsePredictor::activateEncoder(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates, float activeRatio) {
@@ -130,6 +133,7 @@ void SparsePredictor::activateEncoder(sys::ComputeSystem &cs, const std::vector<
 			_encodeKernel.setArg(argIndex++, vld._size);
 			_encodeKernel.setArg(argIndex++, vl._hiddenToVisible);
 			_encodeKernel.setArg(argIndex++, vld._encodeRadius);
+			_encodeKernel.setArg(argIndex++, vld._ignoreMiddle);
 
 			cs.getQueue().enqueueNDRangeKernel(_encodeKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
@@ -192,7 +196,7 @@ void SparsePredictor::activateDecoder(sys::ComputeSystem &cs, const std::vector<
 }
 
 void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2D> &visibleStates,
-	const std::vector<cl::Image2D> &feedBackStatesPrev, const std::vector<cl::Image2D> &addidionalErrors, float weightEncodeAlpha, float weightDecodeAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon)
+	const std::vector<cl::Image2D> &feedBackStatesPrev, const std::vector<cl::Image2D> &addidionalErrors, float weightEncodeAlpha, float weightDecodeAlpha, float weightLambda, float biasAlpha, float activeRatio, float rmsDecay, float rmsEpsilon, float hiddenAverageErrorDecay)
 {
 	// Start by clearing error summation buffer
 	{
@@ -282,6 +286,7 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 			int argIndex = 0;
 
 			_learnEncoderWeightsKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_back]);
+			_learnEncoderWeightsKernel.setArg(argIndex++, _hiddenAverageErrors[_back]);
 			_learnEncoderWeightsKernel.setArg(argIndex++, _hiddenStates[_back]);
 			_learnEncoderWeightsKernel.setArg(argIndex++, _hiddenStates[_front]);
 			_learnEncoderWeightsKernel.setArg(argIndex++, visibleStates[vli]);
@@ -314,5 +319,20 @@ void SparsePredictor::learn(sys::ComputeSystem &cs, const std::vector<cl::Image2
 		cs.getQueue().enqueueNDRangeKernel(_learnBiasesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
 
 		std::swap(_hiddenBiases[_front], _hiddenBiases[_back]);
+	}
+
+	// Average errors
+	{
+		int argIndex = 0;
+
+		_averageErrorsKernel.setArg(argIndex++, _hiddenStates[_front]);
+		_averageErrorsKernel.setArg(argIndex++, _hiddenErrorSummationTemp[_back]);
+		_averageErrorsKernel.setArg(argIndex++, _hiddenAverageErrors[_back]);
+		_averageErrorsKernel.setArg(argIndex++, _hiddenAverageErrors[_front]);
+		_averageErrorsKernel.setArg(argIndex++, hiddenAverageErrorDecay);
+
+		cs.getQueue().enqueueNDRangeKernel(_averageErrorsKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+		std::swap(_hiddenAverageErrors[_front], _hiddenAverageErrors[_back]);
 	}
 }

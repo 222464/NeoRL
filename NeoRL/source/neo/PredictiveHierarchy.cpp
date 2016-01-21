@@ -26,6 +26,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			spDescs[0]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
 			spDescs[0]._predictThresholded = false;
 			spDescs[0]._predict = true;
+			spDescs[0]._ignoreMiddle = false;
 
 			spDescs[1]._size = _layerDescs[l]._size;
 			spDescs[1]._encodeRadius = _layerDescs[l]._recurrentRadius;
@@ -33,6 +34,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			spDescs[1]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
 			spDescs[1]._predictThresholded = true;
 			spDescs[1]._predict = false;
+			spDescs[1]._ignoreMiddle = true;
 		}
 		else {
 			spDescs.resize(2);
@@ -43,6 +45,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			spDescs[0]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
 			spDescs[0]._predictThresholded = true;
 			spDescs[0]._predict = true;
+			spDescs[0]._ignoreMiddle = false;
 
 			spDescs[1]._size = _layerDescs[l]._size;
 			spDescs[1]._encodeRadius = _layerDescs[l]._recurrentRadius;
@@ -50,6 +53,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			spDescs[1]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
 			spDescs[1]._predictThresholded = true;
 			spDescs[1]._predict = false;
+			spDescs[1]._ignoreMiddle = true;
 		}
 
 		std::vector<cl_int2> feedBackSizes(2);
@@ -125,7 +129,7 @@ void PredictiveHierarchy::simStep(sys::ComputeSystem &cs, const cl::Image2D &inp
 				feedBackStatesPrev[0] = feedBackStatesPrev[1] = _zeroLayer;
 
 			_layers[l]._sp.learn(cs, visibleStates, feedBackStatesPrev, { _layers[l]._additionalErrors, _layers[l]._additionalErrors },
-				_layerDescs[l]._spWeightEncodeAlpha, _layerDescs[l]._spWeightDecodeAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon);
+				_layerDescs[l]._spWeightEncodeAlpha, _layerDescs[l]._spWeightDecodeAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon, _layerDescs[l]._spAverageErrorDecay);
 
 			prevLayerState = _layers[l]._sp.getHiddenStates()[_back];
 		}

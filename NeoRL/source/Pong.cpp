@@ -246,16 +246,14 @@ int main() {
 
 		_ballPosition += _ballVelocity;
 
-		float prevReward = reward;
-
-		reward = _paddlePosition;
+		//reward = _paddlePosition;
 
 		averageReward = (1.0f - averageRewardDecay) * averageReward + averageRewardDecay * reward;
 
 		cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inWidth), static_cast<cl::size_type>(inHeight), 1 }, 0, 0, input.data());
 		cs.getQueue().enqueueWriteImage(actionTaken, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(aWidth), static_cast<cl::size_type>(aHeight), 1 }, 0, 0, action.data());
 
-		agent.simStep(cs, reward - prevReward, inputImage, actionTaken);
+		agent.simStep(cs, reward, inputImage, actionTaken);
 
 		std::vector<float> actionTemp(action.size());
 

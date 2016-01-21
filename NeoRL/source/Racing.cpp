@@ -115,7 +115,7 @@ int main() {
 
 	neo::AgentPredQ agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, layerDescs, { -0.1f, 0.1f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, layerDescs, { -0.01f, 0.01f }, generator);
 
 	agent._whiteningKernelRadius = 4;
 	agent._whiteningIntensity = 5000.0f;

@@ -31,6 +31,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			spDescs[0]._predictThresholded = false;
 			spDescs[0]._predict = true;
 			spDescs[0]._useForInput = true;
+			spDescs[0]._ignoreMiddle = false;
 
 			spDescs[1]._size = _layerDescs[l]._size;
 			spDescs[1]._encodeRadius = _layerDescs[l]._recurrentRadius;
@@ -39,6 +40,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			spDescs[1]._predictThresholded = true;
 			spDescs[1]._predict = false;
 			spDescs[1]._useForInput = true;
+			spDescs[1]._ignoreMiddle = true;
 
 			spDescs[2]._size = _actionSize;
 			spDescs[2]._encodeRadius = _layerDescs[l]._feedForwardRadius;
@@ -47,6 +49,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			spDescs[2]._predictThresholded = false;
 			spDescs[2]._predict = true;
 			spDescs[2]._useForInput = true;
+			spDescs[2]._ignoreMiddle = false;
 
 			spDescs[3]._size = _qSize;
 			spDescs[3]._encodeRadius = _layerDescs[l]._feedForwardRadius;
@@ -55,6 +58,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			spDescs[3]._predictThresholded = false;
 			spDescs[3]._predict = true;
 			spDescs[3]._useForInput = false;
+			spDescs[3]._ignoreMiddle = false;
 		}
 		else {
 			spDescs.resize(2);
@@ -66,6 +70,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			spDescs[0]._predictThresholded = true;
 			spDescs[0]._predict = true;
 			spDescs[0]._useForInput = true;
+			spDescs[0]._ignoreMiddle = false;
 
 			spDescs[1]._size = _layerDescs[l]._size;
 			spDescs[1]._encodeRadius = _layerDescs[l]._recurrentRadius;
@@ -74,6 +79,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			spDescs[1]._predictThresholded = true;
 			spDescs[1]._predict = false;
 			spDescs[1]._useForInput = true;
+			spDescs[1]._ignoreMiddle = true;
 		}
 
 		std::vector<cl_int2> feedBackSizes;
@@ -282,7 +288,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 			_layers[l]._sp.learn(cs, visibleStates, feedBackStatesPrev,
 				l == 0 ? std::vector<cl::Image2D>{ _layers[l]._additionalErrors, _layers[l]._additionalErrors, _layers[l]._additionalErrors, _layers[l]._additionalErrors } : std::vector<cl::Image2D>{ _layers[l]._additionalErrors, _layers[l]._additionalErrors },
-				_layerDescs[l]._spWeightEncodeAlpha, _layerDescs[l]._spWeightDecodeAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon);
+				_layerDescs[l]._spWeightEncodeAlpha, _layerDescs[l]._spWeightDecodeAlpha, _layerDescs[l]._spWeightLambda, _layerDescs[l]._spBiasAlpha, _layerDescs[l]._spActiveRatio, _layerDescs[l]._spRMSDecay, _layerDescs[l]._spRMSEpsilon, _layerDescs[l]._spAverageErrorDecay);
 
 			prevLayerState = _layers[l]._sp.getHiddenStates()[_back];
 		}

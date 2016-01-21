@@ -34,6 +34,7 @@ namespace neo {
 			cl_float _spBiasAlpha;
 			cl_float _spRMSDecay;
 			cl_float _spRMSEpsilon;
+			cl_float _spAverageErrorDecay;
 			//!@}
 
 			/*!
@@ -42,9 +43,9 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_spWeightEncodeAlpha(0.001f), _spWeightDecodeAlpha(0.01f), _spWeightLambda(0.95f),
+				_spWeightEncodeAlpha(0.0001f), _spWeightDecodeAlpha(0.01f), _spWeightLambda(0.95f),
 				_spActiveRatio(0.05f), _spBiasAlpha(0.01f),
-				_spRMSDecay(0.1f), _spRMSEpsilon(0.0001f)
+				_spRMSDecay(0.1f), _spRMSEpsilon(0.0001f), _spAverageErrorDecay(0.01f)
 			{}
 		};
 
