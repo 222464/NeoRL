@@ -132,7 +132,7 @@ int main() {
 
 	neo::AgentPredQ agent;
 
-	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, layerDescs, { -0.4f, 0.4f }, generator);
+	agent.createRandom(cs, prog, { inWidth, inHeight }, { aWidth, aHeight }, { qWidth, qHeight }, layerDescs, { -0.1f, 0.1f }, generator);
 
 	cl::Image2D inputImage = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), inWidth, inHeight);
 	cl::Image2D actionTaken = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), aWidth, aHeight);
@@ -246,7 +246,7 @@ int main() {
 
 		_ballPosition += _ballVelocity;
 
-		//reward = _paddlePosition;
+		reward = _paddlePosition;
 
 		averageReward = (1.0f - averageRewardDecay) * averageReward + averageRewardDecay * reward;
 
@@ -272,7 +272,7 @@ int main() {
 
 		_paddlePosition = std::min(1.0f, std::max(0.0f, _paddlePosition + 0.2f * std::min(1.0f, std::max(-1.0f, act))));
 
-		std::cout << act << std::endl;
+		//std::cout << act << std::endl;
 
 		// Plot target data
 		if (plotTimer > 60) {

@@ -111,7 +111,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 	// Create a random Q transform
 	_qTransforms = cl::Image2D(cs.getContext(), CL_MEM_READ_WRITE, cl::ImageFormat(CL_R, CL_FLOAT), _qSize.x, _qSize.y);
 
-	cl::Kernel randomUniformXYKernel = cl::Kernel(program.getProgram(), "randomUniformXY");
+	cl::Kernel randomUniformXYKernel = cl::Kernel(program.getProgram(), "randomUniform2DXY");
 
 	randomUniformXY(_qTransforms, cs, randomUniformXYKernel, _qSize, { -1.0f, 1.0f }, rng);
 
@@ -217,7 +217,7 @@ void AgentPredQ::simStep(sys::ComputeSystem &cs, float reward, const cl::Image2D
 
 	_prevValue = q;
 
-	//std::cout << "Q: " << q << std::endl;
+	std::cout << "Q: " << q << " " << tdError << std::endl;
 
 	// Encode target Q
 	{

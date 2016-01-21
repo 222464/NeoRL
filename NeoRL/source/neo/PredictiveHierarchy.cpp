@@ -24,7 +24,7 @@ void PredictiveHierarchy::createRandom(sys::ComputeSystem &cs, sys::ComputeProgr
 			spDescs[0]._encodeRadius = _layerDescs[l]._feedForwardRadius;
 			spDescs[0]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
 			spDescs[0]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
-			spDescs[0]._predictThresholded = true;
+			spDescs[0]._predictThresholded = false;
 			spDescs[0]._predict = true;
 
 			spDescs[1]._size = _layerDescs[l]._size;
