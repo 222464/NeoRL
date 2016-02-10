@@ -29,7 +29,7 @@ void AgentPredQ::createRandom(sys::ComputeSystem &cs, sys::ComputeProgram &progr
 			spDescs[0]._predDecodeRadius = _layerDescs[l]._predictiveRadius;
 			spDescs[0]._feedBackDecodeRadius = _layerDescs[l]._feedBackRadius;
 			spDescs[0]._predictThresholded = false;
-			spDescs[0]._predict = true;
+			spDescs[0]._predict = false;
 			spDescs[0]._useForInput = true;
 			spDescs[0]._ignoreMiddle = false;
 

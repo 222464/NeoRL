@@ -118,7 +118,7 @@ int main()
 
 			cs.getQueue().enqueueWriteImage(inputImage, CL_TRUE, { 0, 0, 0 }, { 5, 5, 1 }, 0, 0, inputBuffer.data());
 
-			ph.simStep(cs, inputImage, true);
+			ph.simStep(cs, inputImage, true, true);
 
 			std::vector<float> res(inputBuffer.size());
 

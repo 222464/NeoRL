@@ -40,8 +40,8 @@ namespace neo {
 			LayerDesc()
 				: _size({ 8, 8 }),
 				_feedForwardRadius(5), _recurrentRadius(5), _lateralRadius(5), _feedBackRadius(6), _predictiveRadius(6),
-				_spWeightEncodeAlpha(0.01f), _spWeightDecodeAlpha(0.01f), _spWeightLambda(0.95f),
-				_spActiveRatio(0.02f), _spBiasAlpha(0.01f)
+				_spWeightEncodeAlpha(0.001f), _spWeightDecodeAlpha(0.02f), _spWeightLambda(0.9f),
+				_spActiveRatio(0.08f), _spBiasAlpha(0.1f)
 			{}
 		};
 
@@ -58,11 +58,6 @@ namespace neo {
 			\brief Layer for additional error signals
 			*/
 			cl::Image2D _additionalErrors;
-
-			/*!
-			\brief t - 2 hidden state buffer
-			*/
-			cl::Image2D _hiddenStatesPrevPrev;
 		};
 
 	private:
@@ -88,11 +83,6 @@ namespace neo {
 		\brief Zero layer for capping of the network
 		*/
 		cl::Image2D _zeroLayer;
-
-		/*!
-		\brief t - 1 input
-		*/
-		cl::Image2D _inputPrev;
 
 	public:
 		//!@{
